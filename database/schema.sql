@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS subjects (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     name TEXT NOT NULL,
+    code TEXT,
+    description TEXT,
+    category TEXT DEFAULT 'Major',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 );
@@ -24,9 +27,11 @@ CREATE TABLE IF NOT EXISTS subjects (
 CREATE TABLE IF NOT EXISTS tasks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     subject_id INTEGER NOT NULL,
+    name TEXT,
     description TEXT NOT NULL,
+    deadline TEXT,
     status TEXT DEFAULT 'pending',
-    priority TEXT DEFAULT 'normal',
+    priority TEXT DEFAULT 'Medium',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(subject_id) REFERENCES subjects(id) ON DELETE CASCADE
 );

@@ -114,9 +114,12 @@ class DatabaseManager:
             cur.execute("SELECT * FROM subjects WHERE user_id = ? ORDER BY created_at DESC", (user_id,))
             return [dict(row) for row in cur.fetchall()]
 
-    def add_subject(self, user_id, name):
+    def add_subject(self, user_id, name, code='', description='', category='Major'):
         with self.get_connection() as conn:
-            conn.execute("INSERT INTO subjects (user_id, name) VALUES (?, ?)", (user_id, name))
+            conn.execute(
+                "INSERT INTO subjects (user_id, name, code, description, category) VALUES (?, ?, ?, ?, ?)", 
+                (user_id, name, code, description, category)
+            )
             
     def delete_subject(self, subject_id):
         with self.get_connection() as conn:
@@ -129,10 +132,10 @@ class DatabaseManager:
             cur.execute("SELECT * FROM tasks WHERE subject_id = ? ORDER BY created_at DESC", (subject_id,))
             return [dict(row) for row in cur.fetchall()]
 
-    def add_task(self, subject_id, description, status='pending', priority='normal'):
+    def add_task(self, subject_id, name, description, deadline='', status='pending', priority='Medium'):
         with self.get_connection() as conn:
-            conn.execute("INSERT INTO tasks (subject_id, description, status, priority) VALUES (?, ?, ?, ?)",
-                         (subject_id, description, status, priority))
+            conn.execute("INSERT INTO tasks (subject_id, name, description, deadline, status, priority) VALUES (?, ?, ?, ?, ?, ?)",
+                         (subject_id, name, description, deadline, status, priority))
                          
     def delete_task(self, task_id):
         with self.get_connection() as conn:

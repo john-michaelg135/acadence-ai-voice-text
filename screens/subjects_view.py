@@ -2,6 +2,125 @@ import customtkinter as ctk
 from tkinter import messagebox
 from database.db_manager import DatabaseManager
 
+class AddSubjectPopup(ctk.CTkToplevel):
+    def __init__(self, master, db, user_id, on_success):
+        super().__init__(master, fg_color="#FFFFFF")
+        
+        self.db = db
+        self.user_id = user_id
+        self.on_success = on_success
+        
+        self.title("")
+        self.geometry("700x450")
+        self.attributes("-topmost", True)
+        self.resizable(False, False)
+        
+        # Center window over root
+        self.update_idletasks()
+        x = master.winfo_rootx() + (master.winfo_width() // 2) - (700 // 2)
+        y = master.winfo_rooty() + (master.winfo_height() // 2) - (450 // 2)
+        self.geometry(f"+{x}+{y}")
+        
+        self.setup_ui()
+        self.grab_set() # Make modal
+
+    def setup_ui(self):
+        # Container to simulate rounded white card
+        container = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=15)
+        container.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        # Title
+        ctk.CTkLabel(container, text="Add New Subject", font=("Arial", 20), text_color="#1A1A1A").pack(pady=(15, 20))
+        
+        # Inputs Config
+        input_args = {
+            "fg_color": "#F4F5F7", 
+            "border_width": 1, 
+            "border_color": "#E5E7EB", 
+            "text_color": "#1A1A1A",
+            "corner_radius": 8,
+            "height": 45
+        }
+        
+        # Subject Name
+        self.name_entry = ctk.CTkEntry(container, placeholder_text="Subject Name", **input_args)
+        self.name_entry.pack(fill="x", padx=30, pady=(0, 15))
+        
+        # Subject Code
+        self.code_entry = ctk.CTkEntry(container, placeholder_text="Subject Code", **input_args)
+        self.code_entry.pack(fill="x", padx=30, pady=(0, 15))
+        
+        # Subject Description
+        self.desc_entry = ctk.CTkEntry(container, placeholder_text="Subject Description", **input_args)
+        self.desc_entry.pack(fill="x", padx=30, pady=(0, 20))
+        
+        # Category Section
+        ctk.CTkLabel(container, text="Category", font=("Arial", 14), text_color="#666666").pack(pady=(5, 5))
+        
+        # Custom Toggle for Major/Minor
+        cat_frame = ctk.CTkFrame(container, fg_color="transparent")
+        cat_frame.pack(pady=(0, 20))
+        
+        self.category_var = ctk.StringVar(value="Major")
+        
+        def set_category(val):
+            self.category_var.set(val)
+            update_buttons()
+
+        self.btn_major = ctk.CTkButton(
+            cat_frame, text="Major", width=80, height=30, corner_radius=15,
+            command=lambda: set_category("Major")
+        )
+        self.btn_major.pack(side="left", padx=5)
+        
+        self.btn_minor = ctk.CTkButton(
+            cat_frame, text="Minor", width=80, height=30, corner_radius=15,
+            command=lambda: set_category("Minor")
+        )
+        self.btn_minor.pack(side="left", padx=5)
+        
+        def update_buttons():
+            if self.category_var.get() == "Major":
+                self.btn_major.configure(fg_color="#9F8FF3", text_color="white", hover_color="#897AE0")
+                self.btn_minor.configure(fg_color="transparent", text_color="#1A1A1A", hover_color="#F0F0F0", border_width=0)
+            else:
+                self.btn_minor.configure(fg_color="#9F8FF3", text_color="white", hover_color="#897AE0")
+                self.btn_major.configure(fg_color="transparent", text_color="#1A1A1A", hover_color="#F0F0F0", border_width=0)
+                
+        update_buttons() # init state
+
+        # Action Buttons
+        actions_frame = ctk.CTkFrame(container, fg_color="transparent")
+        actions_frame.pack(fill="x", padx=50, pady=(10, 20), side="bottom")
+
+        # Cancel
+        ctk.CTkButton(
+            actions_frame, text="Cancel", fg_color="transparent", text_color="#1A1A1A",
+            border_width=1, border_color="#E5E7EB", corner_radius=20, width=120, height=40,
+            command=self.destroy
+        ).pack(side="left")
+
+        # Add Subject
+        ctk.CTkButton(
+            actions_frame, text="Add Subject", fg_color="#9F8FF3", text_color="white", 
+            corner_radius=20, width=120, height=40, hover_color="#897AE0",
+            command=self.submit
+        ).pack(side="right")
+
+    def submit(self):
+        name = self.name_entry.get().strip()
+        code = self.code_entry.get().strip()
+        desc = self.desc_entry.get().strip()
+        cat = self.category_var.get()
+
+        if not name:
+            messagebox.showerror("Error", "Subject Name is required.", parent=self)
+            return
+
+        self.db.add_subject(self.user_id, name, code, desc, cat)
+        self.on_success()
+        self.destroy()
+
 class SubjectsView(ctk.CTkFrame):
     def __init__(self, master, user_info, show_view_callback):
         super().__init__(master, fg_color="transparent")
@@ -25,7 +144,7 @@ class SubjectsView(ctk.CTkFrame):
         btn_frame.pack(side="right")
         
         # Text Add Button
-        ctk.CTkButton(btn_frame, text="+ Add", width=60, fg_color="#B5B0D3", text_color="#1A1A1A", command=self.add_subject_text).pack(side="left", padx=(0, 5))
+        ctk.CTkButton(btn_frame, text="+ Add Subject", width=120, fg_color="#B5B0D3", text_color="#1A1A1A", command=self.add_subject_text).pack(side="left", padx=(0, 5))
         
         # Voice Add Button Placeholder
         ctk.CTkButton(btn_frame, text="🎤", width=40, fg_color="#B5B0D3", text_color="#1A1A1A", command=self.add_subject_voice).pack(side="left")
@@ -77,11 +196,8 @@ class SubjectsView(ctk.CTkFrame):
             messagebox.showinfo("Guest", "You need to log in to save subjects.")
             return
             
-        dialog = ctk.CTkInputDialog(text="Enter new subject name:", title="Add Subject")
-        name = dialog.get_input()
-        if name and name.strip():
-            self.db.add_subject(self.user_id, name.strip())
-            self.load_subjects()
+        # Open detailed CustomTkinter TopLevel UI
+        AddSubjectPopup(self.winfo_toplevel(), self.db, self.user_id, self.load_subjects)
 
     def add_subject_voice(self):
         if not self.user_id:
@@ -91,17 +207,18 @@ class SubjectsView(ctk.CTkFrame):
         import threading
         from utils.voice_manager import listen_and_transcribe
         
-        # simple thread to prevent UI freezing
         def listen_thread():
             text = listen_and_transcribe()
             if text:
-                self.db.add_subject(self.user_id, text)
+                # Store full text to description but only use first 3 words for name
+                name_guess = " ".join(text.split()[:3])
+                self.db.add_subject(self.user_id, name_guess, description=text, category='Major')
                 self.after(0, self.load_subjects)
-                self.after(0, lambda: messagebox.showinfo("Voice Recognized", f"Added subject: {text}"))
+                self.after(0, lambda: messagebox.showinfo("Voice Recognized", f"Added subject: {name_guess}"))
             else:
                 self.after(0, lambda: messagebox.showerror("Voice Error", "Could not recognize speech or no speech detected."))
         
-        messagebox.showinfo("Voice Recording", "Click OK and start speaking your subject name...")
+        messagebox.showinfo("Voice Recording", "Click OK and start speaking your subject details...")
         threading.Thread(target=listen_thread, daemon=True).start()
 
     def delete_subject(self, subject):
