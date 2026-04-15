@@ -144,3 +144,41 @@ class DatabaseManager:
     def update_task_status(self, task_id, status):
         with self.get_connection() as conn:
             conn.execute("UPDATE tasks SET status = ? WHERE id = ?", (status, task_id))
+
+    # --- Dashboard Metrics ---
+    def get_dashboard_metrics(self, user_id):
+        with self.get_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            
+            # Get subjects with task counts
+            cur.execute("""
+                SELECT s.id, s.name, s.category,
+                       (SELECT COUNT(*) FROM tasks t WHERE t.subject_id = s.id) as task_count,
+                       (SELECT COUNT(*) FROM tasks t WHERE t.subject_id = s.id AND t.status = 'pending') as pending_task_count
+                FROM subjects s
+                WHERE s.user_id = ?
+                ORDER BY s.created_at DESC
+            """, (user_id,))
+            subjects = [dict(row) for row in cur.fetchall()]
+            
+            # Get high priority task count
+            cur.execute("""
+                SELECT COUNT(*) as high_priority_count 
+                FROM tasks t 
+                JOIN subjects s ON t.subject_id = s.id 
+                WHERE s.user_id = ? AND t.status = 'pending' AND t.priority = 'High'
+            """, (user_id,))
+            hp_row = cur.fetchone()
+            high_priority_count = hp_row['high_priority_count'] if hp_row else 0
+            
+            # Totals
+            total_subjects = len(subjects)
+            total_pending_tasks = sum(s['pending_task_count'] for s in subjects)
+            
+            return {
+                "total_subjects": total_subjects,
+                "total_pending_tasks": total_pending_tasks,
+                "high_priority_count": high_priority_count,
+                "subjects": subjects
+            }

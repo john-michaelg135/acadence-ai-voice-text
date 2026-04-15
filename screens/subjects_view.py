@@ -174,6 +174,11 @@ class SubjectsView(ctk.CTkFrame):
         card.pack(fill="x", pady=5)
         card.pack_propagate(False)
 
+        # Category Pill
+        category = subject.get("category", "Major")
+        pill_color = "#9F8FF3" if category == "Major" else "#D1D5DB"
+        ctk.CTkLabel(card, text=category, font=("Arial", 11, "bold"), text_color="white", fg_color=pill_color, corner_radius=8, width=50, height=24).pack(side="left", padx=(15, 0))
+
         # Subject Name
         lbl = ctk.CTkLabel(card, text=subject['name'], font=("Arial", 18, "bold"), text_color="#1A1A1A")
         lbl.pack(side="left", padx=15)

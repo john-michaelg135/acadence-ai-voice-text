@@ -6,7 +6,7 @@ class AcadenceApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("Acadence AI Voice Text")
+        self.title("Acadence")
         self.geometry("400x800")
         self.configure(fg_color="#FFFFFF")
 
