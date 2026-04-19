@@ -1,6 +1,57 @@
 import customtkinter as ctk
 from tkinter import messagebox
 from database.db_manager import DatabaseManager
+from utils.security import validate_password_strength
+
+class PasswordHandler:
+    def __init__(self, entry, root):
+        self.entry = entry
+        self.root = root
+        self.real_pw = ""
+        self.job = None
+        self._editing = False
+        
+        self.entry.configure(show="") 
+        self.entry.bind("<KeyRelease>", self.on_key)
+
+    def on_key(self, event):
+        if self._editing: return
+        
+        val = self.entry.get()
+        if val == "*" * len(self.real_pw):
+            return
+
+        if len(val) < len(self.real_pw):
+            self.real_pw = self.real_pw[:len(val)]
+        elif len(val) > len(self.real_pw):
+            added = val[len(self.real_pw):]
+            self.real_pw += added
+            
+        self._editing = True
+        if len(self.real_pw) > 0:
+            masked = "*" * (len(self.real_pw) - 1) + self.real_pw[-1]
+            self._set_text(masked)
+            if self.job:
+                self.root.after_cancel(self.job)
+            self.job = self.root.after(400, self.mask_all)
+        else:
+            self._set_text("")
+            
+        self._editing = False
+
+    def _set_text(self, text):
+        self.entry.delete(0, "end")
+        if text:
+            self.entry.insert(0, text)
+
+    def mask_all(self):
+        self._editing = True
+        self._set_text("*" * len(self.real_pw))
+        self._editing = False
+
+    def get(self):
+        return self.real_pw
+
 
 class AuthScreen(ctk.CTkFrame):
     def __init__(self, master, on_login_success):
@@ -25,18 +76,13 @@ class AuthScreen(ctk.CTkFrame):
         self.setup_login_tab(self.tabview.tab("Log In"))
         self.setup_signup_tab(self.tabview.tab("Sign Up"))
 
-        # Guest Mode Bottom Frame
-        guest_frame = ctk.CTkFrame(self, fg_color="transparent")
-        guest_frame.pack(fill="x", pady=20)
-        ctk.CTkButton(guest_frame, text="Continue as Guest", fg_color="transparent", 
-                      border_width=1, text_color="#1A1A1A", command=self.guest_login).pack()
-
     def setup_login_tab(self, parent):
         self.login_user_entry = ctk.CTkEntry(parent, placeholder_text="Username")
         self.login_user_entry.pack(pady=(10, 5), fill="x", padx=20)
 
-        self.login_pass_entry = ctk.CTkEntry(parent, placeholder_text="Password", show="*")
+        self.login_pass_entry = ctk.CTkEntry(parent, placeholder_text="Password")
         self.login_pass_entry.pack(pady=5, fill="x", padx=20)
+        self.login_pass_handler = PasswordHandler(self.login_pass_entry, self)
 
         ctk.CTkButton(parent, text="Log In", fg_color="#B5B0D3", text_color="#1A1A1A", command=self.handle_login).pack(pady=15, padx=20, fill="x")
 
@@ -52,17 +98,19 @@ class AuthScreen(ctk.CTkFrame):
         self.signup_email_entry = ctk.CTkEntry(parent, placeholder_text="Recovery Email")
         self.signup_email_entry.pack(pady=5, fill="x", padx=20)
 
-        self.signup_pass_entry = ctk.CTkEntry(parent, placeholder_text="Password", show="*")
+        self.signup_pass_entry = ctk.CTkEntry(parent, placeholder_text="Password")
         self.signup_pass_entry.pack(pady=5, fill="x", padx=20)
+        self.signup_pass_handler = PasswordHandler(self.signup_pass_entry, self)
 
-        self.signup_conf_entry = ctk.CTkEntry(parent, placeholder_text="Confirm Password", show="*")
+        self.signup_conf_entry = ctk.CTkEntry(parent, placeholder_text="Confirm Password")
         self.signup_conf_entry.pack(pady=5, fill="x", padx=20)
+        self.signup_conf_handler = PasswordHandler(self.signup_conf_entry, self)
 
         ctk.CTkButton(parent, text="Sign Up", fg_color="#B5B0D3", text_color="#1A1A1A", command=self.handle_signup).pack(pady=15, padx=20, fill="x")
 
     def handle_login(self):
         username = self.login_user_entry.get().strip()
-        password = self.login_pass_entry.get().strip()
+        password = self.login_pass_handler.get().strip()
 
         if not username or not password:
             messagebox.showerror("Error", "Please fill all fields.")
@@ -77,8 +125,8 @@ class AuthScreen(ctk.CTkFrame):
     def handle_signup(self):
         username = self.signup_user_entry.get().strip()
         email = self.signup_email_entry.get().strip()
-        password = self.signup_pass_entry.get().strip()
-        conf_pass = self.signup_conf_entry.get().strip()
+        password = self.signup_pass_handler.get().strip()
+        conf_pass = self.signup_conf_handler.get().strip()
 
         if not all([username, email, password, conf_pass]):
             messagebox.showerror("Error", "Please fill all fields.")
@@ -88,6 +136,12 @@ class AuthScreen(ctk.CTkFrame):
             messagebox.showerror("Error", "Passwords do not match.")
             return
 
+        # OAuth Style Password Strength Check
+        is_valid, msg = validate_password_strength(password)
+        if not is_valid:
+            messagebox.showerror("Weak Password", msg)
+            return
+
         success = self.db.create_user(username, password, recovery_email=email)
         if success:
             messagebox.showinfo("Success", "Account created successfully! You can now log in.")
@@ -95,9 +149,5 @@ class AuthScreen(ctk.CTkFrame):
         else:
             messagebox.showerror("Error", "Username already exists.")
 
-    def guest_login(self):
-        self.on_login_success(None)
-
     def show_forgot_password(self):
-        # Placeholder for forgot password dialog
         messagebox.showinfo("Forgot Password", "Forgot password flow to be implemented (OTP to email).")

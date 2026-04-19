@@ -1,14 +1,63 @@
 import os
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-import base64
 import secrets
 import string
 import datetime
+import bcrypt
+import re
+import base64
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-# A fixed salt for key derivation in this demonstration, normally this should be securely stored or random per user.
-# In a real app, this should be an environment variable.
+def hash_password(password: str) -> str:
+    """Hashes a plain text password using bcrypt."""
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verifies a plain text password against a bcrypt hash."""
+    if not hashed_password:
+        return False
+    try:
+        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    except Exception:
+        return False
+
+def validate_password_strength(password: str) -> tuple[bool, str]:
+    """
+    Validates OAuth-style strong password requirements:
+    - 8 characters minimum
+    - At least one uppercase letter
+    - At least one lowercase letter
+    - At least one special character
+    """
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long."
+    if not re.search(r'[A-Z]', password):
+        return False, "Password must contain at least one uppercase letter."
+    if not re.search(r'[a-z]', password):
+        return False, "Password must contain at least one lowercase letter."
+    if not re.search(r'[!@#$%^&\*\(\)_\+\-\=\[\]\{\};:\'",<>\./\\?|]', password):
+        return False, "Password must contain at least one special character."
+    
+    return True, "Strong password."
+
+def generate_system_password(length=12) -> str:
+    """Generates a secure temporary and random system password."""
+    alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+    return ''.join(secrets.choice(alphabet) for _ in range(length))
+
+def get_system_password_expiration():
+    """Returns the expiration date (14 days from now) for system-generated passwords."""
+    return datetime.datetime.now() + datetime.timedelta(days=14)
+
+def generate_otp() -> str:
+    """Generates a 6-digit OTP for account recovery."""
+    return ''.join(secrets.choice(string.digits) for _ in range(6))
+
+# --- Reversible AES-256 for PII (Emails) ---
+
+# A fixed salt for key derivation in this demonstration.
 MASTER_SECRET = b'AcadenceSecretKey_2026'
 SALT = b'AcadenceAppSalt_2026'
 
@@ -47,23 +96,3 @@ def decrypt_data(encrypted_b64: str) -> str:
     except Exception as e:
         print(f"Decryption failed: {e}")
         return ""
-
-def generate_system_password(length=12) -> str:
-    """Generates a secure temporary and random system password."""
-    alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
-    return ''.join(secrets.choice(alphabet) for _ in range(length))
-
-def verify_password(plain_password: str, encrypted_password: str) -> bool:
-    """Verifies a plain password against the stored encrypted password (we encrypt it to check equality)."""
-    # Wait, AES-256 encryption produces different ciphertexts due to the random nonce.
-    # To verify passwords properly, we should decrypt the stored one and compare.
-    decrypted = decrypt_data(encrypted_password)
-    return decrypted == plain_password
-
-def get_system_password_expiration():
-    """Returns the expiration date (14 days from now) for system-generated passwords."""
-    return datetime.datetime.now() + datetime.timedelta(days=14)
-
-def generate_otp() -> str:
-    """Generates a 6-digit OTP for account recovery."""
-    return ''.join(secrets.choice(string.digits) for _ in range(6))

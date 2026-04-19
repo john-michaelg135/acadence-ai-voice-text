@@ -1,7 +1,7 @@
 import sqlite3
 import os
 import datetime
-from utils.security import encrypt_data, decrypt_data, verify_password
+from utils.security import hash_password, verify_password, encrypt_data, decrypt_data
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'acadence.db')
 SCHEMA_PATH = os.path.join(os.path.dirname(__file__), 'schema.sql')
@@ -21,15 +21,17 @@ class DatabaseManager:
                     conn.executescript(f.read())
             
             # Insert default admin user if not exists
-            self.create_user('admin', 'admin123', is_admin=True)
+            self.create_user('admin', 'admin123!', is_admin=True) # Exclamation to pass constraints natively if run manually later
 
     def create_user(self, username, password, recovery_email=None, is_system_password=False, is_admin=False):
-        """Creates a new user and encrypts their password."""
-        encrypted_pw = encrypt_data(password)
+        """Creates a new user and hashes their password."""
+        hashed_pw = hash_password(password)
         expires_at = None
         
         if is_system_password:
             expires_at = datetime.datetime.now() + datetime.timedelta(days=14)
+            
+        enc_email = encrypt_data(recovery_email) if recovery_email else None
             
         try:
             with self.get_connection() as conn:
@@ -37,7 +39,7 @@ class DatabaseManager:
                     '''INSERT INTO users 
                        (username, encrypted_password, is_admin, is_system_password, system_password_expires_at, recovery_email) 
                        VALUES (?, ?, ?, ?, ?, ?)''',
-                    (username, encrypted_pw, is_admin, is_system_password, expires_at, recovery_email)
+                    (username, hashed_pw, is_admin, is_system_password, expires_at, enc_email)
                 )
             return True
         except sqlite3.IntegrityError:
@@ -65,9 +67,8 @@ class DatabaseManager:
         if not user:
             return None
         
-        # Verify password
+        # Verify password using bcrypt hash
         if verify_password(password, user['encrypted_password']):
-            # Update last login
             self.update_last_login(user['id'])
             return user
         return None
@@ -89,21 +90,29 @@ class DatabaseManager:
             ''')
             return [dict(row) for row in cur.fetchall()]
 
-    def update_password(self, username, new_password, is_system=False):
-        encrypted_pw = encrypt_data(new_password)
+    def change_password(self, username, current_password, new_password, is_system=False):
+        """Changes the user's password securely by verifying the current one first per OAuth best practices."""
+        user = self.get_user_by_username(username)
+        if not user or not verify_password(current_password, user['encrypted_password']):
+            return False, "Invalid current password."
+            
+        hashed_pw = hash_password(new_password)
         expires_at = (datetime.datetime.now() + datetime.timedelta(days=14)) if is_system else None
         
         with self.get_connection() as conn:
             conn.execute(
                 "UPDATE users SET encrypted_password = ?, is_system_password = ?, system_password_expires_at = ? WHERE username = ?",
-                (encrypted_pw, is_system, expires_at, username)
+                (hashed_pw, is_system, expires_at, username)
             )
+        return True, "Password updated successfully."
 
     def recover_password(self, username, recovery_email):
-        # basic check
+        # Decode and check email 
         user = self.get_user_by_username(username)
-        if user and user['recovery_email'] == recovery_email:
-            return True
+        if user and user['recovery_email']:
+            dec_email = decrypt_data(user['recovery_email'])
+            if dec_email == recovery_email:
+                return True
         return False
 
     # --- Subjects and Tasks CRUD ---
