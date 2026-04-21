@@ -3,56 +3,6 @@ from tkinter import messagebox
 from database.db_manager import DatabaseManager
 from utils.security import validate_password_strength
 
-class PasswordHandler:
-    def __init__(self, entry, root):
-        self.entry = entry
-        self.root = root
-        self.real_pw = ""
-        self.job = None
-        self._editing = False
-        
-        self.entry.configure(show="") 
-        self.entry.bind("<KeyRelease>", self.on_key)
-
-    def on_key(self, event):
-        if self._editing: return
-        
-        val = self.entry.get()
-        if val == "*" * len(self.real_pw):
-            return
-
-        if len(val) < len(self.real_pw):
-            self.real_pw = self.real_pw[:len(val)]
-        elif len(val) > len(self.real_pw):
-            added = val[len(self.real_pw):]
-            self.real_pw += added
-            
-        self._editing = True
-        if len(self.real_pw) > 0:
-            masked = "*" * (len(self.real_pw) - 1) + self.real_pw[-1]
-            self._set_text(masked)
-            if self.job:
-                self.root.after_cancel(self.job)
-            self.job = self.root.after(400, self.mask_all)
-        else:
-            self._set_text("")
-            
-        self._editing = False
-
-    def _set_text(self, text):
-        self.entry.delete(0, "end")
-        if text:
-            self.entry.insert(0, text)
-
-    def mask_all(self):
-        self._editing = True
-        self._set_text("*" * len(self.real_pw))
-        self._editing = False
-
-    def get(self):
-        return self.real_pw
-
-
 class AuthScreen(ctk.CTkFrame):
     def __init__(self, master, on_login_success):
         super().__init__(master, fg_color="transparent")
@@ -80,9 +30,8 @@ class AuthScreen(ctk.CTkFrame):
         self.login_user_entry = ctk.CTkEntry(parent, placeholder_text="Username")
         self.login_user_entry.pack(pady=(10, 5), fill="x", padx=20)
 
-        self.login_pass_entry = ctk.CTkEntry(parent, placeholder_text="Password")
+        self.login_pass_entry = ctk.CTkEntry(parent, placeholder_text="Password", show="*")
         self.login_pass_entry.pack(pady=5, fill="x", padx=20)
-        self.login_pass_handler = PasswordHandler(self.login_pass_entry, self)
 
         ctk.CTkButton(parent, text="Log In", fg_color="#B5B0D3", text_color="#1A1A1A", command=self.handle_login).pack(pady=15, padx=20, fill="x")
 
@@ -98,19 +47,17 @@ class AuthScreen(ctk.CTkFrame):
         self.signup_email_entry = ctk.CTkEntry(parent, placeholder_text="Recovery Email")
         self.signup_email_entry.pack(pady=5, fill="x", padx=20)
 
-        self.signup_pass_entry = ctk.CTkEntry(parent, placeholder_text="Password")
+        self.signup_pass_entry = ctk.CTkEntry(parent, placeholder_text="Password", show="*")
         self.signup_pass_entry.pack(pady=5, fill="x", padx=20)
-        self.signup_pass_handler = PasswordHandler(self.signup_pass_entry, self)
 
-        self.signup_conf_entry = ctk.CTkEntry(parent, placeholder_text="Confirm Password")
+        self.signup_conf_entry = ctk.CTkEntry(parent, placeholder_text="Confirm Password", show="*")
         self.signup_conf_entry.pack(pady=5, fill="x", padx=20)
-        self.signup_conf_handler = PasswordHandler(self.signup_conf_entry, self)
 
         ctk.CTkButton(parent, text="Sign Up", fg_color="#B5B0D3", text_color="#1A1A1A", command=self.handle_signup).pack(pady=15, padx=20, fill="x")
 
     def handle_login(self):
         username = self.login_user_entry.get().strip()
-        password = self.login_pass_handler.get().strip()
+        password = self.login_pass_entry.get().strip()
 
         if not username or not password:
             messagebox.showerror("Error", "Please fill all fields.")
@@ -125,8 +72,8 @@ class AuthScreen(ctk.CTkFrame):
     def handle_signup(self):
         username = self.signup_user_entry.get().strip()
         email = self.signup_email_entry.get().strip()
-        password = self.signup_pass_handler.get().strip()
-        conf_pass = self.signup_conf_handler.get().strip()
+        password = self.signup_pass_entry.get().strip()
+        conf_pass = self.signup_conf_entry.get().strip()
 
         if not all([username, email, password, conf_pass]):
             messagebox.showerror("Error", "Please fill all fields.")
@@ -150,4 +97,115 @@ class AuthScreen(ctk.CTkFrame):
             messagebox.showerror("Error", "Username already exists.")
 
     def show_forgot_password(self):
-        messagebox.showinfo("Forgot Password", "Forgot password flow to be implemented (OTP to email).")
+        ForgotPasswordPopup(self, self.db)
+
+
+class ForgotPasswordPopup(ctk.CTkToplevel):
+    def __init__(self, master, db):
+        super().__init__(master)
+        self.title("Recover Account")
+        self.geometry("350x400")
+        self.db = db
+        self.attributes("-topmost", True)
+        
+        self.target_username = ""
+        self.valid_otp = ""
+        
+        # Step frames
+        self.step1_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.step2_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.step3_frame = ctk.CTkFrame(self, fg_color="transparent")
+        
+        self.show_step1()
+        
+    def clear_frames(self):
+        self.step1_frame.pack_forget()
+        self.step2_frame.pack_forget()
+        self.step3_frame.pack_forget()
+        
+    def show_step1(self):
+        self.clear_frames()
+        self.step1_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        ctk.CTkLabel(self.step1_frame, text="Account Recovery", font=("Arial", 20, "bold")).pack(pady=(0, 20))
+        ctk.CTkLabel(self.step1_frame, text="Enter your username and the recovery email registered to your account.", wraplength=300).pack(pady=(0, 20))
+        
+        self.user_entry = ctk.CTkEntry(self.step1_frame, placeholder_text="Username")
+        self.user_entry.pack(fill="x", pady=5)
+        
+        self.email_entry = ctk.CTkEntry(self.step1_frame, placeholder_text="Recovery Email")
+        self.email_entry.pack(fill="x", pady=5)
+        
+        ctk.CTkButton(self.step1_frame, text="Send Verification Code", fg_color="#B5B0D3", text_color="#1A1A1A", command=self.process_step1).pack(pady=20)
+        
+    def process_step1(self):
+        user = self.user_entry.get().strip()
+        email = self.email_entry.get().strip()
+        
+        if not user or not email:
+            messagebox.showerror("Error", "Fill all fields.", parent=self)
+            return
+            
+        if self.db.recover_password(user, email):
+            self.target_username = user
+            from utils.security import generate_otp
+            from utils.email_service import send_otp_email
+            
+            self.valid_otp = generate_otp()
+            send_otp_email(email, self.valid_otp)
+            
+            messagebox.showinfo("Email Sent", "If the credentials match, an OTP has been sent. Check your terminal logs!", parent=self)
+            self.show_step2()
+        else:
+            messagebox.showerror("Error", "Username or Recovery Email is incorrect.", parent=self)
+            
+    def show_step2(self):
+        self.clear_frames()
+        self.step2_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        ctk.CTkLabel(self.step2_frame, text="Verify OTP", font=("Arial", 20, "bold")).pack(pady=(0, 20))
+        ctk.CTkLabel(self.step2_frame, text="Enter the 6-digit code sent to your email.", wraplength=300).pack(pady=(0, 20))
+        
+        self.otp_entry = ctk.CTkEntry(self.step2_frame, placeholder_text="123456")
+        self.otp_entry.pack(fill="x", pady=5)
+        
+        ctk.CTkButton(self.step2_frame, text="Verify", fg_color="#B5B0D3", text_color="#1A1A1A", command=self.process_step2).pack(pady=20)
+        
+    def process_step2(self):
+        entered = self.otp_entry.get().strip()
+        if entered == self.valid_otp:
+            self.show_step3()
+        else:
+            messagebox.showerror("Error", "Invalid OTP Code.", parent=self)
+            
+    def show_step3(self):
+        self.clear_frames()
+        self.step3_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        ctk.CTkLabel(self.step3_frame, text="Reset Password", font=("Arial", 20, "bold")).pack(pady=(0, 20))
+        
+        self.new_pass_entry = ctk.CTkEntry(self.step3_frame, placeholder_text="New Password", show="*")
+        self.new_pass_entry.pack(fill="x", pady=5)
+        
+        self.conf_pass_entry = ctk.CTkEntry(self.step3_frame, placeholder_text="Confirm New Password", show="*")
+        self.conf_pass_entry.pack(fill="x", pady=5)
+        
+        ctk.CTkButton(self.step3_frame, text="Update Password", fg_color="#B5B0D3", text_color="#1A1A1A", command=self.process_step3).pack(pady=20)
+        
+    def process_step3(self):
+        new_pwd = self.new_pass_entry.get().strip()
+        conf_pwd = self.conf_pass_entry.get().strip()
+        
+        if not new_pwd or new_pwd != conf_pwd:
+            messagebox.showerror("Error", "Passwords do not match or are empty.", parent=self)
+            return
+            
+        from utils.security import validate_password_strength
+        is_val, msg = validate_password_strength(new_pwd)
+        if not is_val:
+            messagebox.showerror("Weak Password", msg, parent=self)
+            return
+            
+        self.db.admin_reset_password(self.target_username, new_pwd, is_system=False)
+        messagebox.showinfo("Success", "Password updated successfully! You may now log in.", parent=self)
+        self.destroy()

@@ -121,6 +121,100 @@ class AddSubjectPopup(ctk.CTkToplevel):
         self.on_success()
         self.destroy()
 
+class EditSubjectPopup(ctk.CTkToplevel):
+    def __init__(self, master, db, subject, on_success):
+        super().__init__(master, fg_color="#FFFFFF")
+        
+        self.db = db
+        self.subject = subject
+        self.on_success = on_success
+        
+        self.title("")
+        self.geometry("700x450")
+        self.attributes("-topmost", True)
+        self.resizable(False, False)
+        
+        self.update_idletasks()
+        x = master.winfo_rootx() + (master.winfo_width() // 2) - (700 // 2)
+        y = master.winfo_rooty() + (master.winfo_height() // 2) - (450 // 2)
+        self.geometry(f"+{x}+{y}")
+        
+        self.setup_ui()
+        self.grab_set()
+
+    def setup_ui(self):
+        container = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=15)
+        container.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        ctk.CTkLabel(container, text="Edit Subject", font=("Arial", 20), text_color="#1A1A1A").pack(pady=(15, 20))
+        
+        input_args = {
+            "fg_color": "#F4F5F7", "border_width": 1, "border_color": "#E5E7EB", 
+            "text_color": "#1A1A1A", "corner_radius": 8, "height": 45
+        }
+        
+        self.name_entry = ctk.CTkEntry(container, placeholder_text="Subject Name", **input_args)
+        self.name_entry.pack(fill="x", padx=30, pady=(0, 15))
+        self.name_entry.insert(0, self.subject['name'])
+        
+        self.code_entry = ctk.CTkEntry(container, placeholder_text="Subject Code", **input_args)
+        self.code_entry.pack(fill="x", padx=30, pady=(0, 15))
+        self.code_entry.insert(0, self.subject.get('code', ''))
+        
+        self.desc_entry = ctk.CTkEntry(container, placeholder_text="Subject Description", **input_args)
+        self.desc_entry.pack(fill="x", padx=30, pady=(0, 20))
+        self.desc_entry.insert(0, self.subject.get('description', ''))
+        
+        ctk.CTkLabel(container, text="Category", font=("Arial", 14), text_color="#666666").pack(pady=(5, 5))
+        
+        cat_frame = ctk.CTkFrame(container, fg_color="transparent")
+        cat_frame.pack(pady=(0, 20))
+        
+        self.category_var = ctk.StringVar(value=self.subject.get('category', 'Major'))
+        
+        def set_category(val):
+            self.category_var.set(val)
+            update_buttons()
+
+        self.btn_major = ctk.CTkButton(cat_frame, text="Major", width=80, height=30, corner_radius=15, command=lambda: set_category("Major"))
+        self.btn_major.pack(side="left", padx=5)
+        
+        self.btn_minor = ctk.CTkButton(cat_frame, text="Minor", width=80, height=30, corner_radius=15, command=lambda: set_category("Minor"))
+        self.btn_minor.pack(side="left", padx=5)
+        
+        def update_buttons():
+            if self.category_var.get() == "Major":
+                self.btn_major.configure(fg_color="#9F8FF3", text_color="white", hover_color="#897AE0")
+                self.btn_minor.configure(fg_color="transparent", text_color="#1A1A1A", hover_color="#F0F0F0", border_width=0)
+            else:
+                self.btn_minor.configure(fg_color="#9F8FF3", text_color="white", hover_color="#897AE0")
+                self.btn_major.configure(fg_color="transparent", text_color="#1A1A1A", hover_color="#F0F0F0", border_width=0)
+                
+        update_buttons() 
+
+        actions_frame = ctk.CTkFrame(container, fg_color="transparent")
+        actions_frame.pack(fill="x", padx=50, pady=(10, 20), side="bottom")
+
+        ctk.CTkButton(actions_frame, text="Cancel", fg_color="transparent", text_color="#1A1A1A",
+            border_width=1, border_color="#E5E7EB", corner_radius=20, width=120, height=40, command=self.destroy).pack(side="left")
+
+        ctk.CTkButton(actions_frame, text="Save Changes", fg_color="#9F8FF3", text_color="white", 
+            corner_radius=20, width=120, height=40, hover_color="#897AE0", command=self.submit).pack(side="right")
+
+    def submit(self):
+        name = self.name_entry.get().strip()
+        code = self.code_entry.get().strip()
+        desc = self.desc_entry.get().strip()
+        cat = self.category_var.get()
+
+        if not name:
+            messagebox.showerror("Error", "Subject Name is required.", parent=self)
+            return
+
+        self.db.update_subject(self.subject['id'], name, code, desc, cat)
+        self.on_success()
+        self.destroy()
+
 class SubjectsView(ctk.CTkFrame):
     def __init__(self, master, user_info, show_view_callback):
         super().__init__(master, fg_color="transparent")
@@ -190,11 +284,17 @@ class SubjectsView(ctk.CTkFrame):
         ctk.CTkButton(btn_frame, text="Open", width=60, fg_color="#F0F0F0", text_color="#1A1A1A", hover_color="#E0E0E0",
                       command=lambda s=subject: self.open_subject(s)).pack(side="left", padx=(0, 10))
                       
+        ctk.CTkButton(btn_frame, text="✏️", width=40, fg_color="#B5B0D3", text_color="white", hover_color="#897AE0",
+                      command=lambda s=subject: self.edit_subject(s)).pack(side="left", padx=(0, 5))
+                      
         ctk.CTkButton(btn_frame, text="🗑️", width=40, fg_color="#FF6B6B", text_color="white", hover_color="#FF4C4C",
                       command=lambda s=subject: self.delete_subject(s)).pack(side="left")
 
     def open_subject(self, subject):
         self.show_view_callback("Tasks", subject_id=subject['id'], subject_name=subject['name'])
+        
+    def edit_subject(self, subject):
+        EditSubjectPopup(self.winfo_toplevel(), self.db, subject, self.load_subjects)
 
     def add_subject_text(self):
         if not self.user_id:

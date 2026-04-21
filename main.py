@@ -23,7 +23,12 @@ class AcadenceApp(ctk.CTk):
         """
         self.auth_screen.pack_forget()
         
-        self.dashboard_screen = DashboardScreen(self, user_info=user_info, on_logout=self.logout)
+        if user_info and user_info.get('is_admin'):
+            from screens.admin_dashboard import AdminDashboard
+            self.dashboard_screen = AdminDashboard(self, user_info=user_info, on_logout=self.logout)
+        else:
+            self.dashboard_screen = DashboardScreen(self, user_info=user_info, on_logout=self.logout)
+            
         self.dashboard_screen.pack(fill="both", expand=True)
 
     def logout(self):

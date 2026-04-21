@@ -105,6 +105,18 @@ class DatabaseManager:
                 (hashed_pw, is_system, expires_at, username)
             )
         return True, "Password updated successfully."
+        
+    def admin_reset_password(self, username, new_password, is_system=False):
+        """Forces a password update unconditionally (used specifically after secure OTP validation flows)."""
+        hashed_pw = hash_password(new_password)
+        expires_at = (datetime.datetime.now() + datetime.timedelta(days=14)) if is_system else None
+        
+        with self.get_connection() as conn:
+            conn.execute(
+                "UPDATE users SET encrypted_password = ?, is_system_password = ?, system_password_expires_at = ? WHERE username = ?",
+                (hashed_pw, is_system, expires_at, username)
+            )
+        return True
 
     def recover_password(self, username, recovery_email):
         # Decode and check email 
@@ -129,9 +141,18 @@ class DatabaseManager:
                 "INSERT INTO subjects (user_id, name, code, description, category) VALUES (?, ?, ?, ?, ?)", 
                 (user_id, name, code, description, category)
             )
+
+    def update_subject(self, subject_id, name, code, description, category):
+        with self.get_connection() as conn:
+            conn.execute(
+                "UPDATE subjects SET name = ?, code = ?, description = ?, category = ? WHERE id = ?",
+                (name, code, description, category, subject_id)
+            )
             
     def delete_subject(self, subject_id):
         with self.get_connection() as conn:
+            # AC007 Task 3: Remove subject and associated tasks from database.
+            conn.execute("DELETE FROM tasks WHERE subject_id = ?", (subject_id,))
             conn.execute("DELETE FROM subjects WHERE id = ?", (subject_id,))
 
     def get_tasks(self, subject_id):
