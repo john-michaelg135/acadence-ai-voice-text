@@ -7,3 +7,5 @@ notes-considerations/
 #Ignore specific files such as test files and local db files
 read_excel.py
 database/acadence.db
+.env*
+

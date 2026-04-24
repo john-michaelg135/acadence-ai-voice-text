@@ -5,3 +5,4 @@ SpeechRecognition
 PyAudio
 bcrypt
 tkcalendar
+python-dotenv

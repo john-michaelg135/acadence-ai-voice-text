@@ -66,7 +66,7 @@ class AcadenceApp(ctk.CTk):
 
     def on_closing(self):
         self.record_session()
-        self.destroy()
+        self.quit()
 
 if __name__ == "__main__":
     app = AcadenceApp()

@@ -148,14 +148,29 @@ class ForgotPasswordPopup(ctk.CTkToplevel):
             
         if self.db.recover_password(user, email):
             self.target_username = user
-            from utils.security import generate_otp
-            from utils.email_service import send_otp_email
+            self.target_email = email
             
-            self.valid_otp = generate_otp()
-            send_otp_email(email, self.valid_otp)
+            from utils.email_service import send_reset_otp
+            import threading
             
-            messagebox.showinfo("Email Sent", "If the credentials match, an OTP has been sent. Check your terminal logs!", parent=self)
-            self.show_step2()
+            # Set the button to a loading state to inform the user it's processing
+            for widget in self.step1_frame.winfo_children():
+                if isinstance(widget, ctk.CTkButton):
+                    widget.configure(text="Connecting to SMTP Server...", state="disabled")
+            
+            def _send():
+                result = send_reset_otp(email)
+                if result.get("ok"):
+                    self.after(0, lambda: messagebox.showinfo("Email Sent", "An OTP has been sent securely to your email address.", parent=self))
+                    self.after(0, self.show_step2)
+                else:
+                    self.after(0, lambda: messagebox.showerror("Email Error", result.get("reason"), parent=self))
+                    # Reset button natively
+                    for widget in self.step1_frame.winfo_children():
+                        if isinstance(widget, ctk.CTkButton):
+                            self.after(0, lambda w=widget: w.configure(text="Send Verification Code", state="normal"))
+                            
+            threading.Thread(target=_send, daemon=True).start()
         else:
             messagebox.showerror("Error", "Username or Recovery Email is incorrect.", parent=self)
             
@@ -173,10 +188,13 @@ class ForgotPasswordPopup(ctk.CTkToplevel):
         
     def process_step2(self):
         entered = self.otp_entry.get().strip()
-        if entered == self.valid_otp:
+        from utils.email_service import verify
+        result = verify(self.target_email, entered)
+        
+        if result.get("ok"):
             self.show_step3()
         else:
-            messagebox.showerror("Error", "Invalid OTP Code.", parent=self)
+            messagebox.showerror("Error", result.get("reason"), parent=self)
             
     def show_step3(self):
         self.clear_frames()

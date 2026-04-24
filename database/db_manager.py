@@ -34,12 +34,13 @@ class DatabaseManager:
         enc_email = encrypt_data(recovery_email) if recovery_email else None
             
         try:
+            now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             with self.get_connection() as conn:
                 conn.execute(
                     '''INSERT INTO users 
-                       (username, encrypted_password, is_admin, is_system_password, system_password_expires_at, recovery_email) 
-                       VALUES (?, ?, ?, ?, ?, ?)''',
-                    (username, hashed_pw, is_admin, is_system_password, expires_at, enc_email)
+                       (username, encrypted_password, is_admin, is_system_password, system_password_expires_at, recovery_email, created_at) 
+                       VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                    (username, hashed_pw, is_admin, is_system_password, expires_at, enc_email, now_str)
                 )
             return True
         except sqlite3.IntegrityError:
@@ -141,10 +142,11 @@ class DatabaseManager:
             return [dict(row) for row in cur.fetchall()]
 
     def add_subject(self, user_id, name, code='', description='', category='Major'):
+        now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with self.get_connection() as conn:
             conn.execute(
-                "INSERT INTO subjects (user_id, name, code, description, category) VALUES (?, ?, ?, ?, ?)", 
-                (user_id, name, code, description, category)
+                "INSERT INTO subjects (user_id, name, code, description, category, created_at) VALUES (?, ?, ?, ?, ?, ?)", 
+                (user_id, name, code, description, category, now_str)
             )
 
     def update_subject(self, subject_id, name, code, description, category):
@@ -168,9 +170,10 @@ class DatabaseManager:
             return [dict(row) for row in cur.fetchall()]
 
     def add_task(self, subject_id, name, description, deadline='', status='pending', priority='Medium'):
+        now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with self.get_connection() as conn:
-            conn.execute("INSERT INTO tasks (subject_id, name, description, deadline, status, priority) VALUES (?, ?, ?, ?, ?, ?)",
-                         (subject_id, name, description, deadline, status, priority))
+            conn.execute("INSERT INTO tasks (subject_id, name, description, deadline, status, priority, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                         (subject_id, name, description, deadline, status, priority, now_str))
                          
     def delete_task(self, task_id):
         with self.get_connection() as conn:
