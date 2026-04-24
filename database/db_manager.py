@@ -75,7 +75,12 @@ class DatabaseManager:
 
     def update_last_login(self, user_id):
         with self.get_connection() as conn:
-            conn.execute("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?", (user_id,))
+            now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            conn.execute("UPDATE users SET last_login = ? WHERE id = ?", (now_str, user_id))
+
+    def update_login_duration(self, user_id, duration_minutes):
+        with self.get_connection() as conn:
+            conn.execute("UPDATE users SET login_duration = login_duration + ? WHERE id = ?", (duration_minutes, user_id))
 
     def get_all_users_for_admin(self):
         with self.get_connection() as conn:

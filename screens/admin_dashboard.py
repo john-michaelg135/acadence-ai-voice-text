@@ -66,6 +66,9 @@ class AdminDashboard(ctk.CTkFrame):
         
         ctk.CTkLabel(info_frame, text=f"Joined: {created_str}", font=("Arial", 12), text_color="#666666").pack(anchor="w")
         ctk.CTkLabel(info_frame, text=f"Last Active: {last_login_str}", font=("Arial", 12), text_color="#666666").pack(anchor="w", pady=(2,0))
+        
+        duration_mins = user.get('login_duration') or 0
+        ctk.CTkLabel(info_frame, text=f"Total Logged In Time: {duration_mins} min(s)", font=("Arial", 12), text_color="#666666").pack(anchor="w", pady=(2,0))
 
         # Bottom metrics aggregates (Subjects / Tasks split block)
         metrics_frame = ctk.CTkFrame(card, fg_color="#F9F9F9", corner_radius=10)

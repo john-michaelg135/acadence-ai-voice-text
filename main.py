@@ -1,6 +1,8 @@
 import customtkinter as ctk
 from screens.auth_screen import AuthScreen
 from screens.dashboard_screen import DashboardScreen
+from database.db_manager import DatabaseManager
+import datetime
 
 class AcadenceApp(ctk.CTk):
     def __init__(self):
@@ -11,6 +13,13 @@ class AcadenceApp(ctk.CTk):
         self.configure(fg_color="#FFFFFF")
 
         self.after(0, lambda: self.state('zoomed'))
+        
+        self.db = DatabaseManager()
+        self.current_user = None
+        self.session_start = None
+
+        # Bind closing event to record active sessions
+        self.protocol("WM_DELETE_WINDOW", self.on_closing)
 
         # Initialize the Authentication Screen
         self.auth_screen = AuthScreen(self, on_login_success=self.show_main_dashboard)
@@ -23,6 +32,10 @@ class AcadenceApp(ctk.CTk):
         """
         self.auth_screen.pack_forget()
         
+        self.current_user = user_info
+        if user_info:
+            self.session_start = datetime.datetime.now()
+        
         if user_info and user_info.get('is_admin'):
             from screens.admin_dashboard import AdminDashboard
             self.dashboard_screen = AdminDashboard(self, user_info=user_info, on_logout=self.logout)
@@ -31,7 +44,18 @@ class AcadenceApp(ctk.CTk):
             
         self.dashboard_screen.pack(fill="both", expand=True)
 
+    def record_session(self):
+        """Calculates the time spent logged in before killing the window/logout."""
+        if self.current_user and self.session_start:
+            delta = datetime.datetime.now() - self.session_start
+            minutes = max(1, int(delta.total_seconds() / 60.0)) # Round up to 1 minute minimum
+            self.db.update_login_duration(self.current_user['id'], minutes)
+            self.session_start = None
+
     def logout(self):
+        self.record_session()
+        self.current_user = None
+        
         # Clear main dashboard
         if hasattr(self, 'dashboard_screen'):
             self.dashboard_screen.destroy()
@@ -39,6 +63,10 @@ class AcadenceApp(ctk.CTk):
         # Reinitialize Auth Screen
         self.auth_screen = AuthScreen(self, on_login_success=self.show_main_dashboard)
         self.auth_screen.pack(fill="both", expand=True)
+
+    def on_closing(self):
+        self.record_session()
+        self.destroy()
 
 if __name__ == "__main__":
     app = AcadenceApp()
