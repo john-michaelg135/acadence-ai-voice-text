@@ -1,5 +1,6 @@
 import customtkinter as ctk
 from tkinter import messagebox
+from tkcalendar import DateEntry
 from database.db_manager import DatabaseManager
 
 class AddTaskPopup(ctk.CTkToplevel):
@@ -57,8 +58,36 @@ class AddTaskPopup(ctk.CTkToplevel):
         # Deadline Entry (Centered and slightly shorter like in mockup)
         dead_frame = ctk.CTkFrame(container, fg_color="transparent")
         dead_frame.pack(fill="x", pady=(0, 15))
-        self.deadline_entry = ctk.CTkEntry(dead_frame, placeholder_text="Set Deadline", width=250, **input_args)
-        self.deadline_entry.pack()
+        
+        ctk.CTkLabel(dead_frame, text="Set Deadline", font=("Arial", 11), text_color="#666666").pack(anchor="w", padx=30)
+        
+        # Wrapping DateEntry in a CTkFrame to perfectly simulate the custom rounded corners
+        date_wrapper = ctk.CTkFrame(dead_frame, fg_color="#F4F5F7", border_width=1, border_color="#E5E7EB", corner_radius=8)
+        date_wrapper.pack(fill="x", padx=30, pady=(5,0), ipady=2)
+        
+        from datetime import date
+        self.deadline_entry = DateEntry(
+            date_wrapper, 
+            background='#9F8FF3', 
+            foreground='white', 
+            borderwidth=0, 
+            font=("Arial", 12), 
+            date_pattern='yyyy-mm-dd',
+            mindate=date.today(), # Restricts selection to today and the future
+            headersbackground='#F4F5F7',
+            headersforeground='#1A1A1A',
+            selectbackground='#897AE0',
+            selectforeground='white',
+            normalbackground='#FFFFFF',
+            normalforeground='#1A1A1A',
+            weekendbackground='#FFFFFF',
+            weekendforeground='#1A1A1A',
+            othermonthforeground='#AAAAAA',
+            othermonthbackground='#FFFFFF',
+            othermonthweforeground='#AAAAAA',
+            othermonthwebackground='#FFFFFF'
+        )
+        self.deadline_entry.pack(fill="x", padx=10, pady=5)
 
         # Description (Taller textbox)
         self.desc_textbox = ctk.CTkTextbox(container, fg_color="#F4F5F7", border_width=1, border_color="#E5E7EB", 
@@ -112,7 +141,7 @@ class AddTaskPopup(ctk.CTkToplevel):
 
     def submit(self):
         name = self.name_entry.get().strip()
-        deadline = self.deadline_entry.get().strip()
+        deadline = self.deadline_entry.get_date().strftime("%Y-%m-%d")
         # Textbox includes trailing newline from Tkinter, strip it
         desc = self.desc_textbox.get("1.0", "end").strip()
         if desc == "Description": # The placeholder
