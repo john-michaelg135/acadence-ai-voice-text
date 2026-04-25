@@ -14,7 +14,7 @@ class AuthScreen(ctk.CTkFrame):
     def setup_ui(self):
         # Header
         ctk.CTkLabel(self, text="Acadence", font=("Arial", 36, "bold"), text_color="#B5B0D3").pack(pady=(40, 10))
-        ctk.CTkLabel(self, text="AI Voice Text Tracker", font=("Arial", 16)).pack(pady=(0, 20))
+        ctk.CTkLabel(self, text="AI Voice to Text Tracker", font=("Arial", 16)).pack(pady=(0, 20))
 
         # Tabview for Login / Sign Up
         self.tabview = ctk.CTkTabview(self, width=300)
@@ -63,11 +63,11 @@ class AuthScreen(ctk.CTkFrame):
             messagebox.showerror("Error", "Please fill all fields.")
             return
 
-        user = self.db.authenticate_user(username, password)
+        user, err_msg = self.db.authenticate_user(username, password)
         if user:
             self.on_login_success(user)
         else:
-            messagebox.showerror("Login Failed", "Invalid username or password.")
+            messagebox.showerror("Login Failed", err_msg)
 
     def handle_signup(self):
         username = self.signup_user_entry.get().strip()

@@ -22,6 +22,14 @@ class DatabaseManager:
             
             # Insert default admin user if not exists
             self.create_user('admin', 'admin123!', is_admin=True) # Exclamation to pass constraints natively if run manually later
+            
+        # Ensure schema migrations for existing DB
+        with self.get_connection() as conn:
+            try:
+                conn.execute("ALTER TABLE users ADD COLUMN failed_login_attempts INTEGER DEFAULT 0")
+                conn.execute("ALTER TABLE users ADD COLUMN locked_until TIMESTAMP")
+            except sqlite3.OperationalError:
+                pass # Columns already exist
 
     def create_user(self, username, password, recovery_email=None, is_system_password=False, is_admin=False):
         """Creates a new user and hashes their password."""
@@ -63,16 +71,51 @@ class DatabaseManager:
             return dict(row) if row else None
 
     def authenticate_user(self, username, password):
-        """Returns user dict if valid, otherwise None."""
+        """Returns (user_dict, error_msg)."""
         user = self.get_user_by_username(username)
         if not user:
-            return None
+            return None, "Invalid username or password."
+            
+        now = datetime.datetime.now()
+        
+        # Check if locked
+        if user.get('locked_until'):
+            locked_until = datetime.datetime.strptime(user['locked_until'], "%Y-%m-%d %H:%M:%S")
+            if now < locked_until:
+                diff = locked_until - now
+                mins = int(diff.total_seconds() / 60) + 1
+                return None, f"Account locked due to too many failed attempts.\nPlease try again in {mins} minute(s)."
         
         # Verify password using bcrypt hash
         if verify_password(password, user['encrypted_password']):
+            # Success, reset attempts
+            with self.get_connection() as conn:
+                conn.execute("UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?", (user['id'],))
             self.update_last_login(user['id'])
-            return user
-        return None
+            user_dict = dict(user)
+            user_dict['failed_login_attempts'] = 0
+            user_dict['locked_until'] = None
+            return user_dict, ""
+        else:
+            # Failed
+            attempts = user.get('failed_login_attempts', 0) + 1
+            locked_until_str = None
+            
+            if attempts >= 5:
+                locked_until_dt = now + datetime.timedelta(minutes=30)
+                locked_until_str = locked_until_dt.strftime("%Y-%m-%d %H:%M:%S")
+                msg = "5 failed attempts. Account locked for 30 minutes."
+            elif attempts == 3:
+                locked_until_dt = now + datetime.timedelta(minutes=15)
+                locked_until_str = locked_until_dt.strftime("%Y-%m-%d %H:%M:%S")
+                msg = "3 failed attempts. Account locked for 15 minutes."
+            else:
+                msg = "Invalid username or password."
+                
+            with self.get_connection() as conn:
+                conn.execute("UPDATE users SET failed_login_attempts = ?, locked_until = ? WHERE id = ?", (attempts, locked_until_str, user['id']))
+                
+            return None, msg
 
     def update_last_login(self, user_id):
         with self.get_connection() as conn:
@@ -182,6 +225,13 @@ class DatabaseManager:
     def update_task_status(self, task_id, status):
         with self.get_connection() as conn:
             conn.execute("UPDATE tasks SET status = ? WHERE id = ?", (status, task_id))
+
+    def update_task(self, task_id, name, description, deadline, priority):
+        with self.get_connection() as conn:
+            conn.execute(
+                "UPDATE tasks SET name = ?, description = ?, deadline = ?, priority = ? WHERE id = ?",
+                (name, description, deadline, priority, task_id)
+            )
 
     # --- Dashboard Metrics ---
     def get_dashboard_metrics(self, user_id):

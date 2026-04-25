@@ -10,7 +10,9 @@ CREATE TABLE IF NOT EXISTS users (
     login_duration INTEGER DEFAULT 0,  -- In minutes
     is_system_password BOOLEAN DEFAULT 0,
     system_password_expires_at TIMESTAMP,
-    recovery_email TEXT
+    recovery_email TEXT,
+    failed_login_attempts INTEGER DEFAULT 0,
+    locked_until TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS subjects (
