@@ -32,6 +32,16 @@ class DatabaseManager:
                 pass # Columns already exist
                 
             try:
+                conn.execute("ALTER TABLE users ADD COLUMN is_disabled BOOLEAN DEFAULT 0")
+            except sqlite3.OperationalError:
+                pass
+                
+            try:
+                conn.execute("ALTER TABLE users ADD COLUMN recent_login_duration INTEGER DEFAULT 0")
+            except sqlite3.OperationalError:
+                pass
+                
+            try:
                 conn.execute("ALTER TABLE tasks ADD COLUMN completed_at TIMESTAMP")
             except sqlite3.OperationalError:
                 pass
@@ -51,8 +61,8 @@ class DatabaseManager:
             with self.get_connection() as conn:
                 conn.execute(
                     '''INSERT INTO users 
-                       (username, encrypted_password, is_admin, is_system_password, system_password_expires_at, recovery_email, created_at) 
-                       VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                       (username, encrypted_password, is_admin, is_system_password, system_password_expires_at, recovery_email, created_at, is_disabled) 
+                       VALUES (?, ?, ?, ?, ?, ?, ?, 0)''',
                     (username, hashed_pw, is_admin, is_system_password, expires_at, enc_email, now_str)
                 )
             return True
@@ -80,6 +90,9 @@ class DatabaseManager:
         user = self.get_user_by_username(username)
         if not user:
             return None, "Invalid username or password."
+            
+        if user.get('is_disabled'):
+            return None, "Your account has been disabled by an administrator."
             
         now = datetime.datetime.now()
         
@@ -129,14 +142,31 @@ class DatabaseManager:
 
     def update_login_duration(self, user_id, duration_minutes):
         with self.get_connection() as conn:
-            conn.execute("UPDATE users SET login_duration = login_duration + ? WHERE id = ?", (duration_minutes, user_id))
+            conn.execute("UPDATE users SET login_duration = login_duration + ?, recent_login_duration = ? WHERE id = ?", (duration_minutes, duration_minutes, user_id))
+
+    def disable_user(self, user_id):
+        with self.get_connection() as conn:
+            conn.execute("UPDATE users SET is_disabled = 1 WHERE id = ?", (user_id,))
+
+    def enable_user(self, user_id):
+        with self.get_connection() as conn:
+            conn.execute("UPDATE users SET is_disabled = 0 WHERE id = ?", (user_id,))
+
+    def delete_user(self, user_id):
+        with self.get_connection() as conn:
+            # Delete tasks for this user's subjects
+            conn.execute("DELETE FROM tasks WHERE subject_id IN (SELECT id FROM subjects WHERE user_id = ?)", (user_id,))
+            # Delete subjects
+            conn.execute("DELETE FROM subjects WHERE user_id = ?", (user_id,))
+            # Delete user
+            conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
 
     def get_all_users_for_admin(self):
         with self.get_connection() as conn:
             conn.row_factory = sqlite3.Row
             cur = conn.cursor()
             cur.execute('''
-                SELECT u.id, u.username, u.created_at, u.last_login, u.login_duration,
+                SELECT u.id, u.username, u.created_at, u.last_login, u.login_duration, u.recent_login_duration, u.is_disabled,
                        (SELECT COUNT(*) FROM subjects s WHERE s.user_id = u.id) as total_subjects,
                        (SELECT COUNT(*) FROM tasks t JOIN subjects s ON t.subject_id = s.id WHERE s.user_id = u.id) as total_tasks
                 FROM users u

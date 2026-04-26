@@ -272,6 +272,9 @@ class SubjectsView(ctk.CTkFrame):
         grid_container.pack(fill="both", expand=True)
         
         columns = 3
+        # Force 3 uniform columns so cards don't expand infinitely when there are < 3 subjects
+        grid_container.grid_columnconfigure((0, 1, 2), weight=1, uniform="card_col")
+        
         for i, sub in enumerate(subjects):
             row = i // columns
             col = i % columns
@@ -280,7 +283,6 @@ class SubjectsView(ctk.CTkFrame):
     def create_subject_card(self, parent, subject, row, col):
         card = ctk.CTkFrame(parent, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=1, corner_radius=15, width=280)
         card.grid(row=row, column=col, padx=15, pady=15, sticky="nsew")
-        parent.grid_columnconfigure(col, weight=1)
 
         # Category Pill & Actions
         top_frame = ctk.CTkFrame(card, fg_color="transparent")
