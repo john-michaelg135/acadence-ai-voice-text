@@ -264,38 +264,63 @@ class SubjectsView(ctk.CTkFrame):
             ctk.CTkLabel(self.scrollable_frame, text="No subjects found. Add one!", text_color=self.tm.text_sub()).pack(pady=20)
             return
 
-        for sub in subjects:
-            self.create_subject_card(sub)
+        grid_container = ctk.CTkFrame(self.scrollable_frame, fg_color="transparent")
+        grid_container.pack(fill="both", expand=True)
+        
+        columns = 3
+        for i, sub in enumerate(subjects):
+            row = i // columns
+            col = i % columns
+            self.create_subject_card(grid_container, sub, row, col)
 
-    def create_subject_card(self, subject):
-        card = ctk.CTkFrame(self.scrollable_frame, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=1, corner_radius=10, height=80)
-        card.pack(fill="x", pady=5)
-        card.pack_propagate(False)
+    def create_subject_card(self, parent, subject, row, col):
+        card = ctk.CTkFrame(parent, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=1, corner_radius=15, width=280)
+        card.grid(row=row, column=col, padx=15, pady=15, sticky="nsew")
+        parent.grid_columnconfigure(col, weight=1)
 
-        # Category Pill
+        # Category Pill & Actions
+        top_frame = ctk.CTkFrame(card, fg_color="transparent")
+        top_frame.pack(fill="x", padx=15, pady=(15, 5))
+        
         category = subject.get("category", "Major")
         pill_color = "#9F8FF3" if category == "Major" else "#D1D5DB"
-        ctk.CTkLabel(card, text=category, font=("Arial", 11, "bold"), text_color=self.tm.accent_text(), fg_color=pill_color, corner_radius=8, width=50, height=24).pack(side="left", padx=(15, 0))
+        # Optional: using theme accent color if preferred, but falling back to explicit colors
+        
+        ctk.CTkLabel(top_frame, text=category, font=("Arial", 11, "bold"), text_color=self.tm.accent_text(), fg_color=pill_color, corner_radius=8, width=50, height=24).pack(side="left")
+
+        btn_frame = ctk.CTkFrame(top_frame, fg_color="transparent")
+        btn_frame.pack(side="right")
+        
+        ctk.CTkButton(btn_frame, text="Manage", font=("Arial", 11, "bold"), fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover(), corner_radius=8, height=24, width=60,
+                      command=lambda s=subject: self.edit_subject(s)).pack(side="left", padx=3)
+                      
+        ctk.CTkButton(btn_frame, text="Delete", font=("Arial", 11, "bold"), fg_color=self.tm.error_color(), text_color="#FFFFFF", hover_color=self.tm.error_hover(), corner_radius=8, height=24, width=60,
+                      command=lambda s=subject: self.delete_subject(s)).pack(side="left", padx=3)
 
         # Subject Name
-        lbl = ctk.CTkLabel(card, text=subject['name'], font=("Arial", 18, "bold"), text_color=self.tm.text_main())
-        lbl.pack(side="left", padx=15)
+        ctk.CTkLabel(card, text=subject['name'], font=("Arial", 22, "bold"), text_color=self.tm.text_main(), anchor="w").pack(fill="x", padx=15, pady=(5, 0))
+        
+        # Subject Code
+        code = subject.get('code')
+        if code:
+            ctk.CTkLabel(card, text=code, font=("Arial", 13, "bold"), text_color=self.tm.accent_color(), anchor="w").pack(fill="x", padx=15, pady=(0, 5))
+        else:
+            ctk.CTkFrame(card, fg_color="transparent", height=5).pack() # Spacer
 
-        # Actions
-        btn_frame = ctk.CTkFrame(card, fg_color="transparent")
-        btn_frame.pack(side="right", padx=15)
+        # Description
+        desc = subject.get('description', '')
+        if desc:
+            ctk.CTkLabel(card, text=desc, font=("Arial", 13), text_color=self.tm.text_sub(), anchor="w", justify="left", wraplength=240).pack(fill="x", padx=15)
 
-        ctk.CTkButton(btn_frame, text="Open", width=60, fg_color=self.tm.bg_sub(), text_color=self.tm.text_main(), hover_color=self.tm.bg_sub(),
-                      command=lambda s=subject: self.open_subject(s)).pack(side="left", padx=(0, 10))
-                      
-        ctk.CTkButton(btn_frame, text="✏️", width=40, fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover(),
-                      command=lambda s=subject: self.edit_subject(s)).pack(side="left", padx=(0, 5))
-                      
-        ctk.CTkButton(btn_frame, text="🗑️", width=40, fg_color=self.tm.error_color(), text_color=self.tm.accent_text(), hover_color="#FF4C4C",
-                      command=lambda s=subject: self.delete_subject(s)).pack(side="left")
+        ctk.CTkFrame(card, fg_color="transparent").pack(expand=True) # Spacer
+
+        # View Button
+        ctk.CTkButton(card, text="View Tasks", fg_color=pill_color, text_color=self.tm.accent_text(), 
+                      hover_color=pill_color, font=("Arial", 14, "bold"), height=40, corner_radius=8,
+                      command=lambda s=subject: self.open_subject(s)).pack(fill="x", side="bottom", padx=15, pady=15)
 
     def open_subject(self, subject):
-        self.show_view_callback("Tasks", subject_id=subject['id'], subject_name=subject['name'])
+        self.show_view_callback("Tasks", subject_id=subject['id'], subject_name=subject['name'], source_view="Subjects")
         
     def edit_subject(self, subject):
         EditSubjectPopup(self.winfo_toplevel(), self.db, subject, self.load_subjects)

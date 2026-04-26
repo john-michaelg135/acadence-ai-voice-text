@@ -288,14 +288,16 @@ class EditTaskPopup(ctk.CTkToplevel):
         self.destroy()
 
 class TasksView(ctk.CTkFrame):
-    def __init__(self, master, user_info, show_view_callback, subject_id, subject_name):
+    def __init__(self, master, user_info, show_view_callback, subject_id, subject_name, source_view="Subjects"):
         self.tm = ThemeManager()
         super().__init__(master, fg_color="transparent")
         self.user_info = user_info
         self.show_view_callback = show_view_callback
+        self.db = DatabaseManager()
+        
         self.subject_id = subject_id
         self.subject_name = subject_name
-        self.db = DatabaseManager()
+        self.source_view = source_view
         self.current_filter = ctk.StringVar(value="All")
         
         self.setup_ui()
@@ -308,7 +310,7 @@ class TasksView(ctk.CTkFrame):
         
         # Back button
         ctk.CTkButton(header_frame, text="← Back", width=60, fg_color="transparent", text_color=self.tm.text_sub(), 
-                      command=lambda: self.show_view_callback("Subjects")).pack(side="left", padx=(0, 10))
+                      command=lambda: self.show_view_callback(self.source_view)).pack(side="left", padx=(0, 10))
 
         ctk.CTkLabel(header_frame, text=self.subject_name, font=("Arial", 24, "bold"), text_color=self.tm.text_main()).pack(side="left")
         
@@ -368,7 +370,7 @@ class TasksView(ctk.CTkFrame):
         is_done = (task['status'] == 'completed')
         bg_color = "#F9FAFB" if is_done else "#FFFFFF"
         
-        card = ctk.CTkFrame(self.scrollable_frame, fg_color=bg_color, border_color=self.tm.border_main(), border_width=1, corner_radius=10, height=80)
+        card = ctk.CTkFrame(self.scrollable_frame, fg_color=bg_color, border_color=self.tm.border_main(), border_width=1, corner_radius=10, height=65)
         card.pack(fill="x", pady=5)
         card.pack_propagate(False)
 
@@ -380,44 +382,44 @@ class TasksView(ctk.CTkFrame):
         def toggle_status():
             new_status = 'completed' if checkbox_var.get() == "on" else 'pending'
             self.db.update_task_status(task['id'], new_status)
-            
             is_now_done = (new_status == 'completed')
             card.configure(fg_color=self.tm.bg_completed() if is_now_done else "#FFFFFF")
             lbl.configure(text_color=self.tm.text_sub() if is_now_done else "#1A1A1A")
-            done_badge.configure(text="✅ Done" if is_now_done else "")
 
         cb = ctk.CTkCheckBox(left_container, text="", variable=checkbox_var, onvalue="on", offvalue="off", command=toggle_status, width=30)
         cb.pack(side="left")
 
-        done_badge = ctk.CTkLabel(left_container, text="✅ Done" if is_done else "", text_color="#22C55E", font=("Arial", 12, "bold"))
-        done_badge.pack(side="left", padx=(0, 5))
-
         # Task Name/Description Display
         text_color = "#AAAAAA" if is_done else "#1A1A1A"
         display_text = task.get('name') or task.get('description', 'Unnamed Task')
-        lbl = ctk.CTkLabel(card, text=display_text, font=("Arial", 16), text_color=text_color, wraplength=200, justify="left")
-        lbl.pack(side="left", padx=5)
+        lbl = ctk.CTkLabel(card, text=display_text, font=("Arial", 16, "bold"), text_color=text_color, justify="left", width=250, anchor="w")
+        lbl.pack(side="left", padx=15)
+        
+        # Description snippet
+        desc_text = task.get('description', '')
+        if len(desc_text) > 30: desc_text = desc_text[:30] + "..."
+        ctk.CTkLabel(card, text=desc_text, font=("Arial", 13), text_color=self.tm.text_sub(), width=250, anchor="w").pack(side="left", padx=10)
 
-        # Deadline Label (AC016)
+        # Deadline Label
         deadline_str = task.get('deadline')
         if deadline_str:
-            ctk.CTkLabel(card, text=f"📅 {deadline_str}", font=("Arial", 12), text_color="#897AE0").pack(side="left", padx=10)
+            ctk.CTkLabel(card, text=f"📅 {deadline_str}", font=("Arial", 13), text_color="#897AE0", width=120, anchor="w").pack(side="left", padx=10)
+        else:
+            ctk.CTkLabel(card, text=f"📅 No Deadline", font=("Arial", 13), text_color=self.tm.text_sub(), width=120, anchor="w").pack(side="left", padx=10)
 
         # Priority Indicator
-        prio_color = "#FF6B6B" if task['priority'] == 'High' else ("#EAB308" if task['priority'] == 'Medium' else "#F0F0F0")
-        prio_text = "!" if task['priority'] == 'High' else ("" if task['priority'] == 'Medium' else "v")
-        if prio_text:
-            ctk.CTkLabel(card, text=prio_text, font=("Arial", 16, "bold"), text_color=prio_color).pack(side="left", padx=5)
+        prio_color = "#FF6B6B" if task['priority'] == 'High' else ("#EAB308" if task['priority'] == 'Medium' else "#22C55E")
+        ctk.CTkLabel(card, text=f"🏁 {task['priority']}", font=("Arial", 13, "bold"), text_color=prio_color, width=90, anchor="w").pack(side="left", padx=15)
 
         # Actions
         act_frame = ctk.CTkFrame(card, fg_color="transparent")
         act_frame.pack(side="right", padx=15)
         
-        ctk.CTkButton(act_frame, text="✏️", width=30, fg_color="transparent", text_color=self.tm.text_main(), hover_color=self.tm.bg_sub(),
-                      command=lambda t=task: self.edit_task(t)).pack(side="left", padx=2)
+        ctk.CTkButton(act_frame, text="✏️ Edit", width=70, fg_color="transparent", text_color=self.tm.text_main(), hover_color=self.tm.bg_sub(),
+                      command=lambda t=task: self.edit_task(t)).pack(side="left", padx=5)
                       
-        ctk.CTkButton(act_frame, text="🗑️", width=30, fg_color="transparent", text_color=self.tm.error_color(), hover_color="#FFE0E0",
-                      command=lambda t=task: self.delete_task(t)).pack(side="left", padx=2)
+        ctk.CTkButton(act_frame, text="🗑️ Delete", width=70, fg_color="transparent", text_color=self.tm.error_color(), hover_color="#FFE0E0",
+                      command=lambda t=task: self.delete_task(t)).pack(side="left", padx=5)
 
     def add_task_text(self):
         # Open detailed CustomTkinter TopLevel UI

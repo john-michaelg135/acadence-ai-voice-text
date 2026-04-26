@@ -69,9 +69,4 @@ class MoreView(ctk.CTkFrame):
         desc = "Acadence AI Voice to Text Tracker is an advanced academic management tool designed to streamline note-taking, task monitoring, and productivity through intelligent integration."
         ctk.CTkLabel(about_card, text=desc, font=("Arial", 13), text_color=self.tm.text_sub(), wraplength=320, justify="left").pack(anchor="w", padx=20, pady=10)
         
-        # 3. Logout Section
-        logout_card = ctk.CTkFrame(scroll, fg_color="transparent")
-        logout_card.pack(fill="x", pady=20, padx=10)
-        
-        ctk.CTkButton(logout_card, text="Log Out", fg_color=self.tm.error_color(), text_color="#FFFFFF", 
-                      hover_color=self.tm.error_hover(), command=self.on_logout, width=200, height=45, corner_radius=22, font=("Arial", 14, "bold")).pack(pady=10)
+        # Logout removed from here, moved to Sidebar

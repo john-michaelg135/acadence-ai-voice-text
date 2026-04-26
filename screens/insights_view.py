@@ -14,96 +14,121 @@ class InsightsView(ctk.CTkFrame):
         self.setup_ui()
 
     def setup_ui(self):
-        # Header
-        ctk.CTkLabel(self, text="Priority Insights", font=("Arial", 28, "bold"), text_color=self.tm.text_main()).pack(anchor="w", padx=20, pady=(20, 10))
+        ctk.CTkLabel(self, text="Priority Insights", font=("Arial", 28, "bold"), text_color=self.tm.text_main()).pack(anchor="w", padx=30, pady=(20, 10))
 
         scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
-        scroll.pack(fill="both", expand=True, padx=10, pady=5)
+        scroll.pack(fill="both", expand=True, padx=20, pady=5)
         
-        # Priority Insight Card
-        p_card = ctk.CTkFrame(scroll, fg_color=self.tm.accent_color(), corner_radius=15)
-        p_card.pack(fill="x", padx=10, pady=(0, 15))
+        # Top Row
+        top_row = ctk.CTkFrame(scroll, fg_color="transparent")
+        top_row.pack(fill="x", pady=(0, 15))
+        
+        # Priority Insight Card (Left)
+        p_card = ctk.CTkFrame(top_row, fg_color=self.tm.accent_color(), corner_radius=15)
+        p_card.pack(side="left", fill="both", expand=True, padx=10)
         
         # Header in card
         header_f = ctk.CTkFrame(p_card, fg_color="transparent")
-        header_f.pack(fill="x", padx=20, pady=(15, 5))
-        ctk.CTkLabel(header_f, text="Priority Insight", font=("Arial", 16, "bold"), text_color=self.tm.accent_text()).pack(side="left")
-        ctk.CTkLabel(header_f, text="❗", font=("Arial", 18), text_color=self.tm.error_color()).pack(side="right")
+        header_f.pack(fill="x", padx=30, pady=(20, 5))
+        ctk.CTkLabel(header_f, text="Priority Insight", font=("Arial", 18, "bold"), text_color=self.tm.accent_text()).pack(side="left")
+        ctk.CTkLabel(header_f, text="❗", font=("Arial", 22), text_color=self.tm.error_color()).pack(side="right")
         
         metrics = self.db.get_dashboard_metrics(self.user_id) if self.user_id else None
         worst_subject = None
         if metrics and metrics['subjects']:
             worst_subject = max(metrics['subjects'], key=lambda x: x['pending_task_count'])
-            if worst_subject['pending_task_count'] == 0:
-                worst_subject = None
+            if worst_subject['pending_task_count'] == 0: worst_subject = None
                 
         if not worst_subject:
-            ctk.CTkLabel(p_card, text="Subject with the most pending tasks is\ndisplayed here.", 
-                         font=("Arial", 14), text_color=self.tm.accent_text(), justify="center").pack(pady=(20, 30))
+            ctk.CTkLabel(p_card, text="Subject with the most pending tasks is displayed here.", 
+                         font=("Arial", 15), text_color=self.tm.accent_text(), justify="center").pack(pady=40)
         else:
-            ctk.CTkLabel(p_card, text=worst_subject['name'], font=("Arial", 14), text_color=self.tm.accent_text()).pack(pady=(0, 15))
-            
-            # Content with number and star
+            ctk.CTkLabel(p_card, text=worst_subject['name'], font=("Arial", 16), text_color=self.tm.accent_text()).pack(pady=(0, 15))
             c_frame = ctk.CTkFrame(p_card, fg_color="transparent")
-            c_frame.pack(fill="x", padx=20)
-            
+            c_frame.pack(fill="x", padx=40)
             num_f = ctk.CTkFrame(c_frame, fg_color="transparent")
             num_f.pack(side="left")
-            ctk.CTkLabel(num_f, text=str(worst_subject['pending_task_count']), font=("Arial", 46, "bold"), text_color=self.tm.accent_text()).pack(anchor="w", pady=(0,0))
-            ctk.CTkLabel(num_f, text="pending tasks", font=("Arial", 12), text_color=self.tm.accent_text()).pack(anchor="w")
+            ctk.CTkLabel(num_f, text=str(worst_subject['pending_task_count']), font=("Arial", 50, "bold"), text_color=self.tm.accent_text()).pack(anchor="w")
+            ctk.CTkLabel(num_f, text="pending tasks", font=("Arial", 14), text_color=self.tm.accent_text()).pack(anchor="w")
             
-            star_btn = ctk.CTkButton(c_frame, text="⭐", font=("Arial", 30), text_color=self.tm.accent_text(), 
+            star_btn = ctk.CTkButton(c_frame, text="⭐", font=("Arial", 36), text_color=self.tm.accent_text(), 
                                      fg_color=self.tm.accent_hover(), hover_color=self.tm.accent_hover(),
-                                     width=70, height=70, corner_radius=35)
+                                     width=80, height=80, corner_radius=40)
             star_btn.pack(side="right")
             
-            ctk.CTkLabel(p_card, text="This subject requires immediate attention and\nmay generate more notifications.", 
-                         font=("Arial", 12), text_color=self.tm.accent_text(), justify="left").pack(anchor="w", padx=20, pady=(20, 15))
+            ctk.CTkLabel(p_card, text="This subject requires immediate attention and may generate more notifications.", 
+                         font=("Arial", 13), text_color=self.tm.accent_text(), justify="left").pack(anchor="w", padx=30, pady=(20, 20))
                          
             ctk.CTkButton(p_card, text="View Tasks", fg_color=self.tm.bg_card(), text_color=self.tm.accent_color(), 
-                          hover_color=self.tm.bg_sub(), font=("Arial", 14, "bold"), height=45, corner_radius=22,
-                          command=lambda: self.show_view_callback("Tasks", worst_subject['id'], worst_subject['name'])).pack(fill="x", padx=20, pady=(0, 20))
+                          hover_color=self.tm.bg_sub(), font=("Arial", 15, "bold"), height=45, corner_radius=22,
+                          command=lambda: self.show_view_callback("Tasks", subject_id=worst_subject['id'], subject_name=worst_subject['name'], source_view="Insights")).pack(fill="x", padx=30, pady=(0, 25))
+
+        # Bottom Row
+        bottom_row = ctk.CTkFrame(scroll, fg_color="transparent")
+        bottom_row.pack(fill="x", pady=15)
                           
-        # High Priority List
-        high_tasks = self.db.get_pending_tasks_by_priority(self.user_id, 'High', limit=4) if self.user_id else []
-        self._build_task_list(scroll, "High Priority Tasks", high_tasks, "No high priority tasks at the moment.", self.tm.error_color())
+        # High Priority List (Left in bottom row)
+        high_f = ctk.CTkFrame(bottom_row, fg_color="transparent")
+        high_f.pack(side="left", fill="both", expand=True, padx=10)
+        high_tasks = self.db.get_pending_tasks_by_priority(self.user_id, 'High', limit=5) if self.user_id else []
+        self._build_task_list(high_f, "High Priority Tasks", high_tasks, "No high priority tasks.", self.tm.error_color())
         
-        # Medium Priority List
-        med_tasks = self.db.get_pending_tasks_by_priority(self.user_id, 'Medium', limit=4) if self.user_id else []
-        self._build_task_list(scroll, "Medium Priority Tasks", med_tasks, "No medium priority tasks at the moment.", self.tm.warning_color())
+        # Medium Priority List (Right in bottom row)
+        med_f = ctk.CTkFrame(bottom_row, fg_color="transparent")
+        med_f.pack(side="right", fill="both", expand=True, padx=10)
+        med_tasks = self.db.get_pending_tasks_by_priority(self.user_id, 'Medium', limit=5) if self.user_id else []
+        self._build_task_list(med_f, "Medium Priority Tasks", med_tasks, "No medium priority tasks.", self.tm.warning_color())
         
         # View All
         ctk.CTkButton(scroll, text="View All Tasks", fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), 
-                      hover_color=self.tm.accent_hover(), font=("Arial", 14, "bold"), height=45, corner_radius=22,
-                      command=lambda: self.show_view_callback("AllPending")).pack(fill="x", padx=10, pady=(15, 30))
+                      hover_color=self.tm.accent_hover(), font=("Arial", 15, "bold"), height=50, corner_radius=25,
+                      command=lambda: self.show_view_callback("AllPending")).pack(fill="x", padx=20, pady=(15, 30))
 
     def _build_task_list(self, parent, title, tasks, empty_text, flag_color):
         card = ctk.CTkFrame(parent, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=1, corner_radius=15)
-        card.pack(fill="x", padx=10, pady=10)
+        card.pack(fill="both", expand=True)
         
-        ctk.CTkLabel(card, text=title, font=("Arial", 18, "bold"), text_color=self.tm.text_main()).pack(pady=(15, 5))
+        ctk.CTkLabel(card, text=title, font=("Arial", 18, "bold"), text_color=self.tm.text_main()).pack(pady=(20, 10))
         
         if not tasks:
-            ctk.CTkLabel(card, text=empty_text, font=("Arial", 13), text_color=self.tm.text_sub()).pack(pady=(5, 20))
+            ctk.CTkLabel(card, text=empty_text, font=("Arial", 14), text_color=self.tm.text_sub()).pack(pady=(20, 40))
             return
             
         for task in tasks:
-            row = ctk.CTkFrame(card, fg_color=self.tm.bg_sub(), corner_radius=10)
-            row.pack(fill="x", padx=15, pady=5)
+            row = ctk.CTkFrame(card, fg_color=self.tm.bg_sub(), corner_radius=10, cursor="hand2")
+            row.pack(fill="x", padx=20, pady=5)
             
-            left = ctk.CTkFrame(row, fg_color="transparent")
-            left.pack(side="left", fill="x", expand=True, padx=15, pady=10)
+            nav_cmd = lambda e, s_id=task['subject_id'], s_name=task['subject_name']: self.show_view_callback("Tasks", subject_id=s_id, subject_name=s_name, source_view="Insights")
+            row.bind("<Button-1>", nav_cmd)
             
-            ctk.CTkLabel(left, text=task['name'], font=("Arial", 14, "bold"), text_color=self.tm.text_main(), anchor="w").pack(fill="x")
+            left = ctk.CTkFrame(row, fg_color="transparent", cursor="hand2")
+            left.pack(side="left", fill="x", expand=True, padx=15, pady=12)
+            left.bind("<Button-1>", nav_cmd)
             
-            sub = ctk.CTkFrame(left, fg_color="transparent")
+            n_lbl = ctk.CTkLabel(left, text=task['name'], font=("Arial", 14, "bold"), text_color=self.tm.text_main(), anchor="w", cursor="hand2")
+            n_lbl.pack(fill="x")
+            n_lbl.bind("<Button-1>", nav_cmd)
+            
+            sub = ctk.CTkFrame(left, fg_color="transparent", cursor="hand2")
             sub.pack(fill="x")
+            sub.bind("<Button-1>", nav_cmd)
             
-            ctk.CTkLabel(sub, text="🏁 " + task['priority'], font=("Arial", 11, "bold"), text_color=flag_color).pack(side="left", padx=(0, 10))
-            ctk.CTkLabel(sub, text=task['subject_name'], font=("Arial", 11), text_color=self.tm.text_sub()).pack(side="left")
+            p_lbl = ctk.CTkLabel(sub, text=task['priority'], font=("Arial", 12, "bold"), text_color=flag_color, cursor="hand2")
+            p_lbl.pack(side="left", padx=(0, 10))
+            p_lbl.bind("<Button-1>", nav_cmd)
             
-            view_btn = ctk.CTkButton(row, text="❯", font=("Arial", 18), text_color=self.tm.text_sub(), fg_color="transparent", hover_color=self.tm.border_main(), width=30,
-                                     command=lambda s_id=task['subject_id'], s_name=task['subject_name']: self.show_view_callback("Tasks", s_id, s_name))
+            s_lbl = ctk.CTkLabel(sub, text=task['subject_name'], font=("Arial", 12), text_color=self.tm.text_sub(), cursor="hand2")
+            s_lbl.pack(side="left", padx=(0, 10))
+            s_lbl.bind("<Button-1>", nav_cmd)
+            
+            deadline_str = task.get('deadline')
+            if deadline_str:
+                d_lbl = ctk.CTkLabel(sub, text=f"📅 {deadline_str}", font=("Arial", 12), text_color=self.tm.accent_color(), cursor="hand2")
+                d_lbl.pack(side="left")
+                d_lbl.bind("<Button-1>", nav_cmd)
+            
+            view_btn = ctk.CTkButton(row, text="❯", font=("Arial", 18, "bold"), text_color=self.tm.text_sub(), fg_color="transparent", hover_color=self.tm.border_main(), width=30,
+                                     command=lambda s_id=task['subject_id'], s_name=task['subject_name']: self.show_view_callback("Tasks", subject_id=s_id, subject_name=s_name, source_view="Insights"))
             view_btn.pack(side="right", padx=15)
             
-        ctk.CTkFrame(card, fg_color="transparent", height=10).pack()
+        ctk.CTkFrame(card, fg_color="transparent", height=15).pack()

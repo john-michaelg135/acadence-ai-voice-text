@@ -11,7 +11,7 @@ class AcadenceApp(ctk.CTk):
         self.tm = ThemeManager()
         
         self.title("Acadence")
-        self.geometry("400x800")
+        self.geometry("1100x700")
         
         # Setup Initial Theme Colors
         ctk.set_appearance_mode("Light")
