@@ -29,7 +29,7 @@ Launch the app directly via Python:
 ```bash
 python main.py
 ```
-> **Note:** On your first launch, Acadence will automatically generate a highly secure, local `database/acadence.db` file containing the default `admin` user (Password: `admin123!`).
+> **Note:** On your first launch, Acadence will automatically generate a highly secure, local `database/acadence.db` file containing the default `admin` user.
 
 ---
 
