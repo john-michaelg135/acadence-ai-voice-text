@@ -32,6 +32,7 @@ def build_executable():
         "--name", "Acadence",
         f"--add-data", f"{ctk_path};customtkinter/",
         "--add-data", "database/schema.sql;database/",
+        "--add-data", "assets;assets/",
         "main.py"
     ]
     

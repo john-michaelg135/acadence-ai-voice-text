@@ -348,8 +348,17 @@ class SubjectsView(ctk.CTkFrame):
             return SubjectsView._global_banner_cache[category]
             
         import os
+        import sys
+        
+        if getattr(sys, 'frozen', False):
+            # If bundled via PyInstaller, assets are in _MEIPASS (which PyInstaller maps to _internal in onedir mode)
+            base_path = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
+        else:
+            # If running from source, base_path is the project root (one level up from screens folder)
+            base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            
         banner_file = "major_banner.png" if category == "Major" else "minor_banner.png"
-        banner_path = os.path.join("assets", banner_file)
+        banner_path = os.path.join(base_path, "assets", banner_file)
         
         if os.path.exists(banner_path):
             try:

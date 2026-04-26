@@ -81,15 +81,25 @@ class HomeView(ctk.CTkFrame):
         if not metrics["subjects"]:
             ctk.CTkLabel(distrib_frame, text="No subjects added.", font=("Arial", 14), text_color=self.tm.text_sub()).pack(pady=40)
             
+        # Inner scrollable frame so long lists don't get clipped off the bottom
+        distrib_scroll = ctk.CTkScrollableFrame(distrib_frame, fg_color="transparent")
+        distrib_scroll.pack(fill="both", expand=True, padx=10, pady=(0, 20))
+            
         for idx, sub in enumerate(metrics["subjects"]):
-            row_frame = ctk.CTkFrame(distrib_frame, fg_color="transparent")
-            row_frame.pack(fill="x", padx=30, pady=8)
+            row_frame = ctk.CTkFrame(distrib_scroll, fg_color="transparent")
+            row_frame.pack(fill="x", padx=10, pady=8)
             
             category = sub.get("category", "Major")
             dot_color = self.major_color if category == "Major" else self.minor_color
             
             ctk.CTkLabel(row_frame, text="●", text_color=dot_color, font=("Arial", 32)).pack(side="left", padx=(0, 15))
-            ctk.CTkLabel(row_frame, text=f"{sub['name']}:", font=("Arial", 15), text_color=self.tm.text_sub()).pack(side="left")
+            
+            # Truncate subject name if it's too long to prevent pushing the number out of bounds
+            display_name = sub['name']
+            if len(display_name) > 20:
+                display_name = display_name[:17] + "..."
+                
+            ctk.CTkLabel(row_frame, text=f"{display_name}:", font=("Arial", 15), text_color=self.tm.text_sub()).pack(side="left")
             ctk.CTkLabel(row_frame, text=f" {sub['task_count']}", font=("Arial", 15, "bold"), text_color=self.tm.text_main()).pack(side="right")
 
         # Horizontally Scrollable Subjects (Categorized) (Right Side)
