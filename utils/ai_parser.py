@@ -39,26 +39,38 @@ def parse_voice_command(text, command_type='subject'):
         Example format: {{"name": "Complete Essay 2", "description": "Research and write a 500-word essay on modern history, ensuring proper citations.", "priority": "High"}}
         """
 
-    try:
-        response = g4f.ChatCompletion.create(
-            model=g4f.models.default,
-            messages=[{"role": "user", "content": prompt}],
-            timeout=10
-        )
-        
-        # Clean up possible markdown formatting like ```json ... ```
-        response_text = response.strip()
-        if response_text.startswith("```json"):
-            response_text = response_text[7:]
-        if response_text.startswith("```"):
-            response_text = response_text[3:]
-        if response_text.endswith("```"):
-            response_text = response_text[:-3]
+    import socket
+    def is_online():
+        try:
+            socket.create_connection(("8.8.8.8", 53), timeout=1.5)
+            return True
+        except OSError:
+            return False
+
+    if is_online():
+        try:
+            response = g4f.ChatCompletion.create(
+                model=g4f.models.default,
+                messages=[{"role": "user", "content": prompt}],
+                timeout=10
+            )
             
-        data = json.loads(response_text.strip())
-        return data
-    except Exception as e:
-        print(f"AI Parsing failed: {e}")
+            # Clean up possible markdown formatting like ```json ... ```
+            response_text = response.strip()
+            if response_text.startswith("```json"):
+                response_text = response_text[7:]
+            if response_text.startswith("```"):
+                response_text = response_text[3:]
+            if response_text.endswith("```"):
+                response_text = response_text[:-3]
+                
+            data = json.loads(response_text.strip())
+            return data
+        except Exception as e:
+            print(f"AI Parsing failed: {e}")
+            return fallback_parse(text, command_type)
+    else:
+        # Instantly run fallback if offline to prevent g4f version checks and timeouts
         return fallback_parse(text, command_type)
 
 import re
@@ -84,6 +96,46 @@ def convert_numbers(s):
     for word, digit in words.items():
         s = re.sub(r'\b' + word + r'\b', digit, s, flags=re.IGNORECASE)
     return s
+
+def enrich_subject_offline(name, current_desc):
+    """Provides a pseudo-AI enriched academic description based on keywords."""
+    if len(current_desc) > 20 and current_desc.lower() not in name.lower() and name.lower() not in current_desc.lower():
+        return current_desc.capitalize()
+        
+    name_lower = name.lower()
+    if "database" in name_lower or "data" in name_lower:
+        return f"An in-depth exploration of {name.lower()}, covering core principles, architecture, and practical applications."
+    elif "math" in name_lower or "calculus" in name_lower or "algebra" in name_lower:
+        return f"A comprehensive study of {name.lower()}, focusing on analytical problem solving and theoretical frameworks."
+    elif "program" in name_lower or "comput" in name_lower or "software" in name_lower or "web" in name_lower:
+        return f"An essential study covering fundamental {name.lower()} concepts, logic design, and modern development practices."
+    elif "art" in name_lower or "design" in name_lower or "draw" in name_lower:
+        return f"A creative exploration of {name.lower()}, emphasizing aesthetics, principles of design, and visual expression."
+    elif "history" in name_lower or "social" in name_lower or "politic" in name_lower:
+        return f"An analytical review of {name.lower()}, evaluating historical contexts, societal impacts, and key theories."
+    elif "science" in name_lower or "physic" in name_lower or "biolog" in name_lower or "chemist" in name_lower:
+        return f"A rigorous scientific investigation into {name.lower()}, featuring theoretical study and practical methodology."
+    elif "business" in name_lower or "manage" in name_lower or "market" in name_lower:
+        return f"A strategic overview of {name.lower()}, focusing on industry practices, organizational behavior, and economic trends."
+    else:
+        return f"A structured academic course covering the fundamental concepts, theories, and practical applications of {name.lower()}."
+
+def enrich_task_offline(name, current_desc):
+    """Provides a pseudo-AI enriched task description based on keywords."""
+    if len(current_desc) > 15 and current_desc.lower() not in name.lower() and name.lower() not in current_desc.lower():
+        return current_desc.capitalize()
+        
+    name_lower = name.lower()
+    if "read" in name_lower or "study" in name_lower or "review" in name_lower:
+        return f"Thoroughly review and study the provided materials for {name.lower()} to ensure complete understanding."
+    elif "write" in name_lower or "essay" in name_lower or "paper" in name_lower:
+        return f"Draft, refine, and finalize the written requirements for {name.lower()}, ensuring proper formatting and clarity."
+    elif "code" in name_lower or "program" in name_lower or "build" in name_lower:
+        return f"Implement the necessary code and test the functionality for {name.lower()} to meet project requirements."
+    elif "project" in name_lower or "presentation" in name_lower:
+        return f"Organize, prepare, and deliver the final deliverables for the {name.lower()}."
+    else:
+        return f"Complete all necessary steps and requirements to successfully finalize the {name.lower()}."
 
 def fallback_parse(text, command_type):
     """Smart rule-based fallback if g4f fails or isn't installed."""
@@ -115,7 +167,7 @@ def fallback_parse(text, command_type):
         return {
             'name': to_title_case(name),
             'code': code,
-            'description': desc
+            'description': enrich_subject_offline(name, desc)
         }
     else:
         # Task Parsing
@@ -138,6 +190,6 @@ def fallback_parse(text, command_type):
             
         return {
             'name': to_title_case(name),
-            'description': desc,
+            'description': enrich_task_offline(name, desc),
             'priority': priority
         }

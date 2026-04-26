@@ -29,6 +29,45 @@ def listen_and_transcribe():
         print(f"Error during voice recognition: {e}")
         return ""
 
+import threading
+
+# Global Whisper Cache
+whisper_model = None
+whisper_lock = threading.Lock()
+
+def _transcribe_whisper(audio_data):
+    """Transcribes audio using a locally cached Whisper model for true offline usage."""
+    global whisper_model
+    try:
+        import whisper
+        import numpy as np
+    except ImportError:
+        print("Please install whisper: pip install -U openai-whisper setuptools-rust")
+        return ""
+        
+    with whisper_lock:
+        if whisper_model is None:
+            print("Loading offline Whisper model (small.en)...")
+            try:
+                whisper_model = whisper.load_model("small.en")
+            except Exception as e:
+                print("\n[!] CRITICAL OFFLINE ERROR [!]")
+                print("The Whisper AI model has not been downloaded to your computer yet.")
+                print("You MUST connect to the internet and run the Voice feature at least once so it can download the model.")
+                print("Once downloaded, it will work completely offline.")
+                print(f"Error details: {e}\n")
+                raise e
+            
+        # Convert audio to 16kHz float32 numpy array for Whisper (get_raw_data avoids WAV headers)
+        raw_data = audio_data.get_raw_data(convert_rate=16000, convert_width=2)
+        audio_np = np.frombuffer(raw_data, dtype=np.int16).astype(np.float32) / 32768.0
+        
+        # Whisper model inference is NOT thread-safe due to PyTorch KV caches. 
+        # MUST keep this inside the lock!
+        result = whisper_model.transcribe(audio_np, language="en", fp16=False)
+        
+    return result.get("text", "").strip()
+
 def start_continuous_listening(callback):
     """
     Starts listening in the background. Calls callback(text) whenever a phrase is transcribed.
@@ -49,14 +88,22 @@ def start_continuous_listening(callback):
         
     def listen_callback(recognizer, audio):
         def process_audio():
+            text = ""
             try:
+                # Try Google's free online API first
                 text = recognizer.recognize_google(audio)
-                if text:
-                    callback(text)
-            except Exception as e:
+            except sr.RequestError:
+                # Connection refused / Offline -> Fallback to Whisper
+                try:
+                    text = _transcribe_whisper(audio)
+                except Exception as e:
+                    print(f"Offline Whisper fallback failed: {e}")
+            except Exception:
                 pass # ignore errors on partial chunks
                 
-        import threading
+            if text:
+                callback(text)
+                
         threading.Thread(target=process_audio, daemon=True).start()
             
     # Remove phrase_time_limit to allow continuous recording until a natural pause
