@@ -20,8 +20,23 @@ class AdminDashboard(ctk.CTkFrame):
         header_frame.pack(fill="x", padx=20, pady=(20, 10))
 
         ctk.CTkLabel(header_frame, text="Admin Portal", font=("Arial", 28, "bold"), text_color=self.tm.accent_color()).pack(side="left")
-        ctk.CTkButton(header_frame, text="Log Out", width=80, fg_color="transparent", border_width=1, text_color=self.tm.text_main(),
-                      command=self.on_logout).pack(side="right")
+        
+        # Right side actions (Logout and Theme Toggle)
+        actions_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
+        actions_frame.pack(side="right")
+        
+        theme_menu = ctk.CTkOptionMenu(
+            actions_frame, values=["Light", "Dark", "System"],
+            command=ctk.set_appearance_mode, width=90, height=30,
+            fg_color=self.tm.bg_sub(), button_color=self.tm.accent_color(), button_hover_color=self.tm.accent_hover(),
+            text_color=self.tm.text_main()
+        )
+        theme_menu.pack(side="left", padx=(0, 15))
+        current_mode = ctk.get_appearance_mode()
+        theme_menu.set(current_mode)
+        
+        ctk.CTkButton(actions_frame, text="Log Out", width=80, fg_color="transparent", border_width=1, text_color=self.tm.text_main(),
+                      command=self.on_logout).pack(side="left")
 
         # Intro text
         ctk.CTkLabel(self, text="System User Metrics", font=("Arial", 16), text_color=self.tm.text_sub()).pack(anchor="w", padx=20, pady=(0, 10))
@@ -44,11 +59,83 @@ class AdminDashboard(ctk.CTkFrame):
         card = ctk.CTkFrame(self.scroll_frame, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=1, corner_radius=15)
         card.pack(fill="x", pady=8, padx=5)
 
-        # Top row: Username
+        # Top row: Username and Indicators
         top_frame = ctk.CTkFrame(card, fg_color="transparent")
         top_frame.pack(fill="x", padx=15, pady=(15, 5))
         
         ctk.CTkLabel(top_frame, text=f"@{user['username']}", font=("Arial", 18, "bold"), text_color=self.tm.text_main()).pack(side="left")
+        
+        # Inactivity Pill
+        from datetime import datetime
+        last_login_str = user.get('last_login')
+        needs_action = False
+        is_abandoned = False
+        
+        if not user.get('is_disabled'):
+            if not last_login_str:
+                created_dt_str = user.get('created_at', datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                try:
+                    last_dt = datetime.strptime(created_dt_str, "%Y-%m-%d %H:%M:%S")
+                    days_inactive = (datetime.now() - last_dt).days
+                except:
+                    days_inactive = 0
+            else:
+                try:
+                    last_dt = datetime.strptime(last_login_str, "%Y-%m-%d %H:%M:%S")
+                    days_inactive = (datetime.now() - last_dt).days
+                except:
+                    days_inactive = 0
+                    
+            if days_inactive > 90:
+                is_abandoned = True
+            elif days_inactive > 21:
+                needs_action = True
+                    
+            if is_abandoned:
+                ctk.CTkLabel(top_frame, text="No Longer Active", font=("Arial", 12, "bold"), text_color=self.tm.text_inverse()[0], 
+                             fg_color=self.tm.error_color(), corner_radius=10, width=130, height=24).pack(side="left", padx=15)
+            elif needs_action:
+                ctk.CTkLabel(top_frame, text="Action Needed", font=("Arial", 12, "bold"), text_color=self.tm.text_inverse()[0], 
+                             fg_color=self.tm.warning_color(), corner_radius=10, width=110, height=24).pack(side="left", padx=15)
+
+        # Disable/Enable/Delete Account Buttons
+        action_btns_frame = ctk.CTkFrame(top_frame, fg_color="transparent")
+        action_btns_frame.pack(side="right")
+        
+        from tkinter import messagebox
+        if user.get('is_disabled'):
+            def enable_cmd():
+                if messagebox.askyesno("Enable Account", f"Are you sure you want to re-enable @{user['username']}?\nThey will be able to log in again.", parent=self):
+                    self.db.enable_user(user['id'])
+                    for widget in self.scroll_frame.winfo_children():
+                        widget.destroy()
+                    self.load_users()
+                    
+            ctk.CTkButton(action_btns_frame, text="Enable Account", width=120, height=28, fg_color="transparent", text_color=self.tm.success_color(),
+                          border_width=1, border_color=self.tm.success_color(),
+                          command=enable_cmd).pack(pady=(0, 2))
+        else:
+            def disable_cmd():
+                if messagebox.askyesno("Disable Account", f"Are you sure you want to disable @{user['username']}?\nThis action will prevent them from logging in.", parent=self):
+                    self.db.disable_user(user['id'])
+                    for widget in self.scroll_frame.winfo_children():
+                        widget.destroy()
+                    self.load_users()
+
+            ctk.CTkButton(action_btns_frame, text="Disable Account", width=120, height=28, fg_color="transparent", text_color=self.tm.warning_color(),
+                          border_width=1, border_color=self.tm.warning_color(), hover_color=self.tm.bg_sub(),
+                          command=disable_cmd).pack(pady=(0, 2))
+                          
+        if is_abandoned:
+            def delete_cmd():
+                if messagebox.askyesno("Delete Account", f"Are you absolutely sure you want to PERMANENTLY DELETE @{user['username']}?\nThis action cannot be undone and will erase all their subjects and tasks.", parent=self):
+                    self.db.delete_user(user['id'])
+                    for widget in self.scroll_frame.winfo_children():
+                        widget.destroy()
+                    self.load_users()
+            
+            ctk.CTkButton(action_btns_frame, text="Delete Account", width=120, height=28, fg_color=self.tm.error_color(), text_color=self.tm.text_inverse()[0],
+                          hover_color=self.tm.error_hover(), command=delete_cmd).pack(pady=(2, 0))
         
         # Format dates dynamically natively mapping standard SQLite Timestamp strings
         def fmt_time(t_str):
@@ -68,6 +155,9 @@ class AdminDashboard(ctk.CTkFrame):
         
         ctk.CTkLabel(info_frame, text=f"Joined: {created_str}", font=("Arial", 12), text_color=self.tm.text_sub()).pack(anchor="w")
         ctk.CTkLabel(info_frame, text=f"Last Active: {last_login_str}", font=("Arial", 12), text_color=self.tm.text_sub()).pack(anchor="w", pady=(2,0))
+        
+        recent_mins = user.get('recent_login_duration') or 0
+        ctk.CTkLabel(info_frame, text=f"Most Recent Session: {recent_mins} min(s)", font=("Arial", 12), text_color=self.tm.text_sub()).pack(anchor="w", pady=(2,0))
         
         duration_mins = user.get('login_duration') or 0
         ctk.CTkLabel(info_frame, text=f"Total Logged In Time: {duration_mins} min(s)", font=("Arial", 12), text_color=self.tm.text_sub()).pack(anchor="w", pady=(2,0))

@@ -36,10 +36,10 @@ class AddTaskPopup(ctk.CTkToplevel):
         ctk.CTkLabel(container, text="Add New Task", font=("Arial", 20), text_color=self.tm.text_main()).pack(pady=(15, 20))
         
         input_args = {
-            "fg_color": "#F4F5F7", 
+            "fg_color": self.tm.bg_sub(), 
             "border_width": 1, 
-            "border_color": "#E5E7EB", 
-            "text_color": "#1A1A1A",
+            "border_color": self.tm.border_main(), 
+            "text_color": self.tm.text_main(),
             "corner_radius": 8,
             "height": 45
         }
@@ -68,26 +68,34 @@ class AddTaskPopup(ctk.CTkToplevel):
         date_wrapper.pack(fill="x", padx=30, pady=(5,0), ipady=2)
         
         from datetime import date
+        is_dark = ctk.get_appearance_mode() == "Dark"
+        bg_color = self.tm.bg_sub()[1] if is_dark else self.tm.bg_sub()[0]
+        fg_color = self.tm.text_main()[1] if is_dark else self.tm.text_main()[0]
+        header_bg = self.tm.bg_card()[1] if is_dark else self.tm.bg_card()[0]
+        sub_fg = self.tm.text_sub()[1] if is_dark else self.tm.text_sub()[0]
+        acc_bg = self.tm.accent_color()[1] if is_dark else self.tm.accent_color()[0]
+        acc_hover = self.tm.accent_hover()[1] if is_dark else self.tm.accent_hover()[0]
+
         self.deadline_entry = DateEntry(
             date_wrapper, 
-            background='#9F8FF3', 
+            background=acc_bg, 
             foreground='white', 
             borderwidth=0, 
             font=("Arial", 12), 
             date_pattern='yyyy-mm-dd',
-            mindate=date.today(), # Restricts selection to today and the future
-            headersbackground='#F4F5F7',
-            headersforeground='#1A1A1A',
-            selectbackground='#897AE0',
+            mindate=date.today(),
+            headersbackground=header_bg,
+            headersforeground=fg_color,
+            selectbackground=acc_hover,
             selectforeground='white',
-            normalbackground='#FFFFFF',
-            normalforeground='#1A1A1A',
-            weekendbackground='#FFFFFF',
-            weekendforeground='#1A1A1A',
-            othermonthforeground='#AAAAAA',
-            othermonthbackground='#FFFFFF',
-            othermonthweforeground='#AAAAAA',
-            othermonthwebackground='#FFFFFF'
+            normalbackground=bg_color,
+            normalforeground=fg_color,
+            weekendbackground=bg_color,
+            weekendforeground=fg_color,
+            othermonthforeground=sub_fg,
+            othermonthbackground=bg_color,
+            othermonthweforeground=sub_fg,
+            othermonthwebackground=bg_color
         )
         self.deadline_entry.pack(fill="x", padx=10, pady=5)
 
@@ -190,8 +198,12 @@ class EditTaskPopup(ctk.CTkToplevel):
         ctk.CTkLabel(container, text="Edit Task", font=("Arial", 20), text_color=self.tm.text_main()).pack(pady=(15, 20))
         
         input_args = {
-            "fg_color": "#F4F5F7", "border_width": 1, "border_color": "#E5E7EB", 
-            "text_color": "#1A1A1A", "corner_radius": 8, "height": 45
+            "fg_color": self.tm.bg_sub(), 
+            "border_width": 1, 
+            "border_color": self.tm.border_main(), 
+            "text_color": self.tm.text_main(),
+            "corner_radius": 8, 
+            "height": 45
         }
         
         self.name_entry = ctk.CTkEntry(container, placeholder_text="Task Name", **input_args)
@@ -213,11 +225,33 @@ class EditTaskPopup(ctk.CTkToplevel):
         date_wrapper.pack(fill="x", padx=30, pady=(5,0), ipady=2)
         
         from datetime import date
+        is_dark = ctk.get_appearance_mode() == "Dark"
+        bg_color = self.tm.bg_sub()[1] if is_dark else self.tm.bg_sub()[0]
+        fg_color = self.tm.text_main()[1] if is_dark else self.tm.text_main()[0]
+        header_bg = self.tm.bg_card()[1] if is_dark else self.tm.bg_card()[0]
+        sub_fg = self.tm.text_sub()[1] if is_dark else self.tm.text_sub()[0]
+        acc_bg = self.tm.accent_color()[1] if is_dark else self.tm.accent_color()[0]
+        acc_hover = self.tm.accent_hover()[1] if is_dark else self.tm.accent_hover()[0]
+
         self.deadline_entry = DateEntry(
-            date_wrapper, background='#9F8FF3', foreground='white', borderwidth=0, font=("Arial", 12), date_pattern='yyyy-mm-dd',
-            headersbackground='#F4F5F7', headersforeground='#1A1A1A', selectbackground='#897AE0', selectforeground='white',
-            normalbackground='#FFFFFF', normalforeground='#1A1A1A', weekendbackground='#FFFFFF', weekendforeground='#1A1A1A',
-            othermonthforeground='#AAAAAA', othermonthbackground='#FFFFFF', othermonthweforeground='#AAAAAA', othermonthwebackground='#FFFFFF'
+            date_wrapper, 
+            background=acc_bg, 
+            foreground='white', 
+            borderwidth=0, 
+            font=("Arial", 12), 
+            date_pattern='yyyy-mm-dd',
+            headersbackground=header_bg,
+            headersforeground=fg_color,
+            selectbackground=acc_hover,
+            selectforeground='white',
+            normalbackground=bg_color,
+            normalforeground=fg_color,
+            weekendbackground=bg_color,
+            weekendforeground=fg_color,
+            othermonthforeground=sub_fg,
+            othermonthbackground=bg_color,
+            othermonthweforeground=sub_fg,
+            othermonthwebackground=bg_color
         )
         self.deadline_entry.pack(fill="x", padx=10, pady=5)
 
@@ -321,22 +355,41 @@ class TasksView(ctk.CTkFrame):
         # Text Add Button
         ctk.CTkButton(btn_frame, text="+ Add Task", width=120, fg_color=self.tm.accent_color(), text_color=self.tm.text_main(), command=self.add_task_text).pack(side="left", padx=(0, 5))
         
-        # Voice Add Button Placeholder
-        ctk.CTkButton(btn_frame, text="🎤", width=40, fg_color=self.tm.accent_color(), text_color=self.tm.text_main(), command=self.add_task_voice).pack(side="left")
+        # Voice Add Button
+        ctk.CTkButton(btn_frame, text="Voice AI", width=100, fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover(), command=self.add_task_voice).pack(side="left")
 
-        # Filter Segmented Button
-        self.filter_seg = ctk.CTkSegmentedButton(
-            self, values=["All", "Pending", "Completed"], 
-            variable=self.current_filter, 
-            command=self.filter_changed,
-            selected_color="#897AE0",
-            selected_hover_color="#9F8FF3"
-        )
-        self.filter_seg.pack(pady=(0, 10))
+        # Modern Filter Buttons
+        self.filter_frame = ctk.CTkFrame(self, fg_color=self.tm.bg_card(), corner_radius=20, border_color=self.tm.border_main(), border_width=1)
+        self.filter_frame.pack(pady=(0, 15))
+        
+        self.filter_buttons = {}
+        for f_val in ["All", "Pending", "Completed"]:
+            btn = ctk.CTkButton(
+                self.filter_frame, text=f_val, width=90, height=32, corner_radius=16,
+                font=("Arial", 13, "bold"),
+                command=lambda v=f_val: self.set_filter(v)
+            )
+            btn.pack(side="left", padx=5, pady=5)
+            self.filter_buttons[f_val] = btn
+            
+        self.update_filter_buttons()
 
         # Scrollable list of tasks
         self.scrollable_frame = ctk.CTkScrollableFrame(self, fg_color="transparent")
         self.scrollable_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+    def set_filter(self, value):
+        self.current_filter.set(value)
+        self.update_filter_buttons()
+        self.filter_changed(value)
+
+    def update_filter_buttons(self):
+        curr = self.current_filter.get()
+        for val, btn in self.filter_buttons.items():
+            if val == curr:
+                btn.configure(fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover())
+            else:
+                btn.configure(fg_color="transparent", text_color=self.tm.text_sub(), hover_color=self.tm.bg_sub())
 
     def filter_changed(self, value):
         self.load_tasks()
@@ -367,30 +420,16 @@ class TasksView(ctk.CTkFrame):
             self.create_task_card(task)
 
     def create_task_card(self, task):
+        from tkinter import messagebox
         is_done = (task['status'] == 'completed')
-        bg_color = "#F9FAFB" if is_done else "#FFFFFF"
+        bg_color = self.tm.bg_sub() if is_done else self.tm.bg_card()
         
         card = ctk.CTkFrame(self.scrollable_frame, fg_color=bg_color, border_color=self.tm.border_main(), border_width=1, corner_radius=10, height=65)
         card.pack(fill="x", pady=5)
         card.pack_propagate(False)
-
-        checkbox_var = ctk.StringVar(value="on" if is_done else "off")
         
-        left_container = ctk.CTkFrame(card, fg_color="transparent")
-        left_container.pack(side="left", padx=(15, 5))
-        
-        def toggle_status():
-            new_status = 'completed' if checkbox_var.get() == "on" else 'pending'
-            self.db.update_task_status(task['id'], new_status)
-            is_now_done = (new_status == 'completed')
-            card.configure(fg_color=self.tm.bg_completed() if is_now_done else "#FFFFFF")
-            lbl.configure(text_color=self.tm.text_sub() if is_now_done else "#1A1A1A")
-
-        cb = ctk.CTkCheckBox(left_container, text="", variable=checkbox_var, onvalue="on", offvalue="off", command=toggle_status, width=30)
-        cb.pack(side="left")
-
         # Task Name/Description Display
-        text_color = "#AAAAAA" if is_done else "#1A1A1A"
+        text_color = self.tm.text_sub() if is_done else self.tm.text_main()
         display_text = task.get('name') or task.get('description', 'Unnamed Task')
         lbl = ctk.CTkLabel(card, text=display_text, font=("Arial", 16, "bold"), text_color=text_color, justify="left", width=250, anchor="w")
         lbl.pack(side="left", padx=15)
@@ -403,22 +442,46 @@ class TasksView(ctk.CTkFrame):
         # Deadline Label
         deadline_str = task.get('deadline')
         if deadline_str:
-            ctk.CTkLabel(card, text=f"📅 {deadline_str}", font=("Arial", 13), text_color="#897AE0", width=120, anchor="w").pack(side="left", padx=10)
+            ctk.CTkLabel(card, text=f"📅 {deadline_str}", font=("Arial", 13), text_color=self.tm.accent_color(), width=120, anchor="w").pack(side="left", padx=10)
         else:
             ctk.CTkLabel(card, text=f"📅 No Deadline", font=("Arial", 13), text_color=self.tm.text_sub(), width=120, anchor="w").pack(side="left", padx=10)
 
         # Priority Indicator
         prio_color = "#FF6B6B" if task['priority'] == 'High' else ("#EAB308" if task['priority'] == 'Medium' else "#22C55E")
-        ctk.CTkLabel(card, text=f"🏁 {task['priority']}", font=("Arial", 13, "bold"), text_color=prio_color, width=90, anchor="w").pack(side="left", padx=15)
+        ctk.CTkLabel(card, text=task['priority'], font=("Arial", 13, "bold"), text_color=prio_color, width=90, anchor="w").pack(side="left", padx=15)
 
         # Actions
         act_frame = ctk.CTkFrame(card, fg_color="transparent")
         act_frame.pack(side="right", padx=15)
         
-        ctk.CTkButton(act_frame, text="✏️ Edit", width=70, fg_color="transparent", text_color=self.tm.text_main(), hover_color=self.tm.bg_sub(),
+        def toggle_status():
+            action_text = "mark this task as done" if not is_done else "unmark this task"
+            if messagebox.askyesno("Confirm Action", f"Are you sure you want to {action_text}?"):
+                new_status = 'pending' if is_done else 'completed'
+                self.db.update_task_status(task['id'], new_status)
+                self.load_tasks()
+
+        if is_done:
+            btn_text = "Unmark Task"
+            btn_color = self.tm.text_sub()
+            btn_text_color = "#FFFFFF"
+            btn_hover = self.tm.border_main()
+        else:
+            btn_text = "Mark as Done"
+            btn_color = self.tm.accent_color()
+            btn_text_color = self.tm.accent_text()
+            btn_hover = self.tm.accent_hover()
+
+        ctk.CTkButton(act_frame, text=btn_text, font=("Arial", 11, "bold"), width=100, height=24, corner_radius=8,
+                      fg_color=btn_color, text_color=btn_text_color, hover_color=btn_hover,
+                      command=toggle_status).pack(side="left", padx=5)
+        
+        ctk.CTkButton(act_frame, text="Manage", font=("Arial", 11, "bold"), width=60, height=24, corner_radius=8,
+                      fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover(),
                       command=lambda t=task: self.edit_task(t)).pack(side="left", padx=5)
                       
-        ctk.CTkButton(act_frame, text="🗑️ Delete", width=70, fg_color="transparent", text_color=self.tm.error_color(), hover_color="#FFE0E0",
+        ctk.CTkButton(act_frame, text="Delete", font=("Arial", 11, "bold"), width=60, height=24, corner_radius=8,
+                      fg_color=self.tm.error_color(), text_color="#FFFFFF", hover_color=self.tm.error_hover(),
                       command=lambda t=task: self.delete_task(t)).pack(side="left", padx=5)
 
     def add_task_text(self):
