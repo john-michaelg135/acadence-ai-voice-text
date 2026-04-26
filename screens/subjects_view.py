@@ -4,13 +4,14 @@ from tkinter import messagebox
 from database.db_manager import DatabaseManager
 
 class AddSubjectPopup(ctk.CTkToplevel):
-    def __init__(self, master, db, user_id, on_success):
+    def __init__(self, master, db, user_id, on_success, initial_data=None):
         self.tm = ThemeManager()
         super().__init__(master, fg_color=self.tm.bg_card())
         
         self.db = db
         self.user_id = user_id
         self.on_success = on_success
+        self.initial_data = initial_data
         
         self.title("")
         self.geometry("700x450")
@@ -55,6 +56,11 @@ class AddSubjectPopup(ctk.CTkToplevel):
         # Subject Description
         self.desc_entry = ctk.CTkEntry(container, placeholder_text="Subject Description", **input_args)
         self.desc_entry.pack(fill="x", padx=30, pady=(0, 20))
+        
+        if self.initial_data:
+            self.name_entry.insert(0, self.initial_data.get('name', ''))
+            self.code_entry.insert(0, self.initial_data.get('code', ''))
+            self.desc_entry.insert(0, self.initial_data.get('description', ''))
         
         # Category Section
         ctk.CTkLabel(container, text="Category", font=("Arial", 14), text_color=self.tm.text_sub()).pack(pady=(5, 5))
@@ -387,22 +393,12 @@ class SubjectsView(ctk.CTkFrame):
             messagebox.showinfo("Guest", "You need to log in to save subjects.")
             return
             
-        import threading
-        from utils.voice_manager import listen_and_transcribe
+        from screens.voice_popup import VoiceRecordingPopup
         
-        def listen_thread():
-            text = listen_and_transcribe()
-            if text:
-                # Store full text to description but only use first 3 words for name
-                name_guess = " ".join(text.split()[:3])
-                self.db.add_subject(self.user_id, name_guess, description=text, category='Major')
-                self.after(0, self.load_subjects)
-                self.after(0, lambda: messagebox.showinfo("Voice Recognized", f"Added subject: {name_guess}"))
-            else:
-                self.after(0, lambda: messagebox.showerror("Voice Error", "Could not recognize speech or no speech detected."))
-        
-        messagebox.showinfo("Voice Recording", "Click OK and start speaking your subject details...")
-        threading.Thread(target=listen_thread, daemon=True).start()
+        def on_transcribed(parsed_data):
+            AddSubjectPopup(self.winfo_toplevel(), self.db, self.user_id, self.load_subjects, initial_data=parsed_data)
+            
+        VoiceRecordingPopup(self.winfo_toplevel(), on_transcribed, command_type='subject')
 
     def delete_subject(self, subject):
         if messagebox.askyesno("Delete", f"Are you sure you want to delete '{subject['name']}'?"):

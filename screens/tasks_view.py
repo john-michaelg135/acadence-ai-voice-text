@@ -5,7 +5,7 @@ from tkcalendar import DateEntry
 from database.db_manager import DatabaseManager
 
 class AddTaskPopup(ctk.CTkToplevel):
-    def __init__(self, master, db, subject_id, subject_name, on_success):
+    def __init__(self, master, db, subject_id, subject_name, on_success, initial_data=None):
         self.tm = ThemeManager()
         super().__init__(master, fg_color=self.tm.bg_card())
         
@@ -13,6 +13,7 @@ class AddTaskPopup(ctk.CTkToplevel):
         self.subject_id = subject_id
         self.subject_name = subject_name
         self.on_success = on_success
+        self.initial_data = initial_data
         
         self.title("")
         self.geometry("800x600")
@@ -103,7 +104,6 @@ class AddTaskPopup(ctk.CTkToplevel):
         self.desc_textbox = ctk.CTkTextbox(container, fg_color=self.tm.bg_sub(), border_width=1, border_color=self.tm.border_main(), 
                                            text_color=self.tm.text_main(), corner_radius=8, height=100)
         self.desc_textbox.pack(fill="x", padx=30, pady=(0, 20))
-        self.desc_textbox.insert("0.0", "Description") # Placeholder
         
         # Priority Section
         ctk.CTkLabel(container, text="Priority Level (Optional)", font=("Arial", 14), text_color=self.tm.text_sub()).pack(pady=(5, 5))
@@ -132,6 +132,18 @@ class AddTaskPopup(ctk.CTkToplevel):
                     btn.configure(fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover())
                 else:
                     btn.configure(fg_color="transparent", text_color=self.tm.text_sub(), hover_color=self.tm.bg_sub(), border_width=0)
+                    
+        # Apply initial priority before running update
+        if self.initial_data:
+            self.name_entry.insert(0, self.initial_data.get('name', ''))
+            self.desc_textbox.insert("0.0", self.initial_data.get('description', ''))
+            p = self.initial_data.get('priority', 'Medium')
+            if p in ['Low', 'Medium', 'High']:
+                set_priority(p)
+        else:
+            self.desc_textbox.insert("0.0", "Description") # Placeholder
+            
+        update_prio_buttons()
                     
         update_prio_buttons()
 
@@ -489,22 +501,12 @@ class TasksView(ctk.CTkFrame):
         AddTaskPopup(self.winfo_toplevel(), self.db, self.subject_id, self.subject_name, self.load_tasks)
 
     def add_task_voice(self):
-        import threading
-        from utils.voice_manager import listen_and_transcribe
+        from screens.voice_popup import VoiceRecordingPopup
         
-        def listen_thread():
-            text = listen_and_transcribe()
-            if text:
-                # Store full text as description, guess first 3 words for name
-                name_guess = " ".join(text.split()[:3])
-                self.db.add_task(self.subject_id, name_guess, description=text, priority='Medium')
-                self.after(0, self.load_tasks)
-                self.after(0, lambda: messagebox.showinfo("Voice Recognized", f"Added task: {name_guess}"))
-            else:
-                self.after(0, lambda: messagebox.showerror("Voice Error", "Could not recognize speech or no speech detected."))
-                
-        messagebox.showinfo("Voice Recording", "Click OK and start speaking your task details...")
-        threading.Thread(target=listen_thread, daemon=True).start()
+        def on_transcribed(parsed_data):
+            AddTaskPopup(self.winfo_toplevel(), self.db, self.subject_id, self.subject_name, self.load_tasks, initial_data=parsed_data)
+            
+        VoiceRecordingPopup(self.winfo_toplevel(), on_transcribed, command_type='task')
 
     def edit_task(self, task):
         EditTaskPopup(self.winfo_toplevel(), self.db, task, self.subject_name, self.load_tasks)

@@ -27,6 +27,7 @@ class ThemeManager:
     def error_hover(self): return ("#FF4C4C", "#DC2626")
     def warning_color(self): return ("#EAB308", "#F59E0B")
     def success_color(self): return ("#4ADE80", "#10B981")
+    def success_hover(self): return ("#22C55E", "#059669")
     
     @property
     def palettes(self):
