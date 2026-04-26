@@ -35,19 +35,30 @@ def start_continuous_listening(callback):
     Returns a stop_listening function that can be called to terminate the background thread.
     """
     recognizer = sr.Recognizer()
+    recognizer.pause_threshold = 1.2  # Wait longer before assuming the user stopped speaking
+    recognizer.non_speaking_duration = 0.5
+    recognizer.dynamic_energy_threshold = False
+    recognizer.energy_threshold = 300  # Hardcode threshold so it doesn't accidentally cut off quiet speech
+    
     mic = sr.Microphone()
     
     with mic as source:
-        recognizer.adjust_for_ambient_noise(source, duration=0.5)
+        # Calibrate for a slightly longer duration
+        recognizer.adjust_for_ambient_noise(source, duration=1.0)
+        
         
     def listen_callback(recognizer, audio):
-        try:
-            text = recognizer.recognize_google(audio)
-            if text:
-                callback(text)
-        except Exception as e:
-            pass # ignore errors on partial chunks
+        def process_audio():
+            try:
+                text = recognizer.recognize_google(audio)
+                if text:
+                    callback(text)
+            except Exception as e:
+                pass # ignore errors on partial chunks
+                
+        import threading
+        threading.Thread(target=process_audio, daemon=True).start()
             
-    # phrase_time_limit determines how long a single block of speech can be before it forces a transcription
-    stop_func = recognizer.listen_in_background(mic, listen_callback, phrase_time_limit=15)
+    # Remove phrase_time_limit to allow continuous recording until a natural pause
+    stop_func = recognizer.listen_in_background(mic, listen_callback, phrase_time_limit=None)
     return stop_func
