@@ -12,7 +12,9 @@ CREATE TABLE IF NOT EXISTS users (
     system_password_expires_at TIMESTAMP,
     recovery_email TEXT,
     failed_login_attempts INTEGER DEFAULT 0,
-    locked_until TIMESTAMP
+    locked_until TIMESTAMP,
+    is_disabled BOOLEAN DEFAULT 0,
+    recent_login_duration INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS subjects (
@@ -35,6 +37,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     status TEXT DEFAULT 'pending',
     priority TEXT DEFAULT 'Medium',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP,
     FOREIGN KEY(subject_id) REFERENCES subjects(id) ON DELETE CASCADE
 );
 

@@ -12,3 +12,6 @@ document.txt
 Acadence_Security_Implementation_Report.docx
 __pycache__/
 *.pyc
+Acadence.spec
+build/
+dist/

@@ -112,7 +112,12 @@ class HomeView(ctk.CTkFrame):
                 nav_cmd = lambda e, s_id=sub['id'], s_name=sub['name']: self.show_view_callback("Tasks", subject_id=s_id, subject_name=s_name, source_view="Home")
                 c.bind("<Button-1>", nav_cmd)
                 
-                l1 = ctk.CTkLabel(c, text=sub['name'], font=("Arial", 14, "bold"), text_color="#1A1A1A", cursor="hand2")
+                # Truncate text if it's incredibly long, and wrap it
+                display_name = sub['name']
+                if len(display_name) > 30:
+                    display_name = display_name[:27] + "..."
+                    
+                l1 = ctk.CTkLabel(c, text=display_name, font=("Arial", 14, "bold"), text_color="#1A1A1A", cursor="hand2", wraplength=130)
                 l1.pack(pady=(15, 5))
                 l1.bind("<Button-1>", nav_cmd)
                 
@@ -137,7 +142,12 @@ class HomeView(ctk.CTkFrame):
                 nav_cmd = lambda e, s_id=sub['id'], s_name=sub['name']: self.show_view_callback("Tasks", subject_id=s_id, subject_name=s_name, source_view="Home")
                 c.bind("<Button-1>", nav_cmd)
                 
-                l1 = ctk.CTkLabel(c, text=sub['name'], font=("Arial", 14, "bold"), text_color="#1A1A1A", cursor="hand2")
+                # Truncate text if it's incredibly long, and wrap it
+                display_name = sub['name']
+                if len(display_name) > 30:
+                    display_name = display_name[:27] + "..."
+                    
+                l1 = ctk.CTkLabel(c, text=display_name, font=("Arial", 14, "bold"), text_color="#1A1A1A", cursor="hand2", wraplength=130)
                 l1.pack(pady=(15, 5))
                 l1.bind("<Button-1>", nav_cmd)
                 

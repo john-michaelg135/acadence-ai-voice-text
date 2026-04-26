@@ -6,3 +6,8 @@ PyAudio
 bcrypt
 tkcalendar
 python-dotenv
+pandas
+openpyxl
+g4f
+openai-whisper
+setuptools-rust

@@ -3,8 +3,23 @@ import os
 import datetime
 from utils.security import hash_password, verify_password, encrypt_data, decrypt_data
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'acadence.db')
-SCHEMA_PATH = os.path.join(os.path.dirname(__file__), 'schema.sql')
+import sys
+
+if getattr(sys, 'frozen', False):
+    # Running as compiled executable
+    application_path = os.path.dirname(sys.executable)
+    bundle_dir = getattr(sys, '_MEIPASS', application_path)
+else:
+    # Running as a script
+    application_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    bundle_dir = application_path
+
+db_dir = os.path.join(application_path, 'database')
+if not os.path.exists(db_dir):
+    os.makedirs(db_dir)
+
+DB_PATH = os.path.join(db_dir, 'acadence.db')
+SCHEMA_PATH = os.path.join(bundle_dir, 'database', 'schema.sql')
 
 class DatabaseManager:
     def __init__(self):
