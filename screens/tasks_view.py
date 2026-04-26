@@ -341,6 +341,10 @@ class TasksView(ctk.CTkFrame):
 
         tasks = self.db.get_tasks(self.subject_id)
         
+        # AC017: Sort tasks by deadline
+        # Empty deadlines go to the bottom ('9999-12-31')
+        tasks.sort(key=lambda x: (x.get('deadline') or '9999-12-31', x.get('created_at', '')))
+        
         # Apply filter
         curr_f = self.current_filter.get()
         if curr_f == "Pending":
@@ -357,28 +361,43 @@ class TasksView(ctk.CTkFrame):
             self.create_task_card(task)
 
     def create_task_card(self, task):
-        card = ctk.CTkFrame(self.scrollable_frame, fg_color="#FFFFFF", border_color="#E0E0E0", border_width=1, corner_radius=10, height=80)
+        is_done = (task['status'] == 'completed')
+        bg_color = "#F9FAFB" if is_done else "#FFFFFF"
+        
+        card = ctk.CTkFrame(self.scrollable_frame, fg_color=bg_color, border_color="#E0E0E0", border_width=1, corner_radius=10, height=80)
         card.pack(fill="x", pady=5)
         card.pack_propagate(False)
 
-        # Status Checkbox
-        is_done = (task['status'] == 'completed')
         checkbox_var = ctk.StringVar(value="on" if is_done else "off")
+        
+        left_container = ctk.CTkFrame(card, fg_color="transparent")
+        left_container.pack(side="left", padx=(15, 5))
         
         def toggle_status():
             new_status = 'completed' if checkbox_var.get() == "on" else 'pending'
             self.db.update_task_status(task['id'], new_status)
-            lbl.configure(text_color="#AAAAAA" if new_status == 'completed' else "#1A1A1A")
+            
+            is_now_done = (new_status == 'completed')
+            card.configure(fg_color="#F9FAFB" if is_now_done else "#FFFFFF")
+            lbl.configure(text_color="#AAAAAA" if is_now_done else "#1A1A1A")
+            done_badge.configure(text="✅ Done" if is_now_done else "")
 
-        cb = ctk.CTkCheckBox(card, text="", variable=checkbox_var, onvalue="on", offvalue="off", command=toggle_status, width=30)
-        cb.pack(side="left", padx=(15, 5))
+        cb = ctk.CTkCheckBox(left_container, text="", variable=checkbox_var, onvalue="on", offvalue="off", command=toggle_status, width=30)
+        cb.pack(side="left")
+
+        done_badge = ctk.CTkLabel(left_container, text="✅ Done" if is_done else "", text_color="#22C55E", font=("Arial", 12, "bold"))
+        done_badge.pack(side="left", padx=(0, 5))
 
         # Task Name/Description Display
         text_color = "#AAAAAA" if is_done else "#1A1A1A"
-        # Since older tasks might not have a name if they were created before schema update, default to description
         display_text = task.get('name') or task.get('description', 'Unnamed Task')
         lbl = ctk.CTkLabel(card, text=display_text, font=("Arial", 16), text_color=text_color, wraplength=200, justify="left")
         lbl.pack(side="left", padx=5)
+
+        # Deadline Label (AC016)
+        deadline_str = task.get('deadline')
+        if deadline_str:
+            ctk.CTkLabel(card, text=f"📅 {deadline_str}", font=("Arial", 12), text_color="#897AE0").pack(side="left", padx=10)
 
         # Priority Indicator
         prio_color = "#FF6B6B" if task['priority'] == 'High' else ("#EAB308" if task['priority'] == 'Medium' else "#F0F0F0")
