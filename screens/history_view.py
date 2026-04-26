@@ -28,6 +28,9 @@ class HistoryView(ctk.CTkFrame):
         left_col = ctk.CTkFrame(grid_frame, fg_color="transparent", width=420)
         left_col.pack(side="left", fill="both", padx=10)
         
+        # Invisible spacer to force minimum width of left column
+        ctk.CTkFrame(left_col, fg_color="transparent", width=380, height=1).pack()
+        
         # 1. Banner
         banner = ctk.CTkFrame(left_col, fg_color=self.tm.accent_color(), corner_radius=15)
         banner.pack(fill="x", pady=(0, 15))
@@ -39,12 +42,19 @@ class HistoryView(ctk.CTkFrame):
         chart_card = ctk.CTkFrame(left_col, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=1, corner_radius=15)
         chart_card.pack(fill="both", expand=True)
         
-        ctk.CTkLabel(chart_card, text="Task Completion by Subject", font=("Arial", 18, "bold"), text_color=self.tm.text_main()).pack(pady=(20, 20))
+        ctk.CTkLabel(chart_card, text="Task Completion by Subject", font=("Arial", 16, "bold"), text_color=self.tm.text_main(), wraplength=300).pack(pady=(20, 20))
         
         chart_data = self.db.get_completed_tasks_by_subject(self.user_id) if self.user_id else []
         
         if not chart_data or all(d['count'] == 0 for d in chart_data):
-            ctk.CTkLabel(chart_card, text="Not enough data to display chart.", font=("Arial", 14, "italic"), text_color=self.tm.text_sub()).pack(pady=50)
+            empty_frame = ctk.CTkFrame(chart_card, fg_color="transparent")
+            empty_frame.pack(fill="both", expand=True, pady=40)
+            ctk.CTkLabel(empty_frame, text="📊", font=("Arial", 40)).pack(expand=True, side="bottom", pady=(0, 10))
+            
+            text_frame = ctk.CTkFrame(chart_card, fg_color="transparent")
+            text_frame.pack(fill="both", expand=True, pady=(0, 40))
+            ctk.CTkLabel(text_frame, text="No user data yet.\nStart completing tasks.", 
+                         font=("Arial", 14), text_color=self.tm.text_sub(), justify="center").pack(side="top")
         else:
             c_width = 360
             c_height = 250
@@ -59,29 +69,52 @@ class HistoryView(ctk.CTkFrame):
             max_val = max(d['count'] for d in chart_data)
             if max_val == 0: max_val = 1
             
-            bar_width = 45
-            spacing = 25
-            
             valid_bars = [d for d in chart_data if d['count'] > 0]
-            total_width = (len(valid_bars) * bar_width) + ((len(valid_bars) - 1) * spacing)
-            start_x = (c_width - total_width) / 2
-            if start_x < 10: start_x = 10 
+            num_bars = len(valid_bars)
             
-            bottom_y = c_height - 30 
-            
-            drawn_idx = 0
-            for data in chart_data:
-                if data['count'] == 0: continue
-                height = (data['count'] / max_val) * (c_height - 60) 
-                x0 = start_x + (drawn_idx * (bar_width + spacing))
-                y0 = bottom_y - height
-                x1 = x0 + bar_width
-                y1 = bottom_y
-                canvas.create_rectangle(x0, y0, x1, y1, fill=accent_hex, outline="")
-                name = data['name'][:6] + ".." if len(data['name']) > 8 else data['name']
-                canvas.create_text(x0 + (bar_width/2), bottom_y + 15, text=name, fill=text_hex, font=("Arial", 11))
-                canvas.create_text(x0 + (bar_width/2), y0 - 12, text=str(data['count']), fill=text_hex, font=("Arial", 11, "bold"))
-                drawn_idx += 1
+            if num_bars > 0:
+                max_available_width = c_width - 40
+                spacing = 25
+                bar_width = (max_available_width - ((num_bars - 1) * spacing)) / num_bars
+                
+                # Cap max bar width and calculate start_x to center
+                if bar_width > 55:
+                    bar_width = 55
+                    
+                if bar_width < 15: # If too narrow, reduce spacing
+                    spacing = max(2, (max_available_width - (num_bars * 15)) / max(1, num_bars - 1))
+                    bar_width = 15
+                    
+                total_width = (num_bars * bar_width) + ((num_bars - 1) * spacing)
+                start_x = (c_width - total_width) / 2
+                if start_x < 10: start_x = 10 
+                
+                bottom_y = c_height - 30 
+                
+                drawn_idx = 0
+                for data in chart_data:
+                    if data['count'] == 0: continue
+                    height = (data['count'] / max_val) * (c_height - 60) 
+                    x0 = start_x + (drawn_idx * (bar_width + spacing))
+                    y0 = bottom_y - height
+                    x1 = x0 + bar_width
+                    y1 = bottom_y
+                    
+                    r = min(8, bar_width / 2)
+                    r = min(r, height / 2)
+                    
+                    bar_frame = ctk.CTkFrame(canvas, fg_color=accent_hex, corner_radius=int(r))
+                    canvas.create_window(x0, y0, anchor="nw", window=bar_frame, width=bar_width, height=height)
+                    
+                    if height > r:
+                        bottom_square = ctk.CTkFrame(bar_frame, fg_color=accent_hex, corner_radius=0, height=int(r))
+                        bottom_square.pack(side="bottom", fill="x")
+                        
+                        
+                    name = data['name'][:6] + ".." if len(data['name']) > 8 else data['name']
+                    canvas.create_text(x0 + (bar_width/2), bottom_y + 15, text=name, fill=text_hex, font=("Arial", 11))
+                    canvas.create_text(x0 + (bar_width/2), y0 - 12, text=str(data['count']), fill=text_hex, font=("Arial", 11, "bold"))
+                    drawn_idx += 1
 
         # RIGHT COLUMN
         right_col = ctk.CTkFrame(grid_frame, fg_color="transparent")
@@ -97,17 +130,26 @@ class HistoryView(ctk.CTkFrame):
         recent_tasks = self.db.get_completed_tasks(self.user_id, limit=6) if self.user_id else []
         
         if not recent_tasks:
-            ctk.CTkLabel(list_card, text="No completed tasks yet.", font=("Arial", 14, "italic"), text_color=self.tm.text_sub()).pack(pady=40)
+            empty_container = ctk.CTkFrame(list_card, fg_color="transparent")
+            empty_container.pack(fill="both", expand=True)
+            ctk.CTkLabel(empty_container, text="✅", font=("Arial", 35)).pack(expand=True, side="bottom", pady=(0, 10))
+            
+            text_container = ctk.CTkFrame(list_card, fg_color="transparent")
+            text_container.pack(fill="both", expand=True)
+            ctk.CTkLabel(text_container, text="No completed tasks yet.\nYour recent completions will appear here.", 
+                         font=("Arial", 14), text_color=self.tm.text_sub(), justify="center").pack(side="top")
         else:
             for task in recent_tasks:
-                task_row = ctk.CTkFrame(list_card, fg_color="transparent")
-                task_row.pack(fill="x", padx=30, pady=8)
+                task_row = ctk.CTkFrame(list_card, fg_color=self.tm.bg_sub(), corner_radius=10)
+                task_row.pack(fill="x", padx=20, pady=6)
                 
-                check_lbl = ctk.CTkLabel(task_row, text="✅", font=("Arial", 22), text_color=self.tm.success_color())
-                check_lbl.pack(side="left", padx=(0, 15))
+                check_lbl = ctk.CTkLabel(task_row, text="Completed", font=("Arial", 11, "bold"), 
+                                         fg_color=self.tm.success_color(), text_color="#FFFFFF", 
+                                         corner_radius=10, width=80, height=24)
+                check_lbl.pack(side="left", padx=(15, 15), pady=15)
                 
                 info_frame = ctk.CTkFrame(task_row, fg_color="transparent")
-                info_frame.pack(side="left", fill="x", expand=True)
+                info_frame.pack(side="left", fill="x", expand=True, pady=10)
                 
                 ctk.CTkLabel(info_frame, text=task['name'], font=("Arial", 15, "bold"), text_color=self.tm.text_main(), anchor="w").pack(fill="x")
                 
@@ -115,7 +157,7 @@ class HistoryView(ctk.CTkFrame):
                 sub_frame.pack(fill="x")
                 
                 p_color = self.tm.error_color() if task['priority'] == 'High' else self.tm.warning_color() if task['priority'] == 'Medium' else self.tm.success_color()
-                ctk.CTkLabel(sub_frame, text=f"🏁 {task['priority']}", font=("Arial", 12, "bold"), text_color=p_color).pack(side="left", padx=(0, 15))
+                ctk.CTkLabel(sub_frame, text=task['priority'], font=("Arial", 12, "bold"), text_color=p_color).pack(side="left", padx=(0, 15))
                 ctk.CTkLabel(sub_frame, text=task['subject_name'], font=("Arial", 12), text_color=self.tm.text_sub()).pack(side="left")
                 
         # View All Button

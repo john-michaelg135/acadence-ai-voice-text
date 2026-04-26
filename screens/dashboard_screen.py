@@ -45,9 +45,9 @@ class DashboardScreen(ctk.CTkFrame):
         ctk.CTkFrame(self.sidebar, fg_color="transparent").pack(expand=True)
         
         logout_btn = ctk.CTkButton(
-            self.sidebar, text="    Log Out", 
+            self.sidebar, text="Log Out", 
             fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover(),
-            height=45, font=("Arial", 15, "bold"), anchor="w", corner_radius=10,
+            height=45, font=("Arial", 15, "bold"), corner_radius=10,
             command=self.on_logout
         )
         logout_btn.pack(fill="x", padx=15, pady=(5, 30))

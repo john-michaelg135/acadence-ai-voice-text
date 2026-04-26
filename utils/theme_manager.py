@@ -26,7 +26,7 @@ class ThemeManager:
     def error_color(self): return ("#FF6B6B", "#EF4444")
     def error_hover(self): return ("#FF4C4C", "#DC2626")
     def warning_color(self): return ("#EAB308", "#F59E0B")
-    def success_color(self): return ("#22C55E", "#10B981")
+    def success_color(self): return ("#4ADE80", "#10B981")
     
     @property
     def palettes(self):
@@ -37,7 +37,7 @@ class ThemeManager:
             "Pastel Pink": ("#FFB6C1", "#FF69B4", "#FF9EAD"),
             "Pastel Blue": ("#AEC6CF", "#779ECB", "#9AB9C6"),
             "Pastel Green": ("#B2E2E2", "#66C2A5", "#9BD5D5"),
-            "Pastel Yellow": ("#FDFD96", "#FADA5E", "#F6F684"),
+            "Pastel Yellow": ("#FDF0B5", "#FADA5E", "#FCE883"),
             "Pastel Peach": ("#FFDAB9", "#FFB347", "#FFCAA0"),
             "Pastel Mint": ("#98FF98", "#3EB489", "#82F582"),
             "Pastel Lavender": ("#E6E6FA", "#CCCCFF", "#D4D4F5")

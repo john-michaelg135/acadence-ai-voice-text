@@ -46,10 +46,10 @@ class AllPendingTasksView(ctk.CTkFrame):
             
             flag_color = self.tm.error_color() if task['priority'] == 'High' else self.tm.warning_color() if task['priority'] == 'Medium' else self.tm.success_color()
             
-            ctk.CTkLabel(sub, text="🏁 " + task['priority'], font=("Arial", 11, "bold"), text_color=flag_color).pack(side="left", padx=(0, 10))
+            ctk.CTkLabel(sub, text=task['priority'], font=("Arial", 11, "bold"), text_color=flag_color).pack(side="left", padx=(0, 10))
             ctk.CTkLabel(sub, text=task['subject_name'], font=("Arial", 11), text_color=self.tm.text_sub()).pack(side="left", padx=(0, 10))
             if task.get('deadline'):
-                ctk.CTkLabel(sub, text=f"📅 {task['deadline']}", font=("Arial", 11), text_color=self.tm.text_sub()).pack(side="left")
+                ctk.CTkLabel(sub, text=f"📅 {task['deadline']}", font=("Arial", 11), text_color=self.tm.accent_color()).pack(side="left")
 
             view_btn = ctk.CTkButton(row, text="❯", font=("Arial", 18), text_color=self.tm.text_sub(), fg_color="transparent", hover_color=self.tm.bg_sub(), width=40,
                                      command=lambda s_id=task['subject_id'], s_name=task['subject_name']: self.show_view_callback("Tasks", s_id, s_name))

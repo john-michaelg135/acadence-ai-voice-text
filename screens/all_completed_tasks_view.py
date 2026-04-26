@@ -36,7 +36,10 @@ class AllCompletedTasksView(ctk.CTkFrame):
             card = ctk.CTkFrame(scroll, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=1, corner_radius=10)
             card.pack(fill="x", padx=10, pady=5)
             
-            ctk.CTkLabel(card, text="✅", font=("Arial", 20), text_color=self.tm.success_color()).pack(side="left", padx=15, pady=15)
+            pill = ctk.CTkLabel(card, text="Completed", font=("Arial", 11, "bold"), 
+                                fg_color=self.tm.success_color(), text_color="#FFFFFF", 
+                                corner_radius=10, width=80, height=24)
+            pill.pack(side="left", padx=15, pady=15)
             
             info_frame = ctk.CTkFrame(card, fg_color="transparent")
             info_frame.pack(side="left", fill="x", expand=True, pady=10)
@@ -47,7 +50,7 @@ class AllCompletedTasksView(ctk.CTkFrame):
             sub_frame.pack(fill="x")
             
             p_color = self.tm.error_color() if task['priority'] == 'High' else self.tm.warning_color() if task['priority'] == 'Medium' else self.tm.success_color()
-            ctk.CTkLabel(sub_frame, text=f"🏁 {task['priority']}", font=("Arial", 11, "bold"), text_color=p_color).pack(side="left", padx=(0, 10))
+            ctk.CTkLabel(sub_frame, text=task['priority'], font=("Arial", 11, "bold"), text_color=p_color).pack(side="left", padx=(0, 10))
             ctk.CTkLabel(sub_frame, text=task['subject_name'], font=("Arial", 11), text_color=self.tm.text_sub()).pack(side="left", padx=(0, 10))
             
             if task.get('completed_at'):

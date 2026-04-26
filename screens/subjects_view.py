@@ -36,10 +36,10 @@ class AddSubjectPopup(ctk.CTkToplevel):
         
         # Inputs Config
         input_args = {
-            "fg_color": "#F4F5F7", 
+            "fg_color": self.tm.bg_sub(), 
             "border_width": 1, 
-            "border_color": "#E5E7EB", 
-            "text_color": "#1A1A1A",
+            "border_color": self.tm.border_main(), 
+            "text_color": self.tm.text_main(),
             "corner_radius": 8,
             "height": 45
         }
@@ -152,8 +152,12 @@ class EditSubjectPopup(ctk.CTkToplevel):
         ctk.CTkLabel(container, text="Edit Subject", font=("Arial", 20), text_color=self.tm.text_main()).pack(pady=(15, 20))
         
         input_args = {
-            "fg_color": "#F4F5F7", "border_width": 1, "border_color": "#E5E7EB", 
-            "text_color": "#1A1A1A", "corner_radius": 8, "height": 45
+            "fg_color": self.tm.bg_sub(), 
+            "border_width": 1, 
+            "border_color": self.tm.border_main(), 
+            "text_color": self.tm.text_main(),
+            "corner_radius": 8, 
+            "height": 45
         }
         
         self.name_entry = ctk.CTkEntry(container, placeholder_text="Subject Name", **input_args)
@@ -244,8 +248,8 @@ class SubjectsView(ctk.CTkFrame):
         # Text Add Button
         ctk.CTkButton(btn_frame, text="+ Add Subject", width=120, fg_color=self.tm.accent_color(), text_color=self.tm.text_main(), command=self.add_subject_text).pack(side="left", padx=(0, 5))
         
-        # Voice Add Button Placeholder
-        ctk.CTkButton(btn_frame, text="🎤", width=40, fg_color=self.tm.accent_color(), text_color=self.tm.text_main(), command=self.add_subject_voice).pack(side="left")
+        # Voice Add Button
+        ctk.CTkButton(btn_frame, text="Voice AI", width=100, fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover(), command=self.add_subject_voice).pack(side="left")
 
         # Scrollable list of subjects
         self.scrollable_frame = ctk.CTkScrollableFrame(self, fg_color="transparent")
@@ -300,24 +304,67 @@ class SubjectsView(ctk.CTkFrame):
         # Subject Name
         ctk.CTkLabel(card, text=subject['name'], font=("Arial", 22, "bold"), text_color=self.tm.text_main(), anchor="w").pack(fill="x", padx=15, pady=(5, 0))
         
-        # Subject Code
+        # Subject Code Container (Fixed Height)
+        code_container = ctk.CTkFrame(card, fg_color="transparent", height=25)
+        code_container.pack(fill="x", padx=15, pady=(0, 5))
+        code_container.pack_propagate(False)
+        
         code = subject.get('code')
         if code:
-            ctk.CTkLabel(card, text=code, font=("Arial", 13, "bold"), text_color=self.tm.accent_color(), anchor="w").pack(fill="x", padx=15, pady=(0, 5))
-        else:
-            ctk.CTkFrame(card, fg_color="transparent", height=5).pack() # Spacer
+            ctk.CTkLabel(code_container, text=code, font=("Arial", 13, "bold"), text_color=self.tm.accent_color(), anchor="w").pack(fill="both", expand=True)
 
-        # Description
+        # Description Container (Fixed Height)
+        desc_container = ctk.CTkFrame(card, fg_color="transparent", height=65)
+        desc_container.pack(fill="x", padx=15)
+        desc_container.pack_propagate(False)
+        
         desc = subject.get('description', '')
         if desc:
-            ctk.CTkLabel(card, text=desc, font=("Arial", 13), text_color=self.tm.text_sub(), anchor="w", justify="left", wraplength=240).pack(fill="x", padx=15)
+            ctk.CTkLabel(desc_container, text=desc, font=("Arial", 13), text_color=self.tm.text_sub(), anchor="nw", justify="left", wraplength=310).pack(fill="both", expand=True)
 
-        ctk.CTkFrame(card, fg_color="transparent").pack(expand=True) # Spacer
+        banner_ctk = self._get_cached_banner(category)
+        if banner_ctk:
+            ctk.CTkLabel(card, text="", image=banner_ctk).pack(expand=True, pady=(20, 15))
+        else:
+            ctk.CTkFrame(card, fg_color="transparent").pack(expand=True) # Spacer
 
         # View Button
         ctk.CTkButton(card, text="View Tasks", fg_color=pill_color, text_color=self.tm.accent_text(), 
                       hover_color=pill_color, font=("Arial", 14, "bold"), height=40, corner_radius=8,
                       command=lambda s=subject: self.open_subject(s)).pack(fill="x", side="bottom", padx=15, pady=15)
+
+    _global_banner_cache = {}
+
+    def _get_cached_banner(self, category):
+        if category in SubjectsView._global_banner_cache:
+            return SubjectsView._global_banner_cache[category]
+            
+        import os
+        banner_file = "major_banner.png" if category == "Major" else "minor_banner.png"
+        banner_path = os.path.join("assets", banner_file)
+        
+        if os.path.exists(banner_path):
+            try:
+                from PIL import Image, ImageDraw, ImageOps
+                size = (340, 200)
+                radius = 15
+                img = Image.open(banner_path).convert("RGBA")
+                img = ImageOps.fit(img, size, Image.Resampling.LANCZOS)
+                
+                mask = Image.new('L', size, 0)
+                draw = ImageDraw.Draw(mask)
+                draw.rounded_rectangle((0, 0) + size, radius=radius, fill=255)
+                output = Image.new('RGBA', size, (0, 0, 0, 0))
+                output.paste(img, (0, 0), mask=mask)
+                
+                banner_ctk = ctk.CTkImage(light_image=output, dark_image=output, size=size)
+                SubjectsView._global_banner_cache[category] = banner_ctk
+                return banner_ctk
+            except Exception as e:
+                print("Error loading banner:", e)
+                
+        SubjectsView._global_banner_cache[category] = None
+        return None
 
     def open_subject(self, subject):
         self.show_view_callback("Tasks", subject_id=subject['id'], subject_name=subject['name'], source_view="Subjects")
