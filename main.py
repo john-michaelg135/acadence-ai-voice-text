@@ -2,15 +2,20 @@ import customtkinter as ctk
 from screens.auth_screen import AuthScreen
 from screens.dashboard_screen import DashboardScreen
 from database.db_manager import DatabaseManager
+from utils.theme_manager import ThemeManager
 import datetime
 
 class AcadenceApp(ctk.CTk):
     def __init__(self):
         super().__init__()
-
+        self.tm = ThemeManager()
+        
         self.title("Acadence")
         self.geometry("400x800")
-        self.configure(fg_color="#FFFFFF")
+        
+        # Setup Initial Theme Colors
+        ctk.set_appearance_mode("Light")
+        self.configure(fg_color=self.tm.bg_main())
 
         self.after(0, lambda: self.state('zoomed'))
         
@@ -24,6 +29,18 @@ class AcadenceApp(ctk.CTk):
         # Initialize the Authentication Screen
         self.auth_screen = AuthScreen(self, on_login_success=self.show_main_dashboard)
         self.auth_screen.pack(fill="both", expand=True)
+        
+    def reload_ui(self):
+        """Rebuilds the current screen to apply theme changes dynamically."""
+        self.configure(fg_color=self.tm.bg_main())
+        if self.current_user:
+            if hasattr(self, 'dashboard_screen'):
+                self.dashboard_screen.destroy()
+            self.show_main_dashboard(self.current_user)
+        else:
+            self.auth_screen.destroy()
+            self.auth_screen = AuthScreen(self, on_login_success=self.show_main_dashboard)
+            self.auth_screen.pack(fill="both", expand=True)
 
     def show_main_dashboard(self, user_info):
         """
@@ -33,14 +50,14 @@ class AcadenceApp(ctk.CTk):
         self.auth_screen.pack_forget()
         
         self.current_user = user_info
-        if user_info:
+        if user_info and not self.session_start:
             self.session_start = datetime.datetime.now()
         
         if user_info and user_info.get('is_admin'):
             from screens.admin_dashboard import AdminDashboard
             self.dashboard_screen = AdminDashboard(self, user_info=user_info, on_logout=self.logout)
         else:
-            self.dashboard_screen = DashboardScreen(self, user_info=user_info, on_logout=self.logout)
+            self.dashboard_screen = DashboardScreen(self, user_info=user_info, on_logout=self.logout, reload_callback=self.reload_ui)
             
         self.dashboard_screen.pack(fill="both", expand=True)
 
@@ -60,7 +77,7 @@ class AcadenceApp(ctk.CTk):
         if hasattr(self, 'dashboard_screen'):
             self.dashboard_screen.destroy()
             
-        # Reinitialize Auth Screen
+        # Reinitialize Auth Screen using the current theme
         self.auth_screen = AuthScreen(self, on_login_success=self.show_main_dashboard)
         self.auth_screen.pack(fill="both", expand=True)
 

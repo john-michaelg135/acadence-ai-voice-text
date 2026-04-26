@@ -1,10 +1,12 @@
 import customtkinter as ctk
+from utils.theme_manager import ThemeManager
 from tkinter import messagebox
 from database.db_manager import DatabaseManager
 from utils.security import validate_password_strength
 
 class AuthScreen(ctk.CTkFrame):
     def __init__(self, master, on_login_success):
+        self.tm = ThemeManager()
         super().__init__(master, fg_color="transparent")
         self.on_login_success = on_login_success
         self.db = DatabaseManager()
@@ -13,7 +15,7 @@ class AuthScreen(ctk.CTkFrame):
 
     def setup_ui(self):
         # Header
-        ctk.CTkLabel(self, text="Acadence", font=("Arial", 36, "bold"), text_color="#B5B0D3").pack(pady=(40, 10))
+        ctk.CTkLabel(self, text="Acadence", font=("Arial", 36, "bold"), text_color=self.tm.accent_color()).pack(pady=(40, 10))
         ctk.CTkLabel(self, text="AI Voice to Text Tracker", font=("Arial", 16)).pack(pady=(0, 20))
 
         # Tabview for Login / Sign Up
@@ -33,10 +35,10 @@ class AuthScreen(ctk.CTkFrame):
         self.login_pass_entry = ctk.CTkEntry(parent, placeholder_text="Password", show="*")
         self.login_pass_entry.pack(pady=5, fill="x", padx=20)
 
-        ctk.CTkButton(parent, text="Log In", fg_color="#B5B0D3", text_color="#1A1A1A", command=self.handle_login).pack(pady=15, padx=20, fill="x")
+        ctk.CTkButton(parent, text="Log In", fg_color=self.tm.accent_color(), text_color=self.tm.text_main(), command=self.handle_login).pack(pady=15, padx=20, fill="x")
 
         # Forgot Password
-        forgot_lbl = ctk.CTkLabel(parent, text="Forgot Password?", font=("Arial", 12, "underline"), text_color="#666666", cursor="hand2")
+        forgot_lbl = ctk.CTkLabel(parent, text="Forgot Password?", font=("Arial", 12, "underline"), text_color=self.tm.text_sub(), cursor="hand2")
         forgot_lbl.pack(pady=(0, 10))
         forgot_lbl.bind("<Button-1>", lambda e: self.show_forgot_password())
 
@@ -53,7 +55,7 @@ class AuthScreen(ctk.CTkFrame):
         self.signup_conf_entry = ctk.CTkEntry(parent, placeholder_text="Confirm Password", show="*")
         self.signup_conf_entry.pack(pady=5, fill="x", padx=20)
 
-        ctk.CTkButton(parent, text="Sign Up", fg_color="#B5B0D3", text_color="#1A1A1A", command=self.handle_signup).pack(pady=15, padx=20, fill="x")
+        ctk.CTkButton(parent, text="Sign Up", fg_color=self.tm.accent_color(), text_color=self.tm.text_main(), command=self.handle_signup).pack(pady=15, padx=20, fill="x")
 
     def handle_login(self):
         username = self.login_user_entry.get().strip()
@@ -102,6 +104,7 @@ class AuthScreen(ctk.CTkFrame):
 
 class ForgotPasswordPopup(ctk.CTkToplevel):
     def __init__(self, master, db):
+        self.tm = ThemeManager()
         super().__init__(master)
         self.title("Recover Account")
         self.geometry("350x400")
@@ -136,7 +139,7 @@ class ForgotPasswordPopup(ctk.CTkToplevel):
         self.email_entry = ctk.CTkEntry(self.step1_frame, placeholder_text="Recovery Email")
         self.email_entry.pack(fill="x", pady=5)
         
-        ctk.CTkButton(self.step1_frame, text="Send Verification Code", fg_color="#B5B0D3", text_color="#1A1A1A", command=self.process_step1).pack(pady=20)
+        ctk.CTkButton(self.step1_frame, text="Send Verification Code", fg_color=self.tm.accent_color(), text_color=self.tm.text_main(), command=self.process_step1).pack(pady=20)
         
     def process_step1(self):
         user = self.user_entry.get().strip()
@@ -184,7 +187,7 @@ class ForgotPasswordPopup(ctk.CTkToplevel):
         self.otp_entry = ctk.CTkEntry(self.step2_frame, placeholder_text="123456")
         self.otp_entry.pack(fill="x", pady=5)
         
-        ctk.CTkButton(self.step2_frame, text="Verify", fg_color="#B5B0D3", text_color="#1A1A1A", command=self.process_step2).pack(pady=20)
+        ctk.CTkButton(self.step2_frame, text="Verify", fg_color=self.tm.accent_color(), text_color=self.tm.text_main(), command=self.process_step2).pack(pady=20)
         
     def process_step2(self):
         entered = self.otp_entry.get().strip()
@@ -208,7 +211,7 @@ class ForgotPasswordPopup(ctk.CTkToplevel):
         self.conf_pass_entry = ctk.CTkEntry(self.step3_frame, placeholder_text="Confirm New Password", show="*")
         self.conf_pass_entry.pack(fill="x", pady=5)
         
-        ctk.CTkButton(self.step3_frame, text="Update Password", fg_color="#B5B0D3", text_color="#1A1A1A", command=self.process_step3).pack(pady=20)
+        ctk.CTkButton(self.step3_frame, text="Update Password", fg_color=self.tm.accent_color(), text_color=self.tm.text_main(), command=self.process_step3).pack(pady=20)
         
     def process_step3(self):
         new_pwd = self.new_pass_entry.get().strip()

@@ -1,10 +1,12 @@
 import customtkinter as ctk
+from utils.theme_manager import ThemeManager
 from tkinter import messagebox
 from database.db_manager import DatabaseManager
 
 class AddSubjectPopup(ctk.CTkToplevel):
     def __init__(self, master, db, user_id, on_success):
-        super().__init__(master, fg_color="#FFFFFF")
+        self.tm = ThemeManager()
+        super().__init__(master, fg_color=self.tm.bg_card())
         
         self.db = db
         self.user_id = user_id
@@ -26,11 +28,11 @@ class AddSubjectPopup(ctk.CTkToplevel):
 
     def setup_ui(self):
         # Container to simulate rounded white card
-        container = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=15)
+        container = ctk.CTkFrame(self, fg_color=self.tm.bg_card(), corner_radius=15)
         container.pack(fill="both", expand=True, padx=20, pady=20)
         
         # Title
-        ctk.CTkLabel(container, text="Add New Subject", font=("Arial", 20), text_color="#1A1A1A").pack(pady=(15, 20))
+        ctk.CTkLabel(container, text="Add New Subject", font=("Arial", 20), text_color=self.tm.text_main()).pack(pady=(15, 20))
         
         # Inputs Config
         input_args = {
@@ -55,7 +57,7 @@ class AddSubjectPopup(ctk.CTkToplevel):
         self.desc_entry.pack(fill="x", padx=30, pady=(0, 20))
         
         # Category Section
-        ctk.CTkLabel(container, text="Category", font=("Arial", 14), text_color="#666666").pack(pady=(5, 5))
+        ctk.CTkLabel(container, text="Category", font=("Arial", 14), text_color=self.tm.text_sub()).pack(pady=(5, 5))
         
         # Custom Toggle for Major/Minor
         cat_frame = ctk.CTkFrame(container, fg_color="transparent")
@@ -81,11 +83,11 @@ class AddSubjectPopup(ctk.CTkToplevel):
         
         def update_buttons():
             if self.category_var.get() == "Major":
-                self.btn_major.configure(fg_color="#9F8FF3", text_color="white", hover_color="#897AE0")
-                self.btn_minor.configure(fg_color="transparent", text_color="#1A1A1A", hover_color="#F0F0F0", border_width=0)
+                self.btn_major.configure(fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover())
+                self.btn_minor.configure(fg_color="transparent", text_color=self.tm.text_main(), hover_color=self.tm.bg_sub(), border_width=0)
             else:
-                self.btn_minor.configure(fg_color="#9F8FF3", text_color="white", hover_color="#897AE0")
-                self.btn_major.configure(fg_color="transparent", text_color="#1A1A1A", hover_color="#F0F0F0", border_width=0)
+                self.btn_minor.configure(fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover())
+                self.btn_major.configure(fg_color="transparent", text_color=self.tm.text_main(), hover_color=self.tm.bg_sub(), border_width=0)
                 
         update_buttons() # init state
 
@@ -95,15 +97,15 @@ class AddSubjectPopup(ctk.CTkToplevel):
 
         # Cancel
         ctk.CTkButton(
-            actions_frame, text="Cancel", fg_color="transparent", text_color="#1A1A1A",
-            border_width=1, border_color="#E5E7EB", corner_radius=20, width=120, height=40,
+            actions_frame, text="Cancel", fg_color="transparent", text_color=self.tm.text_main(),
+            border_width=1, border_color=self.tm.border_main(), corner_radius=20, width=120, height=40,
             command=self.destroy
         ).pack(side="left")
 
         # Add Subject
         ctk.CTkButton(
-            actions_frame, text="Add Subject", fg_color="#9F8FF3", text_color="white", 
-            corner_radius=20, width=120, height=40, hover_color="#897AE0",
+            actions_frame, text="Add Subject", fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), 
+            corner_radius=20, width=120, height=40, hover_color=self.tm.accent_hover(),
             command=self.submit
         ).pack(side="right")
 
@@ -123,7 +125,8 @@ class AddSubjectPopup(ctk.CTkToplevel):
 
 class EditSubjectPopup(ctk.CTkToplevel):
     def __init__(self, master, db, subject, on_success):
-        super().__init__(master, fg_color="#FFFFFF")
+        self.tm = ThemeManager()
+        super().__init__(master, fg_color=self.tm.bg_card())
         
         self.db = db
         self.subject = subject
@@ -143,10 +146,10 @@ class EditSubjectPopup(ctk.CTkToplevel):
         self.grab_set()
 
     def setup_ui(self):
-        container = ctk.CTkFrame(self, fg_color="#FFFFFF", corner_radius=15)
+        container = ctk.CTkFrame(self, fg_color=self.tm.bg_card(), corner_radius=15)
         container.pack(fill="both", expand=True, padx=20, pady=20)
         
-        ctk.CTkLabel(container, text="Edit Subject", font=("Arial", 20), text_color="#1A1A1A").pack(pady=(15, 20))
+        ctk.CTkLabel(container, text="Edit Subject", font=("Arial", 20), text_color=self.tm.text_main()).pack(pady=(15, 20))
         
         input_args = {
             "fg_color": "#F4F5F7", "border_width": 1, "border_color": "#E5E7EB", 
@@ -165,7 +168,7 @@ class EditSubjectPopup(ctk.CTkToplevel):
         self.desc_entry.pack(fill="x", padx=30, pady=(0, 20))
         self.desc_entry.insert(0, self.subject.get('description', ''))
         
-        ctk.CTkLabel(container, text="Category", font=("Arial", 14), text_color="#666666").pack(pady=(5, 5))
+        ctk.CTkLabel(container, text="Category", font=("Arial", 14), text_color=self.tm.text_sub()).pack(pady=(5, 5))
         
         cat_frame = ctk.CTkFrame(container, fg_color="transparent")
         cat_frame.pack(pady=(0, 20))
@@ -184,22 +187,22 @@ class EditSubjectPopup(ctk.CTkToplevel):
         
         def update_buttons():
             if self.category_var.get() == "Major":
-                self.btn_major.configure(fg_color="#9F8FF3", text_color="white", hover_color="#897AE0")
-                self.btn_minor.configure(fg_color="transparent", text_color="#1A1A1A", hover_color="#F0F0F0", border_width=0)
+                self.btn_major.configure(fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover())
+                self.btn_minor.configure(fg_color="transparent", text_color=self.tm.text_main(), hover_color=self.tm.bg_sub(), border_width=0)
             else:
-                self.btn_minor.configure(fg_color="#9F8FF3", text_color="white", hover_color="#897AE0")
-                self.btn_major.configure(fg_color="transparent", text_color="#1A1A1A", hover_color="#F0F0F0", border_width=0)
+                self.btn_minor.configure(fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover())
+                self.btn_major.configure(fg_color="transparent", text_color=self.tm.text_main(), hover_color=self.tm.bg_sub(), border_width=0)
                 
         update_buttons() 
 
         actions_frame = ctk.CTkFrame(container, fg_color="transparent")
         actions_frame.pack(fill="x", padx=50, pady=(10, 20), side="bottom")
 
-        ctk.CTkButton(actions_frame, text="Cancel", fg_color="transparent", text_color="#1A1A1A",
-            border_width=1, border_color="#E5E7EB", corner_radius=20, width=120, height=40, command=self.destroy).pack(side="left")
+        ctk.CTkButton(actions_frame, text="Cancel", fg_color="transparent", text_color=self.tm.text_main(),
+            border_width=1, border_color=self.tm.border_main(), corner_radius=20, width=120, height=40, command=self.destroy).pack(side="left")
 
-        ctk.CTkButton(actions_frame, text="Save Changes", fg_color="#9F8FF3", text_color="white", 
-            corner_radius=20, width=120, height=40, hover_color="#897AE0", command=self.submit).pack(side="right")
+        ctk.CTkButton(actions_frame, text="Save Changes", fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), 
+            corner_radius=20, width=120, height=40, hover_color=self.tm.accent_hover(), command=self.submit).pack(side="right")
 
     def submit(self):
         name = self.name_entry.get().strip()
@@ -217,6 +220,7 @@ class EditSubjectPopup(ctk.CTkToplevel):
 
 class SubjectsView(ctk.CTkFrame):
     def __init__(self, master, user_info, show_view_callback):
+        self.tm = ThemeManager()
         super().__init__(master, fg_color="transparent")
         self.user_info = user_info
         self.show_view_callback = show_view_callback
@@ -231,17 +235,17 @@ class SubjectsView(ctk.CTkFrame):
         header_frame = ctk.CTkFrame(self, fg_color="transparent")
         header_frame.pack(fill="x", padx=20, pady=(20, 10))
         
-        ctk.CTkLabel(header_frame, text="Your Subjects", font=("Arial", 24, "bold"), text_color="#1A1A1A").pack(side="left")
+        ctk.CTkLabel(header_frame, text="Your Subjects", font=("Arial", 24, "bold"), text_color=self.tm.text_main()).pack(side="left")
         
         # Add buttons container
         btn_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
         btn_frame.pack(side="right")
         
         # Text Add Button
-        ctk.CTkButton(btn_frame, text="+ Add Subject", width=120, fg_color="#B5B0D3", text_color="#1A1A1A", command=self.add_subject_text).pack(side="left", padx=(0, 5))
+        ctk.CTkButton(btn_frame, text="+ Add Subject", width=120, fg_color=self.tm.accent_color(), text_color=self.tm.text_main(), command=self.add_subject_text).pack(side="left", padx=(0, 5))
         
         # Voice Add Button Placeholder
-        ctk.CTkButton(btn_frame, text="🎤", width=40, fg_color="#B5B0D3", text_color="#1A1A1A", command=self.add_subject_voice).pack(side="left")
+        ctk.CTkButton(btn_frame, text="🎤", width=40, fg_color=self.tm.accent_color(), text_color=self.tm.text_main(), command=self.add_subject_voice).pack(side="left")
 
         # Scrollable list of subjects
         self.scrollable_frame = ctk.CTkScrollableFrame(self, fg_color="transparent")
@@ -249,7 +253,7 @@ class SubjectsView(ctk.CTkFrame):
 
     def load_subjects(self):
         if not self.user_id:
-            ctk.CTkLabel(self.scrollable_frame, text="Guest users cannot save subjects permanently yet.", text_color="#666666").pack(pady=20)
+            ctk.CTkLabel(self.scrollable_frame, text="Guest users cannot save subjects permanently yet.", text_color=self.tm.text_sub()).pack(pady=20)
             return
 
         for widget in self.scrollable_frame.winfo_children():
@@ -257,37 +261,37 @@ class SubjectsView(ctk.CTkFrame):
 
         subjects = self.db.get_subjects(self.user_id)
         if not subjects:
-            ctk.CTkLabel(self.scrollable_frame, text="No subjects found. Add one!", text_color="#666666").pack(pady=20)
+            ctk.CTkLabel(self.scrollable_frame, text="No subjects found. Add one!", text_color=self.tm.text_sub()).pack(pady=20)
             return
 
         for sub in subjects:
             self.create_subject_card(sub)
 
     def create_subject_card(self, subject):
-        card = ctk.CTkFrame(self.scrollable_frame, fg_color="#FFFFFF", border_color="#E0E0E0", border_width=1, corner_radius=10, height=80)
+        card = ctk.CTkFrame(self.scrollable_frame, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=1, corner_radius=10, height=80)
         card.pack(fill="x", pady=5)
         card.pack_propagate(False)
 
         # Category Pill
         category = subject.get("category", "Major")
         pill_color = "#9F8FF3" if category == "Major" else "#D1D5DB"
-        ctk.CTkLabel(card, text=category, font=("Arial", 11, "bold"), text_color="white", fg_color=pill_color, corner_radius=8, width=50, height=24).pack(side="left", padx=(15, 0))
+        ctk.CTkLabel(card, text=category, font=("Arial", 11, "bold"), text_color=self.tm.accent_text(), fg_color=pill_color, corner_radius=8, width=50, height=24).pack(side="left", padx=(15, 0))
 
         # Subject Name
-        lbl = ctk.CTkLabel(card, text=subject['name'], font=("Arial", 18, "bold"), text_color="#1A1A1A")
+        lbl = ctk.CTkLabel(card, text=subject['name'], font=("Arial", 18, "bold"), text_color=self.tm.text_main())
         lbl.pack(side="left", padx=15)
 
         # Actions
         btn_frame = ctk.CTkFrame(card, fg_color="transparent")
         btn_frame.pack(side="right", padx=15)
 
-        ctk.CTkButton(btn_frame, text="Open", width=60, fg_color="#F0F0F0", text_color="#1A1A1A", hover_color="#E0E0E0",
+        ctk.CTkButton(btn_frame, text="Open", width=60, fg_color=self.tm.bg_sub(), text_color=self.tm.text_main(), hover_color=self.tm.bg_sub(),
                       command=lambda s=subject: self.open_subject(s)).pack(side="left", padx=(0, 10))
                       
-        ctk.CTkButton(btn_frame, text="✏️", width=40, fg_color="#B5B0D3", text_color="white", hover_color="#897AE0",
+        ctk.CTkButton(btn_frame, text="✏️", width=40, fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover(),
                       command=lambda s=subject: self.edit_subject(s)).pack(side="left", padx=(0, 5))
                       
-        ctk.CTkButton(btn_frame, text="🗑️", width=40, fg_color="#FF6B6B", text_color="white", hover_color="#FF4C4C",
+        ctk.CTkButton(btn_frame, text="🗑️", width=40, fg_color=self.tm.error_color(), text_color=self.tm.accent_text(), hover_color="#FF4C4C",
                       command=lambda s=subject: self.delete_subject(s)).pack(side="left")
 
     def open_subject(self, subject):

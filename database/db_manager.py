@@ -30,6 +30,11 @@ class DatabaseManager:
                 conn.execute("ALTER TABLE users ADD COLUMN locked_until TIMESTAMP")
             except sqlite3.OperationalError:
                 pass # Columns already exist
+                
+            try:
+                conn.execute("ALTER TABLE tasks ADD COLUMN completed_at TIMESTAMP")
+            except sqlite3.OperationalError:
+                pass
 
     def create_user(self, username, password, recovery_email=None, is_system_password=False, is_admin=False):
         """Creates a new user and hashes their password."""
@@ -223,8 +228,9 @@ class DatabaseManager:
             conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
             
     def update_task_status(self, task_id, status):
+        now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") if status == 'completed' else None
         with self.get_connection() as conn:
-            conn.execute("UPDATE tasks SET status = ? WHERE id = ?", (status, task_id))
+            conn.execute("UPDATE tasks SET status = ?, completed_at = ? WHERE id = ?", (status, now_str, task_id))
 
     def update_task(self, task_id, name, description, deadline, priority):
         with self.get_connection() as conn:
@@ -232,6 +238,65 @@ class DatabaseManager:
                 "UPDATE tasks SET name = ?, description = ?, deadline = ?, priority = ? WHERE id = ?",
                 (name, description, deadline, priority, task_id)
             )
+
+    def get_completed_tasks(self, user_id, limit=None):
+        with self.get_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            query = """
+                SELECT t.*, s.name as subject_name 
+                FROM tasks t 
+                JOIN subjects s ON t.subject_id = s.id 
+                WHERE s.user_id = ? AND t.status = 'completed' 
+                ORDER BY IFNULL(t.completed_at, t.created_at) DESC
+            """
+            if limit:
+                query += f" LIMIT {int(limit)}"
+            cur.execute(query, (user_id,))
+            return [dict(row) for row in cur.fetchall()]
+
+    def get_completed_tasks_by_subject(self, user_id):
+        with self.get_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT s.name, COUNT(t.id) as count 
+                FROM subjects s 
+                LEFT JOIN tasks t ON s.id = t.subject_id AND t.status='completed' 
+                WHERE s.user_id = ? 
+                GROUP BY s.id
+            """, (user_id,))
+            return [dict(row) for row in cur.fetchall()]
+
+    def get_pending_tasks_by_priority(self, user_id, priority, limit=None):
+        with self.get_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            query = """
+                SELECT t.*, s.name as subject_name 
+                FROM tasks t 
+                JOIN subjects s ON t.subject_id = s.id 
+                WHERE s.user_id = ? AND t.status = 'pending' AND t.priority = ?
+                ORDER BY t.created_at DESC
+            """
+            if limit:
+                query += f" LIMIT {int(limit)}"
+            cur.execute(query, (user_id, priority))
+            return [dict(row) for row in cur.fetchall()]
+            
+    def get_all_pending_tasks(self, user_id):
+        with self.get_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            query = """
+                SELECT t.*, s.name as subject_name 
+                FROM tasks t 
+                JOIN subjects s ON t.subject_id = s.id 
+                WHERE s.user_id = ? AND t.status = 'pending'
+                ORDER BY CASE t.priority WHEN 'High' THEN 1 WHEN 'Medium' THEN 2 ELSE 3 END, t.created_at DESC
+            """
+            cur.execute(query, (user_id,))
+            return [dict(row) for row in cur.fetchall()]
 
     # --- Dashboard Metrics ---
     def get_dashboard_metrics(self, user_id):
