@@ -1,6 +1,7 @@
 import customtkinter as ctk
 from utils.theme_manager import ThemeManager
 from database.db_manager import DatabaseManager
+from datetime import datetime
 
 class AllPendingTasksView(ctk.CTkFrame):
     def __init__(self, master, user_info, show_view_callback):
@@ -11,21 +12,48 @@ class AllPendingTasksView(ctk.CTkFrame):
         self.show_view_callback = show_view_callback
         self.user_id = self.user_info['id'] if self.user_info else None
         
+        # State for sorting: "ASC" (Closest) or "DESC" (Furthest)
+        self.sort_order = "ASC" 
+        
         self.setup_ui()
 
     def setup_ui(self):
+        # Header Container
         header_frame = ctk.CTkFrame(self, fg_color="transparent")
         header_frame.pack(fill="x", padx=20, pady=(20, 10))
         
-        back_btn = ctk.CTkButton(header_frame, text="← Back", width=60, fg_color="transparent", text_color=self.tm.text_main(), 
-                                 hover_color=self.tm.bg_card(), font=("Arial", 14), command=lambda: self.show_view_callback("Insights"))
-        back_btn.pack(side="left")
+        header_frame.columnconfigure(1, weight=1) 
+
+        # --- LEFT SIDE: Back Button ---
+        back_btn = ctk.CTkButton(header_frame, text="← Back", width=60, fg_color="transparent", 
+                                 text_color=self.tm.text_main(), hover_color=self.tm.bg_card(), 
+                                 font=("Arial", 14), command=lambda: self.show_view_callback("Insights"))
+        back_btn.grid(row=0, column=0, sticky="w")
         
-        ctk.CTkLabel(header_frame, text="All Pending Tasks", font=("Arial", 22, "bold"), text_color=self.tm.text_main()).pack(side="left", padx=20)
+        # --- CENTER: Title ---
+        ctk.CTkLabel(header_frame, text="All Pending Tasks", font=("Arial", 22, "bold"), 
+                     text_color=self.tm.text_main()).grid(row=0, column=1, pady=(0, 5))
         
-        # Priority Filter Switch
-        filter_frame = ctk.CTkFrame(self, fg_color=self.tm.bg_sub(), corner_radius=20, border_color=self.tm.border_main(), border_width=1)
-        filter_frame.pack(pady=10)
+        # --- ROW 1: Controls ---
+        sort_container = ctk.CTkFrame(header_frame, fg_color="transparent")
+        sort_container.grid(row=1, column=0, sticky="w", pady=(10, 0))
+
+        # Fixed width to prevent layout popping
+        self.sort_btn = ctk.CTkButton(
+            sort_container, 
+            text="Sort: Closest First", 
+            width=150, 
+            height=32, 
+            corner_radius=16, 
+            font=("Arial", 11, "bold"),
+            command=self.toggle_sort
+        )
+        self.sort_btn.pack()
+
+        # Priority Filter (Center-aligned)
+        filter_frame = ctk.CTkFrame(header_frame, fg_color=self.tm.bg_sub(), corner_radius=20, 
+                                    border_color=self.tm.border_main(), border_width=1)
+        filter_frame.grid(row=1, column=1, pady=(10, 0))
         
         self.current_filter = ctk.StringVar(value="All")
         self.filter_buttons = {}
@@ -39,11 +67,42 @@ class AllPendingTasksView(ctk.CTkFrame):
             self.filter_buttons[prio] = btn
             
         self.update_filter_buttons()
+        self.update_sort_button_style() 
 
+        # Task List Area
         self.scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
         self.scroll.pack(fill="both", expand=True, padx=10, pady=5)
         
         self.load_tasks()
+
+    def toggle_sort(self):
+        self.sort_order = "DESC" if self.sort_order == "ASC" else "ASC"
+        self.update_sort_button_style()
+        self.load_tasks()
+
+    def update_sort_button_style(self):
+        """Updates style with a functional hover 'fill' effect."""
+        if self.sort_order == "ASC":
+            # Closest First: Bordered style
+            self.sort_btn.configure(
+                text="Sort: Closest First",
+                # Using bg_main/bg_card instead of transparent helps the hover color render properly
+                fg_color=self.tm.bg_main(), 
+                text_color=self.tm.accent_color(),
+                border_color=self.tm.accent_color(),
+                border_width=2,
+                # This creates the 'gray pill' fill on hover
+                hover_color=self.tm.bg_sub() 
+            )
+        else:
+            # Furthest First: Fully colored style
+            self.sort_btn.configure(
+                text="Sort: Furthest First",
+                fg_color=self.tm.accent_color(),
+                text_color=self.tm.accent_text(),
+                border_width=0,
+                hover_color=self.tm.accent_hover()
+            )
 
     def set_filter(self, val):
         self.current_filter.set(val)
@@ -64,17 +123,20 @@ class AllPendingTasksView(ctk.CTkFrame):
 
         tasks = self.db.get_all_pending_tasks(self.user_id) if self.user_id else []
         
-        # Apply Filter
-        curr_f = self.current_filter.get()
-        if curr_f != "All":
-            tasks = [t for t in tasks if t['priority'] == curr_f]
+        if self.current_filter.get() != "All":
+            tasks = [t for t in tasks if t['priority'] == self.current_filter.get()]
+
+        # Sorting logic
+        tasks.sort(
+            key=lambda x: x.get('deadline') or '9999-12-31', 
+            reverse=(self.sort_order == "DESC")
+        )
             
         if not tasks:
-            msg = "You have no pending tasks! Great job." if curr_f == "All" else f"No pending {curr_f} priority tasks."
+            msg = "You have no pending tasks!" if self.current_filter.get() == "All" else f"No pending {self.current_filter.get()} priority tasks."
             ctk.CTkLabel(self.scroll, text=msg, font=("Arial", 14, "italic"), text_color=self.tm.text_sub()).pack(pady=40)
             return
             
-        from datetime import datetime
         today = datetime.today().strftime('%Y-%m-%d')
             
         for task in tasks:

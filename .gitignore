@@ -15,3 +15,5 @@ __pycache__/
 Acadence.spec
 build/
 dist/
+.venv/
+.vscode/
