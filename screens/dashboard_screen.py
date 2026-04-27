@@ -36,7 +36,7 @@ class DashboardScreen(ctk.CTkFrame):
                 self.sidebar, text=f"   {icon}   {name}", 
                 fg_color="transparent", text_color=self.tm.text_sub(),
                 hover_color=self.tm.bg_sub(), height=45, font=("Arial", 15, "bold"),
-                anchor="w", command=lambda n=name: self.show_view(n)
+                corner_radius=10, anchor="w", command=lambda n=name: self.show_view(n)
             )
             btn.pack(fill="x", padx=15, pady=5)
             self.nav_buttons[name] = btn
@@ -63,9 +63,9 @@ class DashboardScreen(ctk.CTkFrame):
         if view_name in self.nav_buttons:
             for name, btn in self.nav_buttons.items():
                 if name == view_name:
-                    btn.configure(text_color=self.tm.accent_color(), fg_color=self.tm.bg_sub())
+                    btn.configure(text_color=self.tm.accent_text(), fg_color=self.tm.accent_color(), hover_color=self.tm.accent_color())
                 else:
-                    btn.configure(text_color=self.tm.text_sub(), fg_color="transparent")
+                    btn.configure(text_color=self.tm.text_sub(), fg_color="transparent", hover_color=self.tm.bg_sub())
 
         # Clear current content
         if self.current_view is not None:

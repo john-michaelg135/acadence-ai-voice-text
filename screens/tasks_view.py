@@ -401,7 +401,7 @@ class TasksView(ctk.CTkFrame):
             if val == curr:
                 btn.configure(fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover())
             else:
-                btn.configure(fg_color="transparent", text_color=self.tm.text_sub(), hover_color=self.tm.bg_sub())
+                btn.configure(fg_color="transparent", text_color=self.tm.text_sub(), hover_color=self.tm.border_main())
 
     def filter_changed(self, value):
         self.load_tasks()
@@ -454,9 +454,16 @@ class TasksView(ctk.CTkFrame):
         # Deadline Label
         deadline_str = task.get('deadline')
         if deadline_str:
-            ctk.CTkLabel(card, text=f"📅 {deadline_str}", font=("Arial", 13), text_color=self.tm.accent_color(), width=120, anchor="w").pack(side="left", padx=10)
+            ctk.CTkLabel(card, text=f"📅 {deadline_str}", font=("Arial", 13), text_color=self.tm.accent_color(), width=100, anchor="w").pack(side="left", padx=10)
+            from datetime import datetime
+            today = datetime.today().strftime('%Y-%m-%d')
+            if deadline_str < today and task.get('status', 'pending') == 'pending':
+                ctk.CTkLabel(card, text="Overdue", font=("Arial", 10, "bold"), text_color="#FFFFFF", fg_color=self.tm.error_color(), corner_radius=6, width=60, height=20).pack(side="left", padx=(0, 10))
+            else:
+                ctk.CTkFrame(card, fg_color="transparent", width=60, height=20).pack(side="left", padx=(0, 10)) # Spacer to maintain alignment
         else:
-            ctk.CTkLabel(card, text=f"📅 No Deadline", font=("Arial", 13), text_color=self.tm.text_sub(), width=120, anchor="w").pack(side="left", padx=10)
+            ctk.CTkLabel(card, text=f"📅 No Deadline", font=("Arial", 13), text_color=self.tm.text_sub(), width=100, anchor="w").pack(side="left", padx=10)
+            ctk.CTkFrame(card, fg_color="transparent", width=60, height=20).pack(side="left", padx=(0, 10)) # Spacer
 
         # Priority Indicator
         prio_color = "#FF6B6B" if task['priority'] == 'High' else ("#EAB308" if task['priority'] == 'Medium' else "#22C55E")

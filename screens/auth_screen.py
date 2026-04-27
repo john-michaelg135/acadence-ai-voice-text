@@ -89,7 +89,7 @@ class AuthScreen(ctk.CTkFrame):
             if m == mode:
                 btn.configure(fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover())
             else:
-                btn.configure(fg_color="transparent", text_color=self.tm.text_sub(), hover_color=self.tm.bg_sub())
+                btn.configure(fg_color="transparent", text_color=self.tm.text_sub(), hover_color=self.tm.border_main())
 
         if mode == "Log In":
             self.card.configure(height=380)

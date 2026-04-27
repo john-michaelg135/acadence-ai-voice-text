@@ -126,6 +126,13 @@ class InsightsView(ctk.CTkFrame):
                 d_lbl = ctk.CTkLabel(sub, text=f"📅 {deadline_str}", font=("Arial", 12), text_color=self.tm.accent_color(), cursor="hand2")
                 d_lbl.pack(side="left")
                 d_lbl.bind("<Button-1>", nav_cmd)
+                
+                from datetime import datetime
+                today = datetime.today().strftime('%Y-%m-%d')
+                if deadline_str < today and task.get('status', 'pending') == 'pending':
+                    overdue_lbl = ctk.CTkLabel(sub, text="Overdue", font=("Arial", 10, "bold"), text_color="#FFFFFF", fg_color=self.tm.error_color(), corner_radius=6, width=60, height=20)
+                    overdue_lbl.pack(side="left", padx=(10, 0))
+                    overdue_lbl.bind("<Button-1>", nav_cmd)
             
             view_btn = ctk.CTkButton(row, text="❯", font=("Arial", 18, "bold"), text_color=self.tm.text_sub(), fg_color="transparent", hover_color=self.tm.border_main(), width=30,
                                      command=lambda s_id=task['subject_id'], s_name=task['subject_name']: self.show_view_callback("Tasks", subject_id=s_id, subject_name=s_name, source_view="Insights"))
