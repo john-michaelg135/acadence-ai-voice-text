@@ -61,6 +61,11 @@ class DatabaseManager:
                 pass
                 
             try:
+                conn.execute("ALTER TABLE users ADD COLUMN has_seen_walkthrough BOOLEAN DEFAULT 0")
+            except sqlite3.OperationalError:
+                pass
+                
+            try:
                 conn.execute("ALTER TABLE tasks ADD COLUMN completed_at TIMESTAMP")
             except sqlite3.OperationalError:
                 pass
@@ -168,6 +173,10 @@ class DatabaseManager:
     def update_login_duration(self, user_id, duration_minutes):
         with self.get_connection() as conn:
             conn.execute("UPDATE users SET login_duration = login_duration + ?, recent_login_duration = ? WHERE id = ?", (duration_minutes, duration_minutes, user_id))
+
+    def mark_walkthrough_seen(self, user_id):
+        with self.get_connection() as conn:
+            conn.execute("UPDATE users SET has_seen_walkthrough = 1 WHERE id = ?", (user_id,))
 
     def disable_user(self, user_id):
         with self.get_connection() as conn:

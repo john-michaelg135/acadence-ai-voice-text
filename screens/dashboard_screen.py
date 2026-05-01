@@ -1,5 +1,7 @@
 import customtkinter as ctk
 from utils.theme_manager import ThemeManager
+from database.db_manager import DatabaseManager
+from screens.walkthrough_popup import WalkthroughPopup
 
 class PlaceholderView(ctk.CTkFrame):
     def __init__(self, master, title):
@@ -20,6 +22,18 @@ class DashboardScreen(ctk.CTkFrame):
         self._view_cache = {}  # Cache views to avoid re-creation on tab switches
         self.setup_ui()
         self.show_view("Home")
+        
+        # Trigger walkthrough if not seen
+        if not self.user_info.get("has_seen_walkthrough"):
+            self.after(500, self.show_walkthrough)
+
+    def show_walkthrough(self):
+        def on_complete():
+            db = DatabaseManager()
+            db.mark_walkthrough_seen(self.user_info["id"])
+            self.user_info["has_seen_walkthrough"] = 1
+            
+        WalkthroughPopup(self, on_complete)
 
     def setup_ui(self):
         # Sidebar Navigation
