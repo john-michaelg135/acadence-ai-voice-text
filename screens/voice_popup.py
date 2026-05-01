@@ -78,7 +78,7 @@ class VoiceRecordingPopup(ctk.CTkToplevel):
                       command=self.on_stop_speaking)
         self.stop_btn.pack(side="right", padx=5)
 
-        self.confirm_btn = ctk.CTkButton(self.actions_frame, text="Confirm & Proceed", width=160, fg_color=self.tm.success_color(),
+        self.confirm_btn = ctk.CTkButton(self.actions_frame, text="Process", width=160, fg_color=self.tm.success_color(),
                       text_color=self.tm.text_main(), hover_color=self.tm.success_hover(), font=("Arial", 13, "bold"),
                       command=self.on_confirm)
 

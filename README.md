@@ -35,11 +35,11 @@ python main.py
 
 ## How to use the Voice AI
 
-1. Navigate to any Subject's Task View.
+1. Navigate to Subject's View.
 2. Click the **Voice AI** button in the top right.
 3. Wait for the status indicator to say `🟢 Listening...`
 4. Speak naturally. For example:
-> *"I have a high priority assignment for Biology 1 to complete the cellular structure essay by next Tuesday."*
+> *"Ethics subject with a subject code 'GEED-008'"*
 5. Click **Process**.
 6. Acadence will parse your audio, automatically title-case the fields, calculate the deadline date, and insert it into your database.
 
