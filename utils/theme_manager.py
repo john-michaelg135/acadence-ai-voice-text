@@ -9,6 +9,8 @@ class ThemeManager:
             cls._instance.current_accent = "Pastel Purple"
         return cls._instance
 
+    def main_font(self): return "Poppins"
+
     # Core Backgrounds & Elements
     def bg_main(self): return ("#FFFFFF", "#121212")
     def bg_sub(self): return ("#F4F5F7", "#1E1E1E")

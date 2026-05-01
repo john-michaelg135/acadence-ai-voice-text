@@ -3,11 +3,13 @@ from screens.auth_screen import AuthScreen
 from screens.dashboard_screen import DashboardScreen
 from database.db_manager import DatabaseManager
 from utils.theme_manager import ThemeManager
+from utils.font_loader import load_fonts
 import datetime
 
 class AcadenceApp(ctk.CTk):
     def __init__(self):
         super().__init__()
+        load_fonts()  # Load custom Poppins fonts
         self.tm = ThemeManager()
         
         self.title("Acadence")

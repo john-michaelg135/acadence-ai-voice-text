@@ -29,11 +29,11 @@ class AllPendingTasksView(ctk.CTkFrame):
         # --- LEFT SIDE: Back Button ---
         back_btn = ctk.CTkButton(header_frame, text="← Back", width=60, fg_color="transparent", 
                                  text_color=self.tm.text_main(), hover_color=self.tm.bg_card(), 
-                                 font=("Arial", 14), command=lambda: self.show_view_callback("Insights"))
+                                 font=(self.tm.main_font(), 14), command=lambda: self.show_view_callback("Insights"))
         back_btn.grid(row=0, column=0, sticky="w")
         
         # --- CENTER: Title ---
-        ctk.CTkLabel(header_frame, text="All Pending Tasks", font=("Arial", 22, "bold"), 
+        ctk.CTkLabel(header_frame, text="All Pending Tasks", font=(self.tm.main_font(), 22, "bold"), 
                      text_color=self.tm.text_main()).grid(row=0, column=1, pady=(0, 5))
         
         # --- ROW 1: Controls ---
@@ -47,27 +47,28 @@ class AllPendingTasksView(ctk.CTkFrame):
             width=150, 
             height=32, 
             corner_radius=16, 
-            font=("Arial", 11, "bold"),
+            font=(self.tm.main_font(), 11, "bold"),
             command=self.toggle_sort
         )
         self.sort_btn.pack()
 
         # Priority Filter (Center-aligned)
-        filter_frame = ctk.CTkFrame(header_frame, fg_color=self.tm.bg_sub(), corner_radius=20, 
+        self.filter_container = ctk.CTkFrame(header_frame, fg_color=self.tm.bg_sub(), corner_radius=20, 
                                     border_color=self.tm.border_main(), border_width=1)
-        filter_frame.grid(row=1, column=1, pady=(10, 0))
+        self.filter_container.grid(row=1, column=1, pady=(10, 0))
         
         self.current_filter = ctk.StringVar(value="All")
         self.filter_buttons = {}
-        for prio in ["All", "High", "Medium", "Low"]:
+        self._filter_order = ["All", "High", "Medium", "Low"]
+        for prio in self._filter_order:
             btn = ctk.CTkButton(
-                filter_frame, text=prio, width=80, height=32, corner_radius=16,
-                font=("Arial", 12, "bold"),
+                self.filter_container, text=prio, width=80, height=32, corner_radius=16,
+                font=(self.tm.main_font(), 12, "bold"),
                 command=lambda p=prio: self.set_filter(p)
             )
             btn.pack(side="left", padx=3, pady=3)
             self.filter_buttons[prio] = btn
-            
+        
         self.update_filter_buttons()
         self.update_sort_button_style() 
 
@@ -88,12 +89,10 @@ class AllPendingTasksView(ctk.CTkFrame):
             # Closest First: Bordered style
             self.sort_btn.configure(
                 text="Sort: Closest First",
-                # Using bg_main/bg_card instead of transparent helps the hover color render properly
                 fg_color=self.tm.bg_main(), 
                 text_color=self.tm.accent_color(),
                 border_color=self.tm.accent_color(),
                 border_width=2,
-                # This creates the 'gray pill' fill on hover
                 hover_color=self.tm.bg_sub() 
             )
         else:
@@ -112,6 +111,7 @@ class AllPendingTasksView(ctk.CTkFrame):
         self.load_tasks()
 
     def update_filter_buttons(self):
+        """Instant color swap — all buttons update in same frame, no flicker."""
         curr = self.current_filter.get()
         for val, btn in self.filter_buttons.items():
             if val == curr:
@@ -145,7 +145,7 @@ class AllPendingTasksView(ctk.CTkFrame):
             
         if not tasks:
             msg = "You have no pending tasks!" if self.current_filter.get() == "All" else f"No pending {self.current_filter.get()} priority tasks."
-            ctk.CTkLabel(self.scroll, text=msg, font=("Arial", 14, "italic"), text_color=self.tm.text_sub()).pack(pady=40)
+            ctk.CTkLabel(self.scroll, text=msg, font=(self.tm.main_font(), 14, "italic"), text_color=self.tm.text_sub()).pack(pady=40)
             return
             
         today = datetime.today().strftime('%Y-%m-%d')
@@ -167,23 +167,23 @@ class AllPendingTasksView(ctk.CTkFrame):
             left = ctk.CTkFrame(row, fg_color="transparent")
             left.pack(side="left", fill="x", expand=True, padx=15, pady=10)
             
-            ctk.CTkLabel(left, text=task['name'], font=("Arial", 15, "bold"), text_color=self.tm.text_main(), anchor="w").pack(fill="x")
+            ctk.CTkLabel(left, text=task['name'], font=(self.tm.main_font(), 15, "bold"), text_color=self.tm.text_main(), anchor="w").pack(fill="x")
             
             sub = ctk.CTkFrame(left, fg_color="transparent")
             sub.pack(fill="x")
             
             flag_color = self.tm.error_color() if task['priority'] == 'High' else self.tm.warning_color() if task['priority'] == 'Medium' else self.tm.success_color()
             
-            ctk.CTkLabel(sub, text=task['priority'], font=("Arial", 11, "bold"), text_color=flag_color).pack(side="left", padx=(0, 10))
-            ctk.CTkLabel(sub, text=task['subject_name'], font=("Arial", 11), text_color=self.tm.text_sub()).pack(side="left", padx=(0, 10))
+            ctk.CTkLabel(sub, text=task['priority'], font=(self.tm.main_font(), 11, "bold"), text_color=flag_color).pack(side="left", padx=(0, 10))
+            ctk.CTkLabel(sub, text=task['subject_name'], font=(self.tm.main_font(), 11), text_color=self.tm.text_sub()).pack(side="left", padx=(0, 10))
             
             deadline_str = task.get('deadline')
             if deadline_str:
-                ctk.CTkLabel(sub, text=f"📅 {deadline_str}", font=("Arial", 11), text_color=self.tm.accent_color()).pack(side="left")
+                ctk.CTkLabel(sub, text=f"📅 {deadline_str}", font=(self.tm.main_font(), 11), text_color=self.tm.accent_color()).pack(side="left")
                 if deadline_str < today:
-                    ctk.CTkLabel(sub, text="Overdue", font=("Arial", 10, "bold"), text_color="#FFFFFF", fg_color=self.tm.error_color(), corner_radius=6, width=60, height=20).pack(side="left", padx=(10, 0))
+                    ctk.CTkLabel(sub, text="Overdue", font=(self.tm.main_font(), 10, "bold"), text_color="#FFFFFF", fg_color=self.tm.error_color(), corner_radius=6, width=60, height=20).pack(side="left", padx=(10, 0))
 
-            view_btn = ctk.CTkButton(row, text="❯", font=("Arial", 18), text_color=self.tm.text_sub(), fg_color="transparent", hover_color=self.tm.bg_sub(), width=40,
+            view_btn = ctk.CTkButton(row, text="❯", font=(self.tm.main_font(), 18), text_color=self.tm.text_sub(), fg_color="transparent", hover_color=self.tm.bg_sub(), width=40,
                                      command=lambda s_id=task['subject_id'], s_name=task['subject_name']: self.show_view_callback("Tasks", s_id, s_name))
             view_btn.pack(side="right", padx=10)
 

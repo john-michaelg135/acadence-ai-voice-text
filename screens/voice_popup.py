@@ -52,16 +52,16 @@ class VoiceRecordingPopup(ctk.CTkToplevel):
             bar.pack(side="left", padx=5, anchor="center")
             self.bars.append(bar)
             
-        self.status_lbl = ctk.CTkLabel(self.container, text="Listening... Please speak now.", font=("Arial", 16, "bold"), text_color=self.tm.accent_color())
+        self.status_lbl = ctk.CTkLabel(self.container, text="Listening... Please speak now.", font=(self.tm.main_font(), 16, "bold"), text_color=self.tm.accent_color())
         self.status_lbl.pack(pady=(0, 15))
         
         # --- Review Section (Always visible now to show live text) ---
         self.review_frame = ctk.CTkFrame(self.container, fg_color=self.tm.bg_sub(), corner_radius=10)
         self.review_frame.pack(fill="x", pady=10)
         
-        ctk.CTkLabel(self.review_frame, text="Live Transcription:", font=("Arial", 12, "bold"), text_color=self.tm.text_main()).pack(anchor="w", padx=10, pady=(10, 5))
+        ctk.CTkLabel(self.review_frame, text="Live Transcription:", font=(self.tm.main_font(), 12, "bold"), text_color=self.tm.text_main()).pack(anchor="w", padx=10, pady=(10, 5))
         
-        self.text_box = ctk.CTkTextbox(self.review_frame, height=80, fg_color="transparent", text_color=self.tm.text_sub(), font=("Arial", 13))
+        self.text_box = ctk.CTkTextbox(self.review_frame, height=80, fg_color="transparent", text_color=self.tm.text_sub(), font=(self.tm.main_font(), 13))
         self.text_box.pack(fill="x", padx=10, pady=(0, 10))
         
         # --- Actions Section ---
@@ -69,17 +69,17 @@ class VoiceRecordingPopup(ctk.CTkToplevel):
         self.actions_frame.pack(side="bottom", fill="x", pady=(10, 0))
         
         self.cancel_btn = ctk.CTkButton(self.actions_frame, text="Cancel", width=100, fg_color="transparent", border_width=1, 
-                      text_color=self.tm.text_sub(), border_color=self.tm.border_main(), hover_color=self.tm.bg_sub(), font=("Arial", 13, "bold"),
+                      text_color=self.tm.text_sub(), border_color=self.tm.border_main(), hover_color=self.tm.bg_sub(), font=(self.tm.main_font(), 13, "bold"),
                       command=self.on_cancel)
         self.cancel_btn.pack(side="left", padx=5)
         
         self.stop_btn = ctk.CTkButton(self.actions_frame, text="Done Speaking", width=120, fg_color=self.tm.accent_color(),
-                      text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover(), font=("Arial", 13, "bold"),
+                      text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover(), font=(self.tm.main_font(), 13, "bold"),
                       command=self.on_stop_speaking)
         self.stop_btn.pack(side="right", padx=5)
 
         self.confirm_btn = ctk.CTkButton(self.actions_frame, text="Process", width=160, fg_color=self.tm.success_color(),
-                      text_color=self.tm.text_main(), hover_color=self.tm.success_hover(), font=("Arial", 13, "bold"),
+                      text_color=self.tm.text_main(), hover_color=self.tm.success_hover(), font=(self.tm.main_font(), 13, "bold"),
                       command=self.on_confirm)
 
     def on_phrase_transcribed(self, text):

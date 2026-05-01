@@ -20,7 +20,7 @@ class AdminDashboard(ctk.CTkFrame):
         header_frame = ctk.CTkFrame(self, fg_color="transparent")
         header_frame.pack(fill="x", padx=20, pady=(20, 10))
 
-        ctk.CTkLabel(header_frame, text="Admin Portal", font=("Arial", 28, "bold"), text_color=self.tm.accent_color()).pack(side="left")
+        ctk.CTkLabel(header_frame, text="Admin Portal", font=(self.tm.main_font(), 28, "bold"), text_color=self.tm.accent_color()).pack(side="left")
         
         # Right side actions (Logout and Theme Toggle)
         actions_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
@@ -28,19 +28,21 @@ class AdminDashboard(ctk.CTkFrame):
         
         theme_menu = ctk.CTkOptionMenu(
             actions_frame, values=["Light", "Dark", "System"],
-            command=ctk.set_appearance_mode, width=90, height=30,
+            command=ctk.set_appearance_mode, width=100, height=30,
             fg_color=self.tm.bg_sub(), button_color=self.tm.accent_color(), button_hover_color=self.tm.accent_hover(),
-            text_color=self.tm.text_main()
+            text_color=self.tm.text_main(),
+            font=(self.tm.main_font(), 12), dropdown_font=(self.tm.main_font(), 12)
         )
         theme_menu.pack(side="left", padx=(0, 15))
         current_mode = ctk.get_appearance_mode()
         theme_menu.set(current_mode)
         
-        ctk.CTkButton(actions_frame, text="Log Out", width=80, fg_color="transparent", border_width=1, text_color=self.tm.text_main(),
+        ctk.CTkButton(actions_frame, text="Log Out", width=90, fg_color="transparent", border_width=1, text_color=self.tm.text_main(),
+                      font=(self.tm.main_font(), 12, "bold"),
                       command=self.on_logout).pack(side="left")
 
         # Intro text
-        ctk.CTkLabel(self, text="System User Metrics", font=("Arial", 16), text_color=self.tm.text_sub()).pack(anchor="w", padx=20, pady=(0, 10))
+        ctk.CTkLabel(self, text="System User Metrics", font=(self.tm.main_font(), 16), text_color=self.tm.text_sub()).pack(anchor="w", padx=20, pady=(0, 10))
 
         # Scrollable list for standard users
         self.scroll_frame = ctk.CTkScrollableFrame(self, fg_color="transparent", scrollbar_button_color=self.tm.bg_main(), scrollbar_button_hover_color=self.tm.text_sub())
@@ -83,7 +85,7 @@ class AdminDashboard(ctk.CTkFrame):
         top_frame = ctk.CTkFrame(card, fg_color="transparent")
         top_frame.pack(fill="x", padx=15, pady=(15, 5))
         
-        ctk.CTkLabel(top_frame, text=f"@{user['username']}", font=("Arial", 18, "bold"), text_color=self.tm.text_main()).pack(side="left")
+        ctk.CTkLabel(top_frame, text=f"@{user['username']}", font=(self.tm.main_font(), 18, "bold"), text_color=self.tm.text_main()).pack(side="left")
         
         # Inactivity Pill
         from datetime import datetime
@@ -112,10 +114,10 @@ class AdminDashboard(ctk.CTkFrame):
                 needs_action = True
                     
             if is_abandoned:
-                ctk.CTkLabel(top_frame, text="No Longer Active", font=("Arial", 12, "bold"), text_color=self.tm.text_inverse()[0], 
+                ctk.CTkLabel(top_frame, text="No Longer Active", font=(self.tm.main_font(), 12, "bold"), text_color=self.tm.text_inverse()[0], 
                              fg_color=self.tm.error_color(), corner_radius=10, width=130, height=24).pack(side="left", padx=15)
             elif needs_action:
-                ctk.CTkLabel(top_frame, text="Action Needed", font=("Arial", 12, "bold"), text_color=self.tm.text_inverse()[0], 
+                ctk.CTkLabel(top_frame, text="Action Needed", font=(self.tm.main_font(), 12, "bold"), text_color=self.tm.text_inverse()[0], 
                              fg_color=self.tm.warning_color(), corner_radius=10, width=110, height=24).pack(side="left", padx=15)
 
         # Disable/Enable/Delete Account Buttons
@@ -132,7 +134,7 @@ class AdminDashboard(ctk.CTkFrame):
                     self.load_users()
                     
             ctk.CTkButton(action_btns_frame, text="Enable Account", width=120, height=28, fg_color="transparent", text_color=self.tm.success_color(),
-                          border_width=1, border_color=self.tm.success_color(),
+                          border_width=1, border_color=self.tm.success_color(), font=(self.tm.main_font(), 12),
                           command=enable_cmd).pack(pady=(0, 2))
         else:
             def disable_cmd():
@@ -144,6 +146,7 @@ class AdminDashboard(ctk.CTkFrame):
 
             ctk.CTkButton(action_btns_frame, text="Disable Account", width=120, height=28, fg_color="transparent", text_color=self.tm.warning_color(),
                           border_width=1, border_color=self.tm.warning_color(), hover_color=self.tm.bg_sub(),
+                          font=(self.tm.main_font(), 12),
                           command=disable_cmd).pack(pady=(0, 2))
                           
         if is_abandoned:
@@ -155,7 +158,7 @@ class AdminDashboard(ctk.CTkFrame):
                     self.load_users()
             
             ctk.CTkButton(action_btns_frame, text="Delete Account", width=120, height=28, fg_color=self.tm.error_color(), text_color=self.tm.text_inverse()[0],
-                          hover_color=self.tm.error_hover(), command=delete_cmd).pack(pady=(2, 0))
+                          hover_color=self.tm.error_hover(), font=(self.tm.main_font(), 12, "bold"), command=delete_cmd).pack(pady=(2, 0))
         
         # Format dates dynamically natively mapping standard SQLite Timestamp strings
         def fmt_time(t_str):
@@ -173,18 +176,18 @@ class AdminDashboard(ctk.CTkFrame):
         info_frame = ctk.CTkFrame(card, fg_color="transparent")
         info_frame.pack(fill="x", padx=15, pady=5)
         
-        ctk.CTkLabel(info_frame, text=f"Joined: {created_str}", font=("Arial", 12), text_color=self.tm.text_sub()).pack(anchor="w")
-        ctk.CTkLabel(info_frame, text=f"Last Active: {last_login_str}", font=("Arial", 12), text_color=self.tm.text_sub()).pack(anchor="w", pady=(2,0))
+        ctk.CTkLabel(info_frame, text=f"Joined: {created_str}", font=(self.tm.main_font(), 12), text_color=self.tm.text_sub()).pack(anchor="w")
+        ctk.CTkLabel(info_frame, text=f"Last Active: {last_login_str}", font=(self.tm.main_font(), 12), text_color=self.tm.text_sub()).pack(anchor="w", pady=(2,0))
         
         recent_mins = user.get('recent_login_duration') or 0
-        ctk.CTkLabel(info_frame, text=f"Most Recent Session: {recent_mins} min(s)", font=("Arial", 12), text_color=self.tm.text_sub()).pack(anchor="w", pady=(2,0))
+        ctk.CTkLabel(info_frame, text=f"Most Recent Session: {recent_mins} min(s)", font=(self.tm.main_font(), 12), text_color=self.tm.text_sub()).pack(anchor="w", pady=(2,0))
         
         duration_mins = user.get('login_duration') or 0
-        ctk.CTkLabel(info_frame, text=f"Total Logged In Time: {duration_mins} min(s)", font=("Arial", 12), text_color=self.tm.text_sub()).pack(anchor="w", pady=(2,0))
+        ctk.CTkLabel(info_frame, text=f"Total Logged In Time: {duration_mins} min(s)", font=(self.tm.main_font(), 12), text_color=self.tm.text_sub()).pack(anchor="w", pady=(2,0))
 
         # Bottom metrics aggregates (Subjects / Tasks split block)
         metrics_frame = ctk.CTkFrame(card, fg_color=self.tm.bg_completed(), corner_radius=10)
         metrics_frame.pack(fill="x", padx=15, pady=(10, 15))
         
-        ctk.CTkLabel(metrics_frame, text=f"📚 Subjects: {user['total_subjects']}", font=("Arial", 13, "bold"), text_color=self.tm.text_main()).pack(side="left", expand=True, pady=10)
-        ctk.CTkLabel(metrics_frame, text=f"📋 Tasks: {user['total_tasks']}", font=("Arial", 13, "bold"), text_color=self.tm.text_main()).pack(side="right", expand=True, pady=10)
+        ctk.CTkLabel(metrics_frame, text=f"📚 Subjects: {user['total_subjects']}", font=(self.tm.main_font(), 13, "bold"), text_color=self.tm.text_main()).pack(side="left", expand=True, pady=10)
+        ctk.CTkLabel(metrics_frame, text=f"📋 Tasks: {user['total_tasks']}", font=(self.tm.main_font(), 13, "bold"), text_color=self.tm.text_main()).pack(side="right", expand=True, pady=10)

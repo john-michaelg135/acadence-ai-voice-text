@@ -13,7 +13,7 @@ class MoreView(ctk.CTkFrame):
 
     def setup_ui(self):
         # Header
-        ctk.CTkLabel(self, text="Settings & More", font=("Arial", 28, "bold"), text_color=self.tm.text_main()).pack(anchor="w", padx=20, pady=(20, 10))
+        ctk.CTkLabel(self, text="Settings & More", font=(self.tm.main_font(), 28, "bold"), text_color=self.tm.text_main()).pack(anchor="w", padx=20, pady=(20, 10))
         
         scroll = ctk.CTkScrollableFrame(self, fg_color="transparent", scrollbar_button_color=self.tm.bg_main(), scrollbar_button_hover_color=self.tm.text_sub())
         scroll.pack(fill="both", expand=True, padx=10, pady=5)
@@ -22,7 +22,7 @@ class MoreView(ctk.CTkFrame):
         cust_card = ctk.CTkFrame(scroll, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=2, corner_radius=15)
         cust_card.pack(fill="x", pady=(0, 15), padx=10)
         
-        ctk.CTkLabel(cust_card, text="Customization", font=("Arial", 18, "bold"), text_color=self.tm.text_main()).pack(anchor="w", padx=20, pady=(15, 10))
+        ctk.CTkLabel(cust_card, text="Customization", font=(self.tm.main_font(), 18, "bold"), text_color=self.tm.text_main()).pack(anchor="w", padx=20, pady=(15, 10))
         
         # Modern Mode Toggle
         mode_frame = ctk.CTkFrame(cust_card, fg_color="transparent")
@@ -30,8 +30,8 @@ class MoreView(ctk.CTkFrame):
         
         mode_info = ctk.CTkFrame(mode_frame, fg_color="transparent")
         mode_info.pack(side="left")
-        ctk.CTkLabel(mode_info, text="Appearance Mode", font=("Arial", 15, "bold"), text_color=self.tm.text_main()).pack(anchor="w")
-        ctk.CTkLabel(mode_info, text="Choose between light, dark, or system default themes.", font=("Arial", 12), text_color=self.tm.text_sub()).pack(anchor="w")
+        ctk.CTkLabel(mode_info, text="Appearance Mode", font=(self.tm.main_font(), 15, "bold"), text_color=self.tm.text_main()).pack(anchor="w")
+        ctk.CTkLabel(mode_info, text="Choose between light, dark, or system default themes.", font=(self.tm.main_font(), 12), text_color=self.tm.text_sub()).pack(anchor="w")
         
         current_mode = ctk.get_appearance_mode()
         
@@ -47,7 +47,7 @@ class MoreView(ctk.CTkFrame):
         for m_val in ["Light", "Dark", "System"]:
             btn = ctk.CTkButton(
                 mode_toggle_frame, text=m_val, width=70, height=28, corner_radius=14,
-                font=("Arial", 12, "bold"),
+                font=(self.tm.main_font(), 12, "bold"),
                 command=lambda v=m_val: toggle_mode(v)
             )
             btn.pack(side="left", padx=3, pady=3)
@@ -61,8 +61,8 @@ class MoreView(ctk.CTkFrame):
         
         accent_info = ctk.CTkFrame(accent_frame, fg_color="transparent")
         accent_info.pack(side="left")
-        ctk.CTkLabel(accent_info, text="Accent Color Theme", font=("Arial", 15, "bold"), text_color=self.tm.text_main()).pack(anchor="w")
-        ctk.CTkLabel(accent_info, text="Personalize the app with your favorite pastel color palette.", font=("Arial", 12), text_color=self.tm.text_sub()).pack(anchor="w")
+        ctk.CTkLabel(accent_info, text="Accent Color Theme", font=(self.tm.main_font(), 15, "bold"), text_color=self.tm.text_main()).pack(anchor="w")
+        ctk.CTkLabel(accent_info, text="Personalize the app with your favorite pastel color palette.", font=(self.tm.main_font(), 12), text_color=self.tm.text_sub()).pack(anchor="w")
         
         self.accent_var = ctk.StringVar(value=self.tm.current_accent)
         
@@ -73,16 +73,17 @@ class MoreView(ctk.CTkFrame):
         self.accent_menu = ctk.CTkOptionMenu(accent_frame, values=self.tm.get_theme_names(),
                                         variable=self.accent_var, command=change_accent,
                                         fg_color=self.tm.accent_color(), button_color=self.tm.accent_hover(), button_hover_color=self.tm.accent_color(),
-                                        text_color=self.tm.accent_text())
+                                        text_color=self.tm.accent_text(),
+                                        font=(self.tm.main_font(), 13), dropdown_font=(self.tm.main_font(), 13))
         self.accent_menu.pack(side="right")
         
         # 2. About Card
         about_card = ctk.CTkFrame(scroll, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=2, corner_radius=15)
         about_card.pack(fill="x", pady=15, padx=10)
         
-        ctk.CTkLabel(about_card, text="About Acadence", font=("Arial", 18, "bold"), text_color=self.tm.text_main()).pack(anchor="w", padx=20, pady=(15, 5))
+        ctk.CTkLabel(about_card, text="About Acadence", font=(self.tm.main_font(), 18, "bold"), text_color=self.tm.text_main()).pack(anchor="w", padx=20, pady=(15, 5))
         
-        ctk.CTkLabel(about_card, text="Version 1.0.0", font=("Arial", 12, "bold"), text_color=self.tm.accent_color()).pack(anchor="w", padx=20)
+        ctk.CTkLabel(about_card, text="Version 1.0.0", font=(self.tm.main_font(), 12, "bold"), text_color=self.tm.accent_color()).pack(anchor="w", padx=20)
         
         desc = (
             "Acadence AI Voice to Text Tracker is an advanced academic management tool built to redefine how students and professionals "
@@ -91,7 +92,7 @@ class MoreView(ctk.CTkFrame):
             "Whether you are managing major university courses, tracking high-priority assignments, or simply organizing your academic "
             "life, Acadence's dynamic pastel-themed interface provides a focused, beautiful, and highly productive environment tailored precisely to your needs."
         )
-        ctk.CTkLabel(about_card, text=desc, font=("Arial", 14), text_color=self.tm.text_sub(), wraplength=800, justify="left").pack(anchor="w", padx=20, pady=(10, 20))
+        ctk.CTkLabel(about_card, text=desc, font=(self.tm.main_font(), 14), text_color=self.tm.text_sub(), wraplength=800, justify="left").pack(anchor="w", padx=20, pady=(10, 20))
         
     def update_mode_buttons(self, current_mode):
         for val, btn in self.mode_buttons.items():

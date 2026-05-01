@@ -70,13 +70,13 @@ class WalkthroughPopup(ctk.CTkToplevel):
         self.content_frame = ctk.CTkFrame(self, fg_color=self.tm.bg_card(), corner_radius=15, border_color=self.tm.border_main(), border_width=2)
         self.content_frame.pack(fill="both", expand=True, padx=40, pady=10)
         
-        self.icon_lbl = ctk.CTkLabel(self.content_frame, text="", font=("Arial", 60))
+        self.icon_lbl = ctk.CTkLabel(self.content_frame, text="", font=(self.tm.main_font(), 60))
         self.icon_lbl.pack(pady=(40, 10))
         
-        self.title_lbl = ctk.CTkLabel(self.content_frame, text="", font=("Arial", 24, "bold"), text_color=self.tm.text_main())
+        self.title_lbl = ctk.CTkLabel(self.content_frame, text="", font=(self.tm.main_font(), 24, "bold"), text_color=self.tm.text_main())
         self.title_lbl.pack(pady=(0, 15))
         
-        self.desc_lbl = ctk.CTkLabel(self.content_frame, text="", font=("Arial", 16), text_color=self.tm.text_sub(), wraplength=450, justify="center")
+        self.desc_lbl = ctk.CTkLabel(self.content_frame, text="", font=(self.tm.main_font(), 16), text_color=self.tm.text_sub(), wraplength=450, justify="center")
         self.desc_lbl.pack(padx=30, pady=(0, 30))
         
         # Bottom Navigation
@@ -84,10 +84,10 @@ class WalkthroughPopup(ctk.CTkToplevel):
         self.nav_frame.pack(fill="x", side="bottom", pady=20, padx=40)
         self.nav_frame.pack_propagate(False)
         
-        self.skip_btn = ctk.CTkButton(self.nav_frame, text="Skip Tour", font=("Arial", 14, "bold"), text_color=self.tm.text_sub(), fg_color="transparent", hover_color=self.tm.bg_sub(), width=100, command=self.finish_tour)
+        self.skip_btn = ctk.CTkButton(self.nav_frame, text="Skip Tour", font=(self.tm.main_font(), 14, "bold"), text_color=self.tm.text_sub(), fg_color="transparent", hover_color=self.tm.bg_sub(), width=100, command=self.finish_tour)
         self.skip_btn.pack(side="left")
         
-        self.next_btn = ctk.CTkButton(self.nav_frame, text="Next ❯", font=("Arial", 14, "bold"), text_color=self.tm.accent_text(), fg_color=self.tm.accent_color(), hover_color=self.tm.accent_hover(), width=120, height=40, corner_radius=8, command=self.next_step)
+        self.next_btn = ctk.CTkButton(self.nav_frame, text="Next ❯", font=(self.tm.main_font(), 14, "bold"), text_color=self.tm.accent_text(), fg_color=self.tm.accent_color(), hover_color=self.tm.accent_hover(), width=120, height=40, corner_radius=8, command=self.next_step)
         self.next_btn.pack(side="right")
         
     def render_step(self):

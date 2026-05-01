@@ -24,8 +24,8 @@ class AuthScreen(ctk.CTkFrame):
 
     def setup_ui(self):
         # Branding Header
-        ctk.CTkLabel(self.wrapper, text="Acadence", font=("Arial", 42, "bold"), text_color=self.tm.accent_color()).pack(pady=(0, 5))
-        ctk.CTkLabel(self.wrapper, text="AI Voice to Text Tracker", font=("Arial", 16), text_color=self.tm.text_sub()).pack(pady=(0, 25))
+        ctk.CTkLabel(self.wrapper, text="Acadence", font=(self.tm.main_font(), 42, "bold"), text_color=self.tm.accent_color()).pack(pady=(0, 5))
+        ctk.CTkLabel(self.wrapper, text="AI Voice to Text Tracker", font=(self.tm.main_font(), 16), text_color=self.tm.text_sub()).pack(pady=(0, 25))
 
         # Main Interactive Card
         self.card = ctk.CTkFrame(self.wrapper, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=1, corner_radius=15, width=380)
@@ -40,7 +40,7 @@ class AuthScreen(ctk.CTkFrame):
         for mode in ["Log In", "Sign Up"]:
             btn = ctk.CTkButton(
                 self.toggle_frame, text=mode, height=36, corner_radius=18,
-                font=("Arial", 14, "bold"),
+                font=(self.tm.main_font(), 14, "bold"),
                 command=lambda m=mode: self.switch_mode(m)
             )
             btn.pack(side="left", expand=True, fill="x", padx=3, pady=3)
@@ -59,8 +59,8 @@ class AuthScreen(ctk.CTkFrame):
         self.step2_frame = ctk.CTkFrame(self.forgot_frame, fg_color="transparent")
         self.step3_frame = ctk.CTkFrame(self.forgot_frame, fg_color="transparent")
 
-        self.input_args = {"height": 45, "corner_radius": 10, "border_color": self.tm.border_main(), "fg_color": self.tm.bg_sub(), "text_color": self.tm.text_main(), "font": ("Arial", 14)}
-        self.btn_args = {"height": 45, "corner_radius": 10, "font": ("Arial", 15, "bold"), "fg_color": self.tm.accent_color(), "text_color": self.tm.accent_text(), "hover_color": self.tm.accent_hover()}
+        self.input_args = {"height": 45, "corner_radius": 10, "border_color": self.tm.border_main(), "fg_color": self.tm.bg_sub(), "text_color": self.tm.text_main(), "font": (self.tm.main_font(), 14)}
+        self.btn_args = {"height": 45, "corner_radius": 10, "font": (self.tm.main_font(), 15, "bold"), "fg_color": self.tm.accent_color(), "text_color": self.tm.accent_text(), "hover_color": self.tm.accent_hover()}
 
         self.setup_login_tab()
         self.setup_signup_tab()
@@ -106,7 +106,7 @@ class AuthScreen(ctk.CTkFrame):
             fg_color="transparent",
             border_width=0,
             text_color=self.tm.text_main(),
-            font=("Arial", 14),
+            font=(self.tm.main_font(), 14),
             height=43
         )
         entry.pack(side="left", fill="both", expand=True, padx=(8, 0))
@@ -178,7 +178,7 @@ class AuthScreen(ctk.CTkFrame):
 
         ctk.CTkButton(self.login_frame, text="Log In", command=self.handle_login, **self.btn_args).pack(pady=(20, 15), fill="x")
 
-        forgot_lbl = ctk.CTkLabel(self.login_frame, text="Forgot Password?", font=("Arial", 13, "underline"), text_color=self.tm.text_sub(), cursor="hand2")
+        forgot_lbl = ctk.CTkLabel(self.login_frame, text="Forgot Password?", font=(self.tm.main_font(), 13, "underline"), text_color=self.tm.text_sub(), cursor="hand2")
         forgot_lbl.pack()
         forgot_lbl.bind("<Button-1>", lambda e: self.switch_mode("Forgot Password"))
 
@@ -201,11 +201,11 @@ class AuthScreen(ctk.CTkFrame):
         hdr = ctk.CTkFrame(self.forgot_frame, fg_color="transparent")
         hdr.pack(fill="x", pady=(20, 15))
         
-        ctk.CTkButton(hdr, text="← Back", width=50, fg_color="transparent", text_color=self.tm.text_sub(), hover_color=self.tm.bg_sub(), font=("Arial", 13), command=lambda: self.switch_mode("Log In")).pack(side="left")
-        ctk.CTkLabel(hdr, text="Account Recovery", font=("Arial", 20, "bold"), text_color=self.tm.text_main()).pack(side="left", padx=20)
+        ctk.CTkButton(hdr, text="← Back", width=50, fg_color="transparent", text_color=self.tm.text_sub(), hover_color=self.tm.bg_sub(), font=(self.tm.main_font(), 13), command=lambda: self.switch_mode("Log In")).pack(side="left")
+        ctk.CTkLabel(hdr, text="Account Recovery", font=(self.tm.main_font(), 20, "bold"), text_color=self.tm.text_main()).pack(side="left", padx=20)
 
         # STEP 1
-        ctk.CTkLabel(self.step1_frame, text="Enter your username and the recovery email registered to your account.", wraplength=300, font=("Arial", 13), text_color=self.tm.text_sub()).pack(pady=(0, 20))
+        ctk.CTkLabel(self.step1_frame, text="Enter your username and the recovery email registered to your account.", wraplength=300, font=(self.tm.main_font(), 13), text_color=self.tm.text_sub()).pack(pady=(0, 20))
         self.rec_user_entry = ctk.CTkEntry(self.step1_frame, placeholder_text="Username", **self.input_args)
         self.rec_user_entry.pack(fill="x", pady=10)
         self.rec_email_entry = ctk.CTkEntry(self.step1_frame, placeholder_text="Recovery Email", **self.input_args)
@@ -214,13 +214,13 @@ class AuthScreen(ctk.CTkFrame):
         self.btn_send_otp.pack(pady=20, fill="x")
 
         # STEP 2
-        ctk.CTkLabel(self.step2_frame, text="Enter the 6-digit code sent to your email.", wraplength=300, font=("Arial", 13), text_color=self.tm.text_sub()).pack(pady=(0, 20))
+        ctk.CTkLabel(self.step2_frame, text="Enter the 6-digit code sent to your email.", wraplength=300, font=(self.tm.main_font(), 13), text_color=self.tm.text_sub()).pack(pady=(0, 20))
         self.otp_entry = ctk.CTkEntry(self.step2_frame, placeholder_text="123456", justify="center", **self.input_args)
         self.otp_entry.pack(fill="x", pady=10)
         ctk.CTkButton(self.step2_frame, text="Verify Code", command=self.process_step2, **self.btn_args).pack(pady=20, fill="x")
 
         # STEP 3
-        ctk.CTkLabel(self.step3_frame, text="Create a new strong password for your account.", wraplength=300, font=("Arial", 13), text_color=self.tm.text_sub()).pack(pady=(0, 20))
+        ctk.CTkLabel(self.step3_frame, text="Create a new strong password for your account.", wraplength=300, font=(self.tm.main_font(), 13), text_color=self.tm.text_sub()).pack(pady=(0, 20))
         self.new_pass_entry = self._make_password_field(self.step3_frame, "New Password")
         self.conf_new_pass_entry = self._make_password_field(self.step3_frame, "Confirm New Password")
         ctk.CTkButton(self.step3_frame, text="Update Password", command=self.process_step3, **self.btn_args).pack(pady=20, fill="x")

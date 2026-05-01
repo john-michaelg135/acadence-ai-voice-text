@@ -35,7 +35,7 @@ class AddTaskPopup(ctk.CTkToplevel):
         container.pack(fill="both", expand=True, padx=20, pady=20)
         
         # Title
-        ctk.CTkLabel(container, text="Add New Task", font=("Arial", 20), text_color=self.tm.text_main()).pack(pady=(15, 20))
+        ctk.CTkLabel(container, text="Add New Task", font=(self.tm.main_font(), 20), text_color=self.tm.text_main()).pack(pady=(15, 20))
         
         input_args = {
             "fg_color": self.tm.bg_sub(), 
@@ -53,7 +53,7 @@ class AddTaskPopup(ctk.CTkToplevel):
         # Subject Read-only Field
         sub_frame = ctk.CTkFrame(container, fg_color="transparent")
         sub_frame.pack(fill="x", padx=30, pady=(0, 15))
-        ctk.CTkLabel(sub_frame, text="Subject", font=("Arial", 11), text_color=self.tm.text_sub()).pack(anchor="w")
+        ctk.CTkLabel(sub_frame, text="Subject", font=(self.tm.main_font(), 11), text_color=self.tm.text_sub()).pack(anchor="w")
         self.subject_entry = ctk.CTkEntry(sub_frame, **input_args)
         self.subject_entry.pack(fill="x")
         self.subject_entry.insert(0, self.subject_name)
@@ -63,7 +63,7 @@ class AddTaskPopup(ctk.CTkToplevel):
         dead_frame = ctk.CTkFrame(container, fg_color="transparent")
         dead_frame.pack(fill="x", pady=(0, 15))
         
-        ctk.CTkLabel(dead_frame, text="Set Deadline", font=("Arial", 11), text_color=self.tm.text_sub()).pack(anchor="w", padx=30)
+        ctk.CTkLabel(dead_frame, text="Set Deadline", font=(self.tm.main_font(), 11), text_color=self.tm.text_sub()).pack(anchor="w", padx=30)
         
         # Wrapping DateEntry in a CTkFrame to perfectly simulate the custom rounded corners
         date_wrapper = ctk.CTkFrame(dead_frame, fg_color=self.tm.bg_sub(), border_width=1, border_color=self.tm.border_main(), corner_radius=8)
@@ -83,7 +83,7 @@ class AddTaskPopup(ctk.CTkToplevel):
             background=acc_bg, 
             foreground='white', 
             borderwidth=0, 
-            font=("Arial", 12), 
+            font=(self.tm.main_font(), 12), 
             date_pattern='yyyy-mm-dd',
             mindate=date.today(),
             headersbackground=header_bg,
@@ -107,7 +107,7 @@ class AddTaskPopup(ctk.CTkToplevel):
         self.desc_textbox.pack(fill="x", padx=30, pady=(0, 20))
         
         # Priority Section
-        ctk.CTkLabel(container, text="Priority Level (Optional)", font=("Arial", 14), text_color=self.tm.text_sub()).pack(pady=(5, 5))
+        ctk.CTkLabel(container, text="Priority Level (Optional)", font=(self.tm.main_font(), 14), text_color=self.tm.text_sub()).pack(pady=(5, 5))
         
         prio_frame = ctk.CTkFrame(container, fg_color="transparent")
         prio_frame.pack(pady=(0, 20))
@@ -208,7 +208,7 @@ class EditTaskPopup(ctk.CTkToplevel):
         container = ctk.CTkFrame(self, fg_color=self.tm.bg_card(), corner_radius=15)
         container.pack(fill="both", expand=True, padx=20, pady=20)
         
-        ctk.CTkLabel(container, text="Edit Task", font=("Arial", 20), text_color=self.tm.text_main()).pack(pady=(15, 20))
+        ctk.CTkLabel(container, text="Edit Task", font=(self.tm.main_font(), 20), text_color=self.tm.text_main()).pack(pady=(15, 20))
         
         input_args = {
             "fg_color": self.tm.bg_sub(), 
@@ -224,7 +224,7 @@ class EditTaskPopup(ctk.CTkToplevel):
         
         sub_frame = ctk.CTkFrame(container, fg_color="transparent")
         sub_frame.pack(fill="x", padx=30, pady=(0, 15))
-        ctk.CTkLabel(sub_frame, text="Subject", font=("Arial", 11), text_color=self.tm.text_sub()).pack(anchor="w")
+        ctk.CTkLabel(sub_frame, text="Subject", font=(self.tm.main_font(), 11), text_color=self.tm.text_sub()).pack(anchor="w")
         self.subject_entry = ctk.CTkEntry(sub_frame, **input_args)
         self.subject_entry.pack(fill="x")
         self.subject_entry.insert(0, self.subject_name)
@@ -232,7 +232,7 @@ class EditTaskPopup(ctk.CTkToplevel):
         
         dead_frame = ctk.CTkFrame(container, fg_color="transparent")
         dead_frame.pack(fill="x", pady=(0, 15))
-        ctk.CTkLabel(dead_frame, text="Set Deadline", font=("Arial", 11), text_color=self.tm.text_sub()).pack(anchor="w", padx=30)
+        ctk.CTkLabel(dead_frame, text="Set Deadline", font=(self.tm.main_font(), 11), text_color=self.tm.text_sub()).pack(anchor="w", padx=30)
         
         date_wrapper = ctk.CTkFrame(dead_frame, fg_color=self.tm.bg_sub(), border_width=1, border_color=self.tm.border_main(), corner_radius=8)
         date_wrapper.pack(fill="x", padx=30, pady=(5,0), ipady=2)
@@ -251,7 +251,7 @@ class EditTaskPopup(ctk.CTkToplevel):
             background=acc_bg, 
             foreground='white', 
             borderwidth=0, 
-            font=("Arial", 12), 
+            font=(self.tm.main_font(), 12), 
             date_pattern='yyyy-mm-dd',
             headersbackground=header_bg,
             headersforeground=fg_color,
@@ -271,7 +271,7 @@ class EditTaskPopup(ctk.CTkToplevel):
         self.desc_textbox = ctk.CTkTextbox(container, fg_color=self.tm.bg_sub(), border_width=1, border_color=self.tm.border_main(), text_color=self.tm.text_main(), corner_radius=8, height=100)
         self.desc_textbox.pack(fill="x", padx=30, pady=(0, 20))
         
-        ctk.CTkLabel(container, text="Priority Level", font=("Arial", 14), text_color=self.tm.text_sub()).pack(pady=(5, 5))
+        ctk.CTkLabel(container, text="Priority Level", font=(self.tm.main_font(), 14), text_color=self.tm.text_sub()).pack(pady=(5, 5))
         
         prio_frame = ctk.CTkFrame(container, fg_color="transparent")
         prio_frame.pack(pady=(0, 20))
@@ -361,7 +361,7 @@ class TasksView(ctk.CTkFrame):
         ctk.CTkButton(header_frame, text="← Back", width=60, fg_color="transparent", text_color=self.tm.text_sub(), 
                       command=lambda: self.show_view_callback(self.source_view)).pack(side="left", padx=(0, 10))
 
-        ctk.CTkLabel(header_frame, text=self.subject_name, font=("Arial", 24, "bold"), text_color=self.tm.text_main()).pack(side="left")
+        ctk.CTkLabel(header_frame, text=self.subject_name, font=(self.tm.main_font(), 24, "bold"), text_color=self.tm.text_main()).pack(side="left")
         
         # Add buttons container
         btn_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
@@ -381,12 +381,12 @@ class TasksView(ctk.CTkFrame):
         for f_val in ["All", "Pending", "Completed"]:
             btn = ctk.CTkButton(
                 self.filter_frame, text=f_val, width=90, height=32, corner_radius=16,
-                font=("Arial", 13, "bold"),
+                font=(self.tm.main_font(), 13, "bold"),
                 command=lambda v=f_val: self.set_filter(v)
             )
             btn.pack(side="left", padx=5, pady=5)
             self.filter_buttons[f_val] = btn
-            
+        
         self.update_filter_buttons()
 
         # Scrollable list of tasks
@@ -399,6 +399,7 @@ class TasksView(ctk.CTkFrame):
         self.filter_changed(value)
 
     def update_filter_buttons(self):
+        """Instant color swap — all buttons update in same frame, no flicker."""
         curr = self.current_filter.get()
         for val, btn in self.filter_buttons.items():
             if val == curr:
@@ -466,29 +467,29 @@ class TasksView(ctk.CTkFrame):
         # Task Name/Description Display
         text_color = self.tm.text_sub() if is_done else self.tm.text_main()
         display_text = task.get('name') or task.get('description', 'Unnamed Task')
-        lbl = ctk.CTkLabel(card, text=display_text, font=("Arial", 16, "bold"), text_color=text_color, justify="left", width=250, anchor="w")
+        lbl = ctk.CTkLabel(card, text=display_text, font=(self.tm.main_font(), 16, "bold"), text_color=text_color, justify="left", width=250, anchor="w")
         lbl.pack(side="left", padx=15)
         
         # Description snippet
         desc_text = task.get('description', '')
         if len(desc_text) > 30: desc_text = desc_text[:30] + "..."
-        ctk.CTkLabel(card, text=desc_text, font=("Arial", 13), text_color=self.tm.text_sub(), width=250, anchor="w").pack(side="left", padx=10)
+        ctk.CTkLabel(card, text=desc_text, font=(self.tm.main_font(), 13), text_color=self.tm.text_sub(), width=250, anchor="w").pack(side="left", padx=10)
 
         # Deadline Label
         deadline_str = task.get('deadline')
         if deadline_str:
-            ctk.CTkLabel(card, text=f"📅 {deadline_str}", font=("Arial", 13), text_color=self.tm.accent_color(), width=100, anchor="w").pack(side="left", padx=10)
+            ctk.CTkLabel(card, text=f"📅 {deadline_str}", font=(self.tm.main_font(), 13), text_color=self.tm.accent_color(), width=100, anchor="w").pack(side="left", padx=10)
             if deadline_str < today and task.get('status', 'pending') == 'pending':
-                ctk.CTkLabel(card, text="Overdue", font=("Arial", 10, "bold"), text_color="#FFFFFF", fg_color=self.tm.error_color(), corner_radius=6, width=60, height=20).pack(side="left", padx=(0, 10))
+                ctk.CTkLabel(card, text="Overdue", font=(self.tm.main_font(), 10, "bold"), text_color="#FFFFFF", fg_color=self.tm.error_color(), corner_radius=6, width=60, height=20).pack(side="left", padx=(0, 10))
             else:
                 ctk.CTkFrame(card, fg_color="transparent", width=60, height=20).pack(side="left", padx=(0, 10)) # Spacer to maintain alignment
         else:
-            ctk.CTkLabel(card, text=f"📅 No Deadline", font=("Arial", 13), text_color=self.tm.text_sub(), width=100, anchor="w").pack(side="left", padx=10)
+            ctk.CTkLabel(card, text=f"📅 No Deadline", font=(self.tm.main_font(), 13), text_color=self.tm.text_sub(), width=100, anchor="w").pack(side="left", padx=10)
             ctk.CTkFrame(card, fg_color="transparent", width=60, height=20).pack(side="left", padx=(0, 10)) # Spacer
 
         # Priority Indicator
         prio_color = "#FF6B6B" if task['priority'] == 'High' else ("#EAB308" if task['priority'] == 'Medium' else "#22C55E")
-        ctk.CTkLabel(card, text=task['priority'], font=("Arial", 13, "bold"), text_color=prio_color, width=90, anchor="w").pack(side="left", padx=15)
+        ctk.CTkLabel(card, text=task['priority'], font=(self.tm.main_font(), 13, "bold"), text_color=prio_color, width=90, anchor="w").pack(side="left", padx=15)
 
         # Actions
         act_frame = ctk.CTkFrame(card, fg_color="transparent")
@@ -512,15 +513,15 @@ class TasksView(ctk.CTkFrame):
             btn_text_color = self.tm.accent_text()
             btn_hover = self.tm.accent_hover()
 
-        ctk.CTkButton(act_frame, text=btn_text, font=("Arial", 11, "bold"), width=100, height=24, corner_radius=8,
+        ctk.CTkButton(act_frame, text=btn_text, font=(self.tm.main_font(), 11, "bold"), width=100, height=24, corner_radius=8,
                       fg_color=btn_color, text_color=btn_text_color, hover_color=btn_hover,
                       command=toggle_status).pack(side="left", padx=5)
         
-        ctk.CTkButton(act_frame, text="Manage", font=("Arial", 11, "bold"), width=60, height=24, corner_radius=8,
+        ctk.CTkButton(act_frame, text="Manage", font=(self.tm.main_font(), 11, "bold"), width=60, height=24, corner_radius=8,
                       fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover(),
                       command=lambda t=task: self.edit_task(t)).pack(side="left", padx=5)
                       
-        ctk.CTkButton(act_frame, text="Delete", font=("Arial", 11, "bold"), width=60, height=24, corner_radius=8,
+        ctk.CTkButton(act_frame, text="Delete", font=(self.tm.main_font(), 11, "bold"), width=60, height=24, corner_radius=8,
                       fg_color=self.tm.error_color(), text_color="#FFFFFF", hover_color=self.tm.error_hover(),
                       command=lambda t=task: self.delete_task(t)).pack(side="left", padx=5)
 
