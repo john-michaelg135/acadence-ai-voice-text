@@ -153,12 +153,12 @@ class AddTaskPopup(ctk.CTkToplevel):
         actions_frame.pack(fill="x", padx=50, pady=(10, 20), side="bottom")
 
         # Cancel
-        ctk.CTkButton(actions_frame, text="Cancel", fg_color="transparent", text_color=self.tm.text_main(),
+        ctk.CTkButton(actions_frame, text="Cancel", font=(self.tm.main_font(), 14, "bold"), fg_color="transparent", text_color=self.tm.text_main(),
                       border_width=1, border_color=self.tm.border_main(), corner_radius=20, width=120, height=40,
                       command=self.destroy).pack(side="left")
 
         # Add Task
-        ctk.CTkButton(actions_frame, text="Add Task", fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), 
+        ctk.CTkButton(actions_frame, text="Add Task", font=(self.tm.main_font(), 14, "bold"), fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), 
                       corner_radius=20, width=120, height=40, hover_color=self.tm.accent_hover(),
                       command=self.submit).pack(side="right")
 
@@ -301,8 +301,8 @@ class EditTaskPopup(ctk.CTkToplevel):
         actions_frame = ctk.CTkFrame(container, fg_color="transparent")
         actions_frame.pack(fill="x", padx=50, pady=(10, 20), side="bottom")
 
-        ctk.CTkButton(actions_frame, text="Cancel", fg_color="transparent", text_color=self.tm.text_main(), border_width=1, border_color=self.tm.border_main(), corner_radius=20, width=120, height=40, command=self.destroy).pack(side="left")
-        ctk.CTkButton(actions_frame, text="Save Changes", fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), corner_radius=20, width=120, height=40, hover_color=self.tm.accent_hover(), command=self.submit).pack(side="right")
+        ctk.CTkButton(actions_frame, text="Cancel", font=(self.tm.main_font(), 14, "bold"), fg_color="transparent", text_color=self.tm.text_main(), border_width=1, border_color=self.tm.border_main(), corner_radius=20, width=120, height=40, command=self.destroy).pack(side="left")
+        ctk.CTkButton(actions_frame, text="Save Changes", font=(self.tm.main_font(), 14, "bold"), fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), corner_radius=20, width=120, height=40, hover_color=self.tm.accent_hover(), command=self.submit).pack(side="right")
 
     def populate_data(self):
         self.name_entry.insert(0, self.task_data.get('name', ''))
@@ -368,10 +368,10 @@ class TasksView(ctk.CTkFrame):
         btn_frame.pack(side="right")
         
         # Text Add Button
-        ctk.CTkButton(btn_frame, text="+ Add Task", width=120, fg_color=self.tm.accent_color(), text_color=self.tm.text_main(), command=self.add_task_text).pack(side="left", padx=(0, 5))
+        ctk.CTkButton(btn_frame, text="+ Add Task", width=120, font=(self.tm.main_font(), 14, "bold"), fg_color=self.tm.accent_color(), text_color=self.tm.text_main(), command=self.add_task_text).pack(side="left", padx=(0, 5))
         
         # Voice Add Button
-        ctk.CTkButton(btn_frame, text="Voice AI", width=100, fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover(), command=self.add_task_voice).pack(side="left")
+        ctk.CTkButton(btn_frame, text="Voice AI", width=100, font=(self.tm.main_font(), 14, "bold"), fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover(), command=self.add_task_voice).pack(side="left")
 
         # Modern Filter Buttons
         self.filter_frame = ctk.CTkFrame(self, fg_color=self.tm.bg_card(), corner_radius=20, border_color=self.tm.border_main(), border_width=1)

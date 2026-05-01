@@ -40,7 +40,7 @@ class WalkthroughPopup(ctk.CTkToplevel):
                 "description": "Organize your workload by creating Subjects (Major or Minor) and adding Tasks. You can sort and filter tasks by Priority and Deadline to stay laser-focused."
             },
             {
-                "icon": "🎙️",
+                "icon": "🎤",
                 "title": "Voice AI Entry",
                 "description": "Tired of typing? Click the Voice AI button at the top right of the screen to quickly log new subjects and tasks just by speaking naturally!"
             },
@@ -70,7 +70,7 @@ class WalkthroughPopup(ctk.CTkToplevel):
         self.content_frame = ctk.CTkFrame(self, fg_color=self.tm.bg_card(), corner_radius=15, border_color=self.tm.border_main(), border_width=2)
         self.content_frame.pack(fill="both", expand=True, padx=40, pady=10)
         
-        self.icon_lbl = ctk.CTkLabel(self.content_frame, text="", font=(self.tm.main_font(), 60))
+        self.icon_lbl = ctk.CTkLabel(self.content_frame, text="", font=(self.tm.main_font(), 60), anchor="center")
         self.icon_lbl.pack(pady=(40, 10))
         
         self.title_lbl = ctk.CTkLabel(self.content_frame, text="", font=(self.tm.main_font(), 24, "bold"), text_color=self.tm.text_main())

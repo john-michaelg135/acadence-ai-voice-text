@@ -10,8 +10,16 @@ def load_fonts():
     if platform.system() != "Windows":
         return
 
+    import sys
+    if getattr(sys, 'frozen', False):
+        # Running as compiled executable
+        bundle_dir = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
+    else:
+        # Running as a script
+        bundle_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
     # Path to fonts directory
-    font_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "fonts")
+    font_dir = os.path.join(bundle_dir, "assets", "fonts")
     
     if not os.path.exists(font_dir):
         print(f"Font directory not found: {font_dir}")
