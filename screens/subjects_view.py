@@ -236,6 +236,7 @@ class SubjectsView(ctk.CTkFrame):
         self.show_view_callback = show_view_callback
         self.db = DatabaseManager()
         self.user_id = self.user_info['id'] if self.user_info else None
+        self._render_id = 0  # Incremented on each load to cancel stale renders
         
         self.setup_ui()
         self.load_subjects()
@@ -258,10 +259,13 @@ class SubjectsView(ctk.CTkFrame):
         ctk.CTkButton(btn_frame, text="Voice AI", width=100, fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover(), command=self.add_subject_voice).pack(side="left")
 
         # Scrollable list of subjects
-        self.scrollable_frame = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        self.scrollable_frame = ctk.CTkScrollableFrame(self, fg_color="transparent", scrollbar_button_color=self.tm.bg_main(), scrollbar_button_hover_color=self.tm.text_sub())
         self.scrollable_frame.pack(fill="both", expand=True, padx=20, pady=10)
 
     def load_subjects(self):
+        self._render_id += 1
+        current_render = self._render_id
+
         if not self.user_id:
             ctk.CTkLabel(self.scrollable_frame, text="Guest users cannot save subjects permanently yet.", text_color=self.tm.text_sub()).pack(pady=20)
             return
@@ -281,13 +285,27 @@ class SubjectsView(ctk.CTkFrame):
         # Force 3 uniform columns so cards don't expand infinitely when there are < 3 subjects
         grid_container.grid_columnconfigure((0, 1, 2), weight=1, uniform="card_col")
         
-        for i, sub in enumerate(subjects):
+        # Render first batch immediately, then chunk the rest
+        self._render_subject_chunk(grid_container, subjects, 0, columns, current_render)
+
+    def _render_subject_chunk(self, grid_container, subjects, index, columns, render_id, chunk_size=9):
+        """Renders subject cards in chunks (3 rows at a time in a 3-col grid)."""
+        if render_id != self._render_id:
+            return
+        if not self.winfo_exists():
+            return
+
+        end = min(index + chunk_size, len(subjects))
+        for i in range(index, end):
             row = i // columns
             col = i % columns
-            self.create_subject_card(grid_container, sub, row, col)
+            self.create_subject_card(grid_container, subjects[i], row, col)
+
+        if end < len(subjects):
+            self.after(10, lambda: self._render_subject_chunk(grid_container, subjects, end, columns, render_id, chunk_size))
 
     def create_subject_card(self, parent, subject, row, col):
-        card = ctk.CTkFrame(parent, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=1, corner_radius=15, width=280)
+        card = ctk.CTkFrame(parent, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=2, corner_radius=15, width=280)
         card.grid(row=row, column=col, padx=15, pady=15, sticky="nsew")
 
         # Category Pill & Actions
@@ -363,18 +381,20 @@ class SubjectsView(ctk.CTkFrame):
         if os.path.exists(banner_path):
             try:
                 from PIL import Image, ImageDraw, ImageOps
-                size = (340, 200)
-                radius = 15
+                display_size = (340, 200)
+                # Render at 2x resolution for crisp display on high-DPI screens
+                render_size = (display_size[0] * 2, display_size[1] * 2)
+                radius = 30  # 2x radius for the 2x render
                 img = Image.open(banner_path).convert("RGBA")
-                img = ImageOps.fit(img, size, Image.Resampling.LANCZOS)
+                img = ImageOps.fit(img, render_size, Image.Resampling.LANCZOS)
                 
-                mask = Image.new('L', size, 0)
+                mask = Image.new('L', render_size, 0)
                 draw = ImageDraw.Draw(mask)
-                draw.rounded_rectangle((0, 0) + size, radius=radius, fill=255)
-                output = Image.new('RGBA', size, (0, 0, 0, 0))
+                draw.rounded_rectangle((0, 0) + render_size, radius=radius, fill=255)
+                output = Image.new('RGBA', render_size, (0, 0, 0, 0))
                 output.paste(img, (0, 0), mask=mask)
                 
-                banner_ctk = ctk.CTkImage(light_image=output, dark_image=output, size=size)
+                banner_ctk = ctk.CTkImage(light_image=output, dark_image=output, size=display_size)
                 SubjectsView._global_banner_cache[category] = banner_ctk
                 return banner_ctk
             except Exception as e:
@@ -413,3 +433,7 @@ class SubjectsView(ctk.CTkFrame):
         if messagebox.askyesno("Delete", f"Are you sure you want to delete '{subject['name']}'?"):
             self.db.delete_subject(subject['id'])
             self.load_subjects()
+
+    def refresh(self):
+        """Called by DashboardScreen when the cached view is shown to refresh data."""
+        self.load_subjects()

@@ -16,6 +16,8 @@ class DashboardScreen(ctk.CTkFrame):
         self.reload_callback = reload_callback
         
         self.current_view = None
+        self._current_view_key = None  # Tracks if current view is in cache
+        self._view_cache = {}  # Cache views to avoid re-creation on tab switches
         self.setup_ui()
         self.show_view("Home")
 
@@ -67,36 +69,78 @@ class DashboardScreen(ctk.CTkFrame):
                 else:
                     btn.configure(text_color=self.tm.text_sub(), fg_color="transparent", hover_color=self.tm.bg_sub())
 
-        # Clear current content
-        if self.current_view is not None:
-            self.current_view.destroy()
+        # Views that take dynamic arguments (like subject_id) should NOT be cached
+        # Sidebar-level views (Subjects, Insights, History, More) ARE cacheable
+        cacheable_views = {"Subjects", "Insights", "History", "More"}
+        is_cacheable = internal_name in cacheable_views and not args and not kwargs
 
-        # Load new view
+        # Hide or destroy current view
+        if self.current_view is not None:
+            if self._current_view_key and self._current_view_key in self._view_cache:
+                # Cached view — just hide it
+                self.current_view.pack_forget()
+            else:
+                # Non-cached view — destroy to free memory
+                self.current_view.destroy()
+            self.current_view = None
+
+        # Return cached view if available
+        if is_cacheable and internal_name in self._view_cache:
+            self.current_view = self._view_cache[internal_name]
+            self._current_view_key = internal_name
+            if hasattr(self.current_view, "refresh"):
+                self.current_view.refresh()
+            self.current_view.pack(fill="both", expand=True)
+            return
+
+        # Build new view
+        new_view = self._create_view(internal_name, *args, **kwargs)
+        
+        # Cache if cacheable
+        if is_cacheable:
+            self._view_cache[internal_name] = new_view
+            self._current_view_key = internal_name
+        else:
+            self._current_view_key = None
+
+        self.current_view = new_view
+        self.current_view.pack(fill="both", expand=True)
+
+    def _create_view(self, internal_name, *args, **kwargs):
+        """Creates and returns a new view widget."""
         if internal_name == "Home":
             from screens.home_view import HomeView
-            self.current_view = HomeView(self.content_area, self.user_info, self.show_view)
+            return HomeView(self.content_area, self.user_info, self.show_view)
         elif internal_name == "Subjects":
             from screens.subjects_view import SubjectsView
-            self.current_view = SubjectsView(self.content_area, self.user_info, self.show_view)
+            return SubjectsView(self.content_area, self.user_info, self.show_view)
         elif internal_name == "Tasks":
             from screens.tasks_view import TasksView
-            self.current_view = TasksView(self.content_area, self.user_info, self.show_view, *args, **kwargs)
+            return TasksView(self.content_area, self.user_info, self.show_view, *args, **kwargs)
         elif internal_name == "History":
             from screens.history_view import HistoryView
-            self.current_view = HistoryView(self.content_area, self.user_info, self.show_view)
+            return HistoryView(self.content_area, self.user_info, self.show_view)
         elif internal_name == "AllCompleted":
             from screens.all_completed_tasks_view import AllCompletedTasksView
-            self.current_view = AllCompletedTasksView(self.content_area, self.user_info, self.show_view)
+            return AllCompletedTasksView(self.content_area, self.user_info, self.show_view)
         elif internal_name == "Insights":
             from screens.insights_view import InsightsView
-            self.current_view = InsightsView(self.content_area, self.user_info, self.show_view)
+            return InsightsView(self.content_area, self.user_info, self.show_view)
         elif internal_name == "AllPending":
             from screens.all_pending_tasks_view import AllPendingTasksView
-            self.current_view = AllPendingTasksView(self.content_area, self.user_info, self.show_view)
+            return AllPendingTasksView(self.content_area, self.user_info, self.show_view)
         elif internal_name == "More":
             from screens.more_view import MoreView
-            self.current_view = MoreView(self.content_area, self.user_info, self.on_logout, self.reload_callback)
+            return MoreView(self.content_area, self.user_info, self.on_logout, self.reload_callback)
         else:
-            self.current_view = PlaceholderView(self.content_area, view_name + " View")
+            return PlaceholderView(self.content_area, internal_name + " View")
 
-        self.current_view.pack(fill="both", expand=True)
+    def clear_cache(self):
+        """Clears all cached views. Call when data changes significantly (e.g. after add/delete)."""
+        for view in self._view_cache.values():
+            try:
+                view.destroy()
+            except Exception:
+                pass
+        self._view_cache.clear()
+

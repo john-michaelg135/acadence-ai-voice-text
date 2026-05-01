@@ -7,9 +7,15 @@ from datetime import datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import os
+import sys
 from dotenv import load_dotenv
 
-load_dotenv()
+# Resolve .env correctly for both script mode and PyInstaller exe
+if getattr(sys, 'frozen', False):
+    _env_path = os.path.join(getattr(sys, '_MEIPASS', os.path.dirname(sys.executable)), '.env')
+else:
+    _env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
+load_dotenv(_env_path)
 
 APP_NAME = "Acadence AI"
 # We're loading these specific variables since they exist in the user's .env screenshot natively
@@ -39,10 +45,31 @@ def _credentials():
     password = EMAIL_APP_PASSWORD.replace(" ", "").strip()
     return sender, password
 
+def _domain_exists(domain: str) -> bool:
+    """Lightweight DNS check — verifies the email domain is real and resolvable."""
+    import socket
+    try:
+        socket.getaddrinfo(domain, None)
+        return True
+    except socket.gaierror:
+        return False
+    except Exception:
+        return True  # Fail open on unexpected errors
+
 def _validate_email(email: str):
     if not email or not _EMAIL_REGEX.match(email):
         return "Invalid email address format."
+    domain = email.split('@')[1]
+    if not _domain_exists(domain):
+        return f"The email domain '{domain}' does not exist. Please enter a real email address."
     return None
+
+def validate_email_address(email: str) -> tuple[bool, str]:
+    """Public validator for signup — checks format and domain existence. Returns (ok, message)."""
+    err = _validate_email(email.strip().lower())
+    if err:
+        return False, err
+    return True, "Valid email."
 
 def _now():
     return datetime.now(timezone.utc)

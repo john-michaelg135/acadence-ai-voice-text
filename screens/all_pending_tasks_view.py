@@ -13,7 +13,9 @@ class AllPendingTasksView(ctk.CTkFrame):
         self.user_id = self.user_info['id'] if self.user_info else None
         
         # State for sorting: "ASC" (Closest) or "DESC" (Furthest)
-        self.sort_order = "ASC" 
+        self.sort_order = "ASC"
+        self._raw_tasks = []  # Cache — filter/sort reuse this without re-querying the DB
+        self._render_id = 0   # Incremented on each load to cancel stale renders
         
         self.setup_ui()
 
@@ -70,10 +72,10 @@ class AllPendingTasksView(ctk.CTkFrame):
         self.update_sort_button_style() 
 
         # Task List Area
-        self.scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        self.scroll = ctk.CTkScrollableFrame(self, fg_color="transparent", scrollbar_button_color=self.tm.bg_main(), scrollbar_button_hover_color=self.tm.text_sub())
         self.scroll.pack(fill="both", expand=True, padx=10, pady=5)
         
-        self.load_tasks()
+        self._fetch_and_render()
 
     def toggle_sort(self):
         self.sort_order = "DESC" if self.sort_order == "ASC" else "ASC"
@@ -117,12 +119,21 @@ class AllPendingTasksView(ctk.CTkFrame):
             else:
                 btn.configure(fg_color="transparent", text_color=self.tm.text_sub(), hover_color=self.tm.border_main())
 
+    def _fetch_and_render(self):
+        """Fetches fresh data from DB, then re-renders. Called on initial load."""
+        self._raw_tasks = self.db.get_all_pending_tasks(self.user_id) if self.user_id else []
+        self.load_tasks()
+
     def load_tasks(self):
+        """Re-renders from cache using chunked rendering for performance."""
+        self._render_id += 1
+        current_render = self._render_id
+
         for widget in self.scroll.winfo_children():
             widget.destroy()
 
-        tasks = self.db.get_all_pending_tasks(self.user_id) if self.user_id else []
-        
+        tasks = list(self._raw_tasks)
+
         if self.current_filter.get() != "All":
             tasks = [t for t in tasks if t['priority'] == self.current_filter.get()]
 
@@ -138,9 +149,19 @@ class AllPendingTasksView(ctk.CTkFrame):
             return
             
         today = datetime.today().strftime('%Y-%m-%d')
-            
-        for task in tasks:
-            row = ctk.CTkFrame(self.scroll, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=1, corner_radius=10)
+        self._render_pending_chunk(tasks, 0, today, current_render)
+
+    def _render_pending_chunk(self, tasks, index, today, render_id, chunk_size=15):
+        """Renders pending task rows in chunks to prevent UI freezing."""
+        if render_id != self._render_id:
+            return
+        if not self.winfo_exists():
+            return
+
+        end = min(index + chunk_size, len(tasks))
+        for i in range(index, end):
+            task = tasks[i]
+            row = ctk.CTkFrame(self.scroll, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=2, corner_radius=10)
             row.pack(fill="x", padx=10, pady=5)
             
             left = ctk.CTkFrame(row, fg_color="transparent")
@@ -165,3 +186,6 @@ class AllPendingTasksView(ctk.CTkFrame):
             view_btn = ctk.CTkButton(row, text="❯", font=("Arial", 18), text_color=self.tm.text_sub(), fg_color="transparent", hover_color=self.tm.bg_sub(), width=40,
                                      command=lambda s_id=task['subject_id'], s_name=task['subject_name']: self.show_view_callback("Tasks", s_id, s_name))
             view_btn.pack(side="right", padx=10)
+
+        if end < len(tasks):
+            self.after(10, lambda: self._render_pending_chunk(tasks, end, today, render_id, chunk_size))

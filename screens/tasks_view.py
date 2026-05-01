@@ -3,6 +3,7 @@ from utils.theme_manager import ThemeManager
 from tkinter import messagebox
 from tkcalendar import DateEntry
 from database.db_manager import DatabaseManager
+from datetime import datetime, date
 
 class AddTaskPopup(ctk.CTkToplevel):
     def __init__(self, master, db, subject_id, subject_name, on_success, initial_data=None):
@@ -345,9 +346,11 @@ class TasksView(ctk.CTkFrame):
         self.subject_name = subject_name
         self.source_view = source_view
         self.current_filter = ctk.StringVar(value="All")
+        self._raw_tasks = []  # Cache — avoids redundant DB queries on filter changes
+        self._render_id = 0   # Incremented on each load to cancel stale renders
         
         self.setup_ui()
-        self.load_tasks()
+        self._fetch_and_render()
 
     def setup_ui(self):
         # Header area
@@ -387,7 +390,7 @@ class TasksView(ctk.CTkFrame):
         self.update_filter_buttons()
 
         # Scrollable list of tasks
-        self.scrollable_frame = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        self.scrollable_frame = ctk.CTkScrollableFrame(self, fg_color="transparent", scrollbar_button_color=self.tm.bg_main(), scrollbar_button_hover_color=self.tm.text_sub())
         self.scrollable_frame.pack(fill="both", expand=True, padx=20, pady=10)
 
     def set_filter(self, value):
@@ -406,17 +409,24 @@ class TasksView(ctk.CTkFrame):
     def filter_changed(self, value):
         self.load_tasks()
 
+    def _fetch_and_render(self):
+        """Fetches fresh task data from DB, then re-renders. Call after any data mutation."""
+        self._raw_tasks = self.db.get_tasks(self.subject_id)
+        # AC017: Sort tasks by deadline — empty deadlines go to the bottom
+        self._raw_tasks.sort(key=lambda x: (x.get('deadline') or '9999-12-31', x.get('created_at', '')))
+        self.load_tasks()
+
     def load_tasks(self):
+        """Re-renders task list from cache using chunked rendering for performance."""
+        self._render_id += 1
+        current_render = self._render_id
+
         for widget in self.scrollable_frame.winfo_children():
             widget.destroy()
 
-        tasks = self.db.get_tasks(self.subject_id)
-        
-        # AC017: Sort tasks by deadline
-        # Empty deadlines go to the bottom ('9999-12-31')
-        tasks.sort(key=lambda x: (x.get('deadline') or '9999-12-31', x.get('created_at', '')))
-        
-        # Apply filter
+        tasks = list(self._raw_tasks)
+
+        # Apply filter in-memory (no DB query needed)
         curr_f = self.current_filter.get()
         if curr_f == "Pending":
             tasks = [t for t in tasks if t['status'] == 'pending']
@@ -428,15 +438,28 @@ class TasksView(ctk.CTkFrame):
             ctk.CTkLabel(self.scrollable_frame, text=msg, text_color=self.tm.text_sub()).pack(pady=20)
             return
 
-        for task in tasks:
-            self.create_task_card(task)
+        today = datetime.today().strftime('%Y-%m-%d')
+        self._render_task_chunk(tasks, 0, today, current_render)
 
-    def create_task_card(self, task):
-        from tkinter import messagebox
+    def _render_task_chunk(self, tasks, index, today, render_id, chunk_size=15):
+        """Renders tasks in chunks to prevent UI freezing."""
+        if render_id != self._render_id:
+            return  # A newer render was started; abort this one
+        if not self.winfo_exists():
+            return  # Widget was destroyed (user navigated away)
+
+        end = min(index + chunk_size, len(tasks))
+        for i in range(index, end):
+            self.create_task_card(tasks[i], today)
+
+        if end < len(tasks):
+            self.after(10, lambda: self._render_task_chunk(tasks, end, today, render_id, chunk_size))
+
+    def create_task_card(self, task, today):
         is_done = (task['status'] == 'completed')
         bg_color = self.tm.bg_sub() if is_done else self.tm.bg_card()
         
-        card = ctk.CTkFrame(self.scrollable_frame, fg_color=bg_color, border_color=self.tm.border_main(), border_width=1, corner_radius=10, height=65)
+        card = ctk.CTkFrame(self.scrollable_frame, fg_color=bg_color, border_color=self.tm.border_main(), border_width=2, corner_radius=10, height=65)
         card.pack(fill="x", pady=5)
         card.pack_propagate(False)
         
@@ -455,8 +478,6 @@ class TasksView(ctk.CTkFrame):
         deadline_str = task.get('deadline')
         if deadline_str:
             ctk.CTkLabel(card, text=f"📅 {deadline_str}", font=("Arial", 13), text_color=self.tm.accent_color(), width=100, anchor="w").pack(side="left", padx=10)
-            from datetime import datetime
-            today = datetime.today().strftime('%Y-%m-%d')
             if deadline_str < today and task.get('status', 'pending') == 'pending':
                 ctk.CTkLabel(card, text="Overdue", font=("Arial", 10, "bold"), text_color="#FFFFFF", fg_color=self.tm.error_color(), corner_radius=6, width=60, height=20).pack(side="left", padx=(0, 10))
             else:
@@ -478,7 +499,7 @@ class TasksView(ctk.CTkFrame):
             if messagebox.askyesno("Confirm Action", f"Are you sure you want to {action_text}?"):
                 new_status = 'pending' if is_done else 'completed'
                 self.db.update_task_status(task['id'], new_status)
-                self.load_tasks()
+                self._fetch_and_render()
 
         if is_done:
             btn_text = "Unmark Task"
@@ -505,20 +526,20 @@ class TasksView(ctk.CTkFrame):
 
     def add_task_text(self):
         # Open detailed CustomTkinter TopLevel UI
-        AddTaskPopup(self.winfo_toplevel(), self.db, self.subject_id, self.subject_name, self.load_tasks)
+        AddTaskPopup(self.winfo_toplevel(), self.db, self.subject_id, self.subject_name, self._fetch_and_render)
 
     def add_task_voice(self):
         from screens.voice_popup import VoiceRecordingPopup
         
         def on_transcribed(parsed_data):
-            AddTaskPopup(self.winfo_toplevel(), self.db, self.subject_id, self.subject_name, self.load_tasks, initial_data=parsed_data)
+            AddTaskPopup(self.winfo_toplevel(), self.db, self.subject_id, self.subject_name, self._fetch_and_render, initial_data=parsed_data)
             
         VoiceRecordingPopup(self.winfo_toplevel(), on_transcribed, command_type='task')
 
     def edit_task(self, task):
-        EditTaskPopup(self.winfo_toplevel(), self.db, task, self.subject_name, self.load_tasks)
+        EditTaskPopup(self.winfo_toplevel(), self.db, task, self.subject_name, self._fetch_and_render)
 
     def delete_task(self, task):
         if messagebox.askyesno("Delete", "Are you sure you want to delete this task?"):
             self.db.delete_task(task['id'])
-            self.load_tasks()
+            self._fetch_and_render()

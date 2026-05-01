@@ -12,6 +12,7 @@ class AdminDashboard(ctk.CTkFrame):
         self.db = DatabaseManager()
         
         self.setup_ui()
+        self._render_id = 0  # Incremented on each load to cancel stale renders
         self.load_users()
 
     def setup_ui(self):
@@ -42,21 +43,40 @@ class AdminDashboard(ctk.CTkFrame):
         ctk.CTkLabel(self, text="System User Metrics", font=("Arial", 16), text_color=self.tm.text_sub()).pack(anchor="w", padx=20, pady=(0, 10))
 
         # Scrollable list for standard users
-        self.scroll_frame = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        self.scroll_frame = ctk.CTkScrollableFrame(self, fg_color="transparent", scrollbar_button_color=self.tm.bg_main(), scrollbar_button_hover_color=self.tm.text_sub())
         self.scroll_frame.pack(fill="both", expand=True, padx=15, pady=10)
 
     def load_users(self):
+        self._render_id += 1
+        current_render = self._render_id
+
+        for widget in self.scroll_frame.winfo_children():
+            widget.destroy()
+
         users = self.db.get_all_users_for_admin()
         
         if not users:
             ctk.CTkLabel(self.scroll_frame, text="No standard users registered in the system yet.", text_color=self.tm.text_sub()).pack(pady=30)
             return
             
-        for user in users:
-            self.create_user_card(user)
+        self._render_user_chunk(users, 0, current_render)
+
+    def _render_user_chunk(self, users, index, render_id, chunk_size=10):
+        """Renders user cards in chunks to prevent UI freezing."""
+        if render_id != self._render_id:
+            return
+        if not self.winfo_exists():
+            return
+
+        end = min(index + chunk_size, len(users))
+        for i in range(index, end):
+            self.create_user_card(users[i])
+
+        if end < len(users):
+            self.after(10, lambda: self._render_user_chunk(users, end, render_id, chunk_size))
 
     def create_user_card(self, user):
-        card = ctk.CTkFrame(self.scroll_frame, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=1, corner_radius=15)
+        card = ctk.CTkFrame(self.scroll_frame, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=2, corner_radius=15)
         card.pack(fill="x", pady=8, padx=5)
 
         # Top row: Username and Indicators

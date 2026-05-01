@@ -23,10 +23,14 @@ SCHEMA_PATH = os.path.join(bundle_dir, 'database', 'schema.sql')
 
 class DatabaseManager:
     def __init__(self):
+        self._conn = None  # Persistent shared connection
         self.init_db()
 
     def get_connection(self):
-        return sqlite3.connect(DB_PATH)
+        """Returns a persistent shared connection, creating it once on first call."""
+        if self._conn is None:
+            self._conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+        return self._conn
 
     def init_db(self):
         """Initializes the database schema if it doesn't exist."""
@@ -60,6 +64,12 @@ class DatabaseManager:
                 conn.execute("ALTER TABLE tasks ADD COLUMN completed_at TIMESTAMP")
             except sqlite3.OperationalError:
                 pass
+
+            # Performance Indexes
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_subjects_user ON subjects(user_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_tasks_subject ON tasks(subject_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority)")
 
     def create_user(self, username, password, recovery_email=None, is_system_password=False, is_admin=False):
         """Creates a new user and hashes their password."""

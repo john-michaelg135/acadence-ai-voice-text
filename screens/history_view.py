@@ -17,7 +17,7 @@ class HistoryView(ctk.CTkFrame):
         # Header
         ctk.CTkLabel(self, text="History & Analytics", font=("Arial", 28, "bold"), text_color=self.tm.text_main()).pack(anchor="w", padx=30, pady=(20, 10))
 
-        scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        scroll = ctk.CTkScrollableFrame(self, fg_color="transparent", scrollbar_button_color=self.tm.bg_main(), scrollbar_button_hover_color=self.tm.text_sub())
         scroll.pack(fill="both", expand=True, padx=20, pady=5)
         
         # Grid Container
@@ -39,7 +39,7 @@ class HistoryView(ctk.CTkFrame):
                      font=("Arial", 16), text_color=self.tm.accent_text(), justify="center").pack(pady=30)
                      
         # 3. Bar Chart Card
-        chart_card = ctk.CTkFrame(left_col, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=1, corner_radius=15)
+        chart_card = ctk.CTkFrame(left_col, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=2, corner_radius=15)
         chart_card.pack(fill="both", expand=True)
         
         ctk.CTkLabel(chart_card, text="Task Completion by Subject", font=("Arial", 16, "bold"), text_color=self.tm.text_main(), wraplength=300).pack(pady=(20, 20))
@@ -89,12 +89,12 @@ class HistoryView(ctk.CTkFrame):
                 start_x = (c_width - total_width) / 2
                 if start_x < 10: start_x = 10 
                 
-                bottom_y = c_height - 30 
+                bottom_y = c_height - 40
                 
                 drawn_idx = 0
                 for data in chart_data:
                     if data['count'] == 0: continue
-                    height = (data['count'] / max_val) * (c_height - 60) 
+                    height = (data['count'] / max_val) * (c_height - 70)
                     x0 = start_x + (drawn_idx * (bar_width + spacing))
                     y0 = bottom_y - height
                     x1 = x0 + bar_width
@@ -107,12 +107,11 @@ class HistoryView(ctk.CTkFrame):
                     canvas.create_window(x0, y0, anchor="nw", window=bar_frame, width=bar_width, height=height)
                     
                     if height > r:
-                        bottom_square = ctk.CTkFrame(bar_frame, fg_color=accent_hex, corner_radius=0, height=int(r))
-                        bottom_square.pack(side="bottom", fill="x")
+                        bottom_square = ctk.CTkFrame(canvas, fg_color=accent_hex, corner_radius=0)
+                        canvas.create_window(x0, y0 + r, anchor="nw", window=bottom_square, width=bar_width, height=height - r)
                         
                         
-                    name = data['name'][:6] + ".." if len(data['name']) > 8 else data['name']
-                    canvas.create_text(x0 + (bar_width/2), bottom_y + 15, text=name, fill=text_hex, font=("Arial", 11))
+                    canvas.create_text(x0 + (bar_width/2), bottom_y + 20, text=data['name'], fill=text_hex, font=("Arial", 11), width=bar_width + spacing - 2, justify="center")
                     canvas.create_text(x0 + (bar_width/2), y0 - 12, text=str(data['count']), fill=text_hex, font=("Arial", 11, "bold"))
                     drawn_idx += 1
 
@@ -121,7 +120,7 @@ class HistoryView(ctk.CTkFrame):
         right_col.pack(side="right", fill="both", expand=True, padx=10)
 
         # 2. Completion List Card
-        list_card = ctk.CTkFrame(right_col, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=1, corner_radius=15)
+        list_card = ctk.CTkFrame(right_col, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=2, corner_radius=15)
         list_card.pack(fill="both", expand=True)
         
         ctk.CTkLabel(list_card, text="Recent Completions", font=("Arial", 18, "bold"), text_color=self.tm.text_main()).pack(pady=(20, 5))
@@ -164,3 +163,10 @@ class HistoryView(ctk.CTkFrame):
         ctk.CTkButton(list_card, text="View All Completed Tasks", fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), 
                       hover_color=self.tm.accent_hover(), font=("Arial", 15, "bold"), height=50, corner_radius=25,
                       command=lambda: self.show_view_callback("AllCompleted")).pack(fill="x", side="bottom", padx=40, pady=30)
+
+    def refresh(self):
+        """Called by DashboardScreen when the cached view is shown to refresh data."""
+        for widget in self.winfo_children():
+            widget.destroy()
+        self.setup_ui()
+

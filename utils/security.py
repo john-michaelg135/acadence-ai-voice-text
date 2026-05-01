@@ -25,21 +25,23 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def validate_password_strength(password: str) -> tuple[bool, str]:
     """
-    Validates OAuth-style strong password requirements:
-    - 8 characters minimum
-    - At least one uppercase letter
-    - At least one lowercase letter
-    - At least one special character
+    Validates strong password requirements and returns ALL unmet rules at once.
+    Requirements: 8+ chars, uppercase, lowercase, digit, special character.
     """
+    errors = []
     if len(password) < 8:
-        return False, "Password must be at least 8 characters long."
+        errors.append("  • At least 8 characters")
     if not re.search(r'[A-Z]', password):
-        return False, "Password must contain at least one uppercase letter."
+        errors.append("  • At least one uppercase letter (A–Z)")
     if not re.search(r'[a-z]', password):
-        return False, "Password must contain at least one lowercase letter."
-    if not re.search(r'[!@#$%^&\*\(\)_\+\-\=\[\]\{\};:\'",<>\./\\?|]', password):
-        return False, "Password must contain at least one special character."
-    
+        errors.append("  • At least one lowercase letter (a–z)")
+    if not re.search(r'[0-9]', password):
+        errors.append("  • At least one number (0–9)")
+    if not re.search(r'[!@#$%^&\*\(\)_\+\-\=\[\]\{\};:\'"<>\.\/\\?|]', password):
+        errors.append("  • At least one special character  (!@#$% etc.)")
+
+    if errors:
+        return False, "Password must include:\n" + "\n".join(errors)
     return True, "Strong password."
 
 def generate_system_password(length=12) -> str:

@@ -25,7 +25,7 @@ class HomeView(ctk.CTkFrame):
         else:
             metrics = {"total_subjects": 0, "total_pending_tasks": 0, "high_priority_count": 0, "subjects": []}
             
-        main_scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        main_scroll = ctk.CTkScrollableFrame(self, fg_color="transparent", scrollbar_button_color=self.tm.bg_main(), scrollbar_button_hover_color=self.tm.text_sub())
         main_scroll.pack(fill="both", expand=True, padx=20, pady=20)
         
         # --- Top Row: 3 Cards ---
@@ -33,7 +33,7 @@ class HomeView(ctk.CTkFrame):
         top_row.pack(fill="x", pady=(0, 20))
         
         # 1. Priority Card
-        priority_card = ctk.CTkFrame(top_row, fg_color=self.tm.accent_color(), corner_radius=15, height=180)
+        priority_card = ctk.CTkFrame(top_row, fg_color=self.tm.accent_color(), corner_radius=15, border_width=2, border_color=self.tm.border_main(), height=180)
         priority_card.pack(side="left", fill="x", expand=True, padx=10)
         priority_card.pack_propagate(False)
         ctk.CTkLabel(priority_card, text="Priority Tasks", font=("Arial", 18, "bold"), text_color=self.tm.accent_text()).pack(pady=(25, 5))
@@ -41,7 +41,7 @@ class HomeView(ctk.CTkFrame):
         ctk.CTkLabel(priority_card, text="Pending High Priority", font=("Arial", 14), text_color=self.tm.accent_text()).pack(pady=(5, 20))
 
         # 2. Subjects Card
-        subjects_card = ctk.CTkFrame(top_row, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=1, corner_radius=15, height=180)
+        subjects_card = ctk.CTkFrame(top_row, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=2, corner_radius=15, height=180)
         subjects_card.pack(side="left", fill="x", expand=True, padx=10)
         subjects_card.pack_propagate(False)
         ctk.CTkLabel(subjects_card, text="Total Subjects", font=("Arial", 18, "bold"), text_color=self.tm.text_main()).pack(pady=(25, 5))
@@ -49,7 +49,7 @@ class HomeView(ctk.CTkFrame):
         ctk.CTkLabel(subjects_card, text="Active Subject Folders", font=("Arial", 14), text_color=self.tm.text_sub()).pack(pady=(5, 20))
 
         # 3. All Tasks Summary Card
-        summary_card = ctk.CTkFrame(top_row, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=1, corner_radius=15, height=180)
+        summary_card = ctk.CTkFrame(top_row, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=2, corner_radius=15, height=180)
         summary_card.pack(side="left", fill="x", expand=True, padx=10)
         summary_card.pack_propagate(False)
         ctk.CTkLabel(summary_card, text="All Tasks", font=("Arial", 18, "bold"), text_color=self.tm.text_main()).pack(pady=(25, 5))
@@ -73,7 +73,7 @@ class HomeView(ctk.CTkFrame):
         bottom_row.pack(fill="both", expand=True, pady=10)
 
         # Task Distribution Container (Left Side)
-        distrib_frame = ctk.CTkFrame(bottom_row, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=1, corner_radius=15, width=400)
+        distrib_frame = ctk.CTkFrame(bottom_row, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=2, corner_radius=15, width=400)
         distrib_frame.pack(side="left", fill="y", padx=10)
         distrib_frame.pack_propagate(False)
         
@@ -81,11 +81,15 @@ class HomeView(ctk.CTkFrame):
         if not metrics["subjects"]:
             ctk.CTkLabel(distrib_frame, text="No subjects added.", font=("Arial", 14), text_color=self.tm.text_sub()).pack(pady=40)
             
-        # Inner scrollable frame so long lists don't get clipped off the bottom
-        distrib_scroll = ctk.CTkScrollableFrame(distrib_frame, fg_color="transparent")
+        distrib_scroll = ctk.CTkScrollableFrame(distrib_frame, fg_color="transparent", scrollbar_button_color=self.tm.border_main(), scrollbar_button_hover_color=self.tm.text_sub())
         distrib_scroll.pack(fill="both", expand=True, padx=10, pady=(0, 20))
             
-        for idx, sub in enumerate(metrics["subjects"]):
+        distrib_subjects = [s for s in metrics["subjects"] if s.get("pending_task_count", 0) > 0]
+        
+        if metrics["subjects"] and not distrib_subjects:
+            ctk.CTkLabel(distrib_scroll, text="No active tasks in any subject.", font=("Arial", 14, "italic"), text_color=self.tm.text_sub()).pack(pady=40)
+
+        for idx, sub in enumerate(distrib_subjects):
             row_frame = ctk.CTkFrame(distrib_scroll, fg_color="transparent")
             row_frame.pack(fill="x", padx=10, pady=8)
             
@@ -94,13 +98,12 @@ class HomeView(ctk.CTkFrame):
             
             ctk.CTkLabel(row_frame, text="●", text_color=dot_color, font=("Arial", 32)).pack(side="left", padx=(0, 15))
             
-            # Truncate subject name if it's too long to prevent pushing the number out of bounds
-            display_name = sub['name']
-            if len(display_name) > 20:
-                display_name = display_name[:17] + "..."
-                
-            ctk.CTkLabel(row_frame, text=f"{display_name}:", font=("Arial", 15), text_color=self.tm.text_sub()).pack(side="left")
-            ctk.CTkLabel(row_frame, text=f" {sub['task_count']}", font=("Arial", 15, "bold"), text_color=self.tm.text_main()).pack(side="right")
+            # Pack count on the right first to anchor it
+            ctk.CTkLabel(row_frame, text=f" {sub['pending_task_count']}", font=("Arial", 15, "bold"), text_color=self.tm.text_main()).pack(side="right")
+            
+            # Allow subject name to wrap multiple lines instead of cutting off
+            name_lbl = ctk.CTkLabel(row_frame, text=f"{sub['name']}:", font=("Arial", 15), text_color=self.tm.text_sub(), justify="left", wraplength=200, anchor="w")
+            name_lbl.pack(side="left", fill="x", expand=True)
 
         # Horizontally Scrollable Subjects (Categorized) (Right Side)
         subj_container = ctk.CTkFrame(bottom_row, fg_color="transparent")
@@ -111,11 +114,11 @@ class HomeView(ctk.CTkFrame):
 
         if majors:
             ctk.CTkLabel(subj_container, text="Major Subjects", font=("Arial", 16, "bold"), text_color=self.tm.text_main()).pack(anchor="w", padx=5, pady=(0, 10))
-            major_scroll = ctk.CTkScrollableFrame(subj_container, fg_color="transparent", orientation="horizontal", height=180)
+            major_scroll = ctk.CTkScrollableFrame(subj_container, fg_color="transparent", orientation="horizontal", height=180, scrollbar_button_color=self.tm.bg_main(), scrollbar_button_hover_color=self.tm.text_sub())
             major_scroll.pack(fill="x", pady=(0, 20))
             
             for sub in majors:
-                c = ctk.CTkFrame(major_scroll, fg_color=self.major_color, corner_radius=15, width=150, height=150, cursor="hand2")
+                c = ctk.CTkFrame(major_scroll, fg_color=self.major_color, corner_radius=15, width=150, height=150, cursor="hand2", border_width=2, border_color=self.tm.border_main())
                 c.pack(side="left", padx=10, pady=5)
                 c.pack_propagate(False)
                 
@@ -135,17 +138,18 @@ class HomeView(ctk.CTkFrame):
                 l2.pack(expand=True)
                 l2.bind("<Button-1>", nav_cmd)
                 
-                l3 = ctk.CTkLabel(c, text=f"{sub['task_count']} tasks", font=("Arial", 13), text_color="#333333", cursor="hand2")
+                pending_text = "No pending" if sub['pending_task_count'] == 0 else f"{sub['pending_task_count']} pending"
+                l3 = ctk.CTkLabel(c, text=pending_text, font=("Arial", 13), text_color="#333333", cursor="hand2")
                 l3.pack(pady=(5, 10))
                 l3.bind("<Button-1>", nav_cmd)
 
         if minors:
             ctk.CTkLabel(subj_container, text="Minor Subjects", font=("Arial", 16, "bold"), text_color=self.tm.text_main()).pack(anchor="w", padx=5, pady=(10, 10))
-            minor_scroll = ctk.CTkScrollableFrame(subj_container, fg_color="transparent", orientation="horizontal", height=180)
+            minor_scroll = ctk.CTkScrollableFrame(subj_container, fg_color="transparent", orientation="horizontal", height=180, scrollbar_button_color=self.tm.bg_main(), scrollbar_button_hover_color=self.tm.text_sub())
             minor_scroll.pack(fill="x")
             
             for sub in minors:
-                c = ctk.CTkFrame(minor_scroll, fg_color=self.minor_color, corner_radius=15, width=150, height=150, cursor="hand2")
+                c = ctk.CTkFrame(minor_scroll, fg_color=self.minor_color, corner_radius=15, width=150, height=150, cursor="hand2", border_width=2, border_color=self.tm.border_main())
                 c.pack(side="left", padx=10, pady=5)
                 c.pack_propagate(False)
                 
@@ -165,7 +169,8 @@ class HomeView(ctk.CTkFrame):
                 l2.pack(expand=True)
                 l2.bind("<Button-1>", nav_cmd)
                 
-                l3 = ctk.CTkLabel(c, text=f"{sub['task_count']} tasks", font=("Arial", 13), text_color="#333333", cursor="hand2")
+                pending_text = "No pending" if sub['pending_task_count'] == 0 else f"{sub['pending_task_count']} pending"
+                l3 = ctk.CTkLabel(c, text=pending_text, font=("Arial", 13), text_color="#333333", cursor="hand2")
                 l3.pack(pady=(5, 10))
                 l3.bind("<Button-1>", nav_cmd)
 

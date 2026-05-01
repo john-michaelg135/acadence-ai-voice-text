@@ -10,8 +10,10 @@ class AllCompletedTasksView(ctk.CTkFrame):
         self.db = DatabaseManager()
         self.show_view_callback = show_view_callback
         self.user_id = self.user_info['id'] if self.user_info else None
+        self._render_id = 0
         
         self.setup_ui()
+        self.load_tasks()
 
     def setup_ui(self):
         header_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -23,17 +25,35 @@ class AllCompletedTasksView(ctk.CTkFrame):
         
         ctk.CTkLabel(header_frame, text="All Completed Tasks", font=("Arial", 22, "bold"), text_color=self.tm.text_main()).pack(side="left", padx=20)
         
-        scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
-        scroll.pack(fill="both", expand=True, padx=10, pady=5)
-        
+        self.scroll = ctk.CTkScrollableFrame(self, fg_color="transparent", scrollbar_button_color=self.tm.bg_main(), scrollbar_button_hover_color=self.tm.text_sub())
+        self.scroll.pack(fill="both", expand=True, padx=10, pady=5)
+
+    def load_tasks(self):
+        self._render_id += 1
+        current_render = self._render_id
+
+        for widget in self.scroll.winfo_children():
+            widget.destroy()
+
         tasks = self.db.get_completed_tasks(self.user_id) if self.user_id else []
         
         if not tasks:
-            ctk.CTkLabel(scroll, text="No completed tasks found.", font=("Arial", 14, "italic"), text_color=self.tm.text_sub()).pack(pady=40)
+            ctk.CTkLabel(self.scroll, text="No completed tasks found.", font=("Arial", 14, "italic"), text_color=self.tm.text_sub()).pack(pady=40)
             return
-            
-        for task in tasks:
-            card = ctk.CTkFrame(scroll, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=1, corner_radius=10)
+
+        self._render_completed_chunk(tasks, 0, current_render)
+
+    def _render_completed_chunk(self, tasks, index, render_id, chunk_size=15):
+        """Renders completed task cards in chunks to prevent UI freezing."""
+        if render_id != self._render_id:
+            return
+        if not self.winfo_exists():
+            return
+
+        end = min(index + chunk_size, len(tasks))
+        for i in range(index, end):
+            task = tasks[i]
+            card = ctk.CTkFrame(self.scroll, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=2, corner_radius=10)
             card.pack(fill="x", padx=10, pady=5)
             
             pill = ctk.CTkLabel(card, text="Completed", font=("Arial", 11, "bold"), 
@@ -56,3 +76,6 @@ class AllCompletedTasksView(ctk.CTkFrame):
             if task.get('completed_at'):
                 # Format to a nice string if it's a timestamp
                 ctk.CTkLabel(sub_frame, text=f"🕒 {task['completed_at'][:16]}", font=("Arial", 11), text_color=self.tm.text_sub()).pack(side="left")
+
+        if end < len(tasks):
+            self.after(10, lambda: self._render_completed_chunk(tasks, end, render_id, chunk_size))

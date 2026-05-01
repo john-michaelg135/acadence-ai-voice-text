@@ -69,6 +69,77 @@ class AuthScreen(ctk.CTkFrame):
         # Initialize
         self.switch_mode("Log In")
 
+    @staticmethod
+    def _make_eye_icon(slashed: bool):
+        """Renders a high-res (64px) eye icon, displayed at 22px for crisp scaling."""
+        from PIL import Image, ImageDraw
+        s = 64
+        color = (90, 90, 90, 255)
+        img = Image.new("RGBA", (s, s), (0, 0, 0, 0))
+        d = ImageDraw.Draw(img)
+        # Eye oval
+        d.ellipse([4, 18, 60, 46], outline=color, width=4)
+        # Pupil
+        d.ellipse([26, 26, 38, 38], fill=color)
+        # Diagonal slash (bottom-left → top-right) when visible
+        if slashed:
+            d.line([10, 54, 54, 10], fill=color, width=5)
+        return ctk.CTkImage(light_image=img, dark_image=img, size=(22, 22))
+
+    def _make_password_field(self, parent, placeholder, pack_pady=10):
+        """Creates a styled password entry with a PIL-drawn eye icon toggle button."""
+        container = ctk.CTkFrame(
+            parent,
+            fg_color=self.tm.bg_sub(),
+            border_color=self.tm.border_main(),
+            border_width=1,
+            corner_radius=10,
+            height=45
+        )
+        container.pack(pady=pack_pady, fill="x")
+        container.pack_propagate(False)
+
+        entry = ctk.CTkEntry(
+            container,
+            placeholder_text=placeholder,
+            show="*",
+            fg_color="transparent",
+            border_width=0,
+            text_color=self.tm.text_main(),
+            font=("Arial", 14),
+            height=43
+        )
+        entry.pack(side="left", fill="both", expand=True, padx=(8, 0))
+
+        icon_show = self._make_eye_icon(slashed=False)   # plain eye  → click to reveal
+        icon_hide = self._make_eye_icon(slashed=True)    # slashed eye → click to mask
+
+        eye_btn = ctk.CTkButton(
+            container, text="", image=icon_show,
+            width=36, height=36,
+            fg_color="transparent",
+            hover_color=self.tm.border_main(),
+            corner_radius=8
+        )
+
+        # State variable — avoids relying on entry.cget('show') which
+        # behaves inconsistently on CTkEntry when the field is empty.
+        _hidden = [True]
+
+        def _toggle():
+            if _hidden[0]:
+                entry.configure(show="")
+                eye_btn.configure(image=icon_hide)
+                _hidden[0] = False
+            else:
+                entry.configure(show="*")
+                eye_btn.configure(image=icon_show)
+                _hidden[0] = True
+
+        eye_btn.configure(command=_toggle)
+        eye_btn.pack(side="right", padx=(0, 5))
+        return entry
+
     def switch_mode(self, mode):
         self.current_auth_mode.set(mode)
         
@@ -103,8 +174,7 @@ class AuthScreen(ctk.CTkFrame):
         self.login_user_entry = ctk.CTkEntry(self.login_frame, placeholder_text="Username", **self.input_args)
         self.login_user_entry.pack(pady=(10, 10), fill="x")
 
-        self.login_pass_entry = ctk.CTkEntry(self.login_frame, placeholder_text="Password", show="*", **self.input_args)
-        self.login_pass_entry.pack(pady=10, fill="x")
+        self.login_pass_entry = self._make_password_field(self.login_frame, "Password")
 
         ctk.CTkButton(self.login_frame, text="Log In", command=self.handle_login, **self.btn_args).pack(pady=(20, 15), fill="x")
 
@@ -120,11 +190,8 @@ class AuthScreen(ctk.CTkFrame):
         self.signup_email_entry = ctk.CTkEntry(self.signup_frame, placeholder_text="Recovery Email", **self.input_args)
         self.signup_email_entry.pack(pady=10, fill="x")
 
-        self.signup_pass_entry = ctk.CTkEntry(self.signup_frame, placeholder_text="Password", show="*", **self.input_args)
-        self.signup_pass_entry.pack(pady=10, fill="x")
-
-        self.signup_conf_entry = ctk.CTkEntry(self.signup_frame, placeholder_text="Confirm Password", show="*", **self.input_args)
-        self.signup_conf_entry.pack(pady=10, fill="x")
+        self.signup_pass_entry = self._make_password_field(self.signup_frame, "Password")
+        self.signup_conf_entry = self._make_password_field(self.signup_frame, "Confirm Password")
 
         ctk.CTkButton(self.signup_frame, text="Create Account", command=self.handle_signup, **self.btn_args).pack(pady=(15, 10), fill="x")
 
@@ -154,10 +221,8 @@ class AuthScreen(ctk.CTkFrame):
 
         # STEP 3
         ctk.CTkLabel(self.step3_frame, text="Create a new strong password for your account.", wraplength=300, font=("Arial", 13), text_color=self.tm.text_sub()).pack(pady=(0, 20))
-        self.new_pass_entry = ctk.CTkEntry(self.step3_frame, placeholder_text="New Password", show="*", **self.input_args)
-        self.new_pass_entry.pack(fill="x", pady=10)
-        self.conf_new_pass_entry = ctk.CTkEntry(self.step3_frame, placeholder_text="Confirm New Password", show="*", **self.input_args)
-        self.conf_new_pass_entry.pack(fill="x", pady=10)
+        self.new_pass_entry = self._make_password_field(self.step3_frame, "New Password")
+        self.conf_new_pass_entry = self._make_password_field(self.step3_frame, "Confirm New Password")
         ctk.CTkButton(self.step3_frame, text="Update Password", command=self.process_step3, **self.btn_args).pack(pady=20, fill="x")
 
     def show_forgot_step1(self):
@@ -262,6 +327,13 @@ class AuthScreen(ctk.CTkFrame):
         is_valid, msg = validate_password_strength(password)
         if not is_valid:
             messagebox.showerror("Weak Password", msg)
+            return
+
+        # Validate email format + domain existence before creating the account
+        from utils.email_service import validate_email_address
+        is_valid_email, email_msg = validate_email_address(email)
+        if not is_valid_email:
+            messagebox.showerror("Invalid Email", email_msg)
             return
 
         success = self.db.create_user(username, password, recovery_email=email)

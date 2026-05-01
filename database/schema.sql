@@ -43,3 +43,9 @@ CREATE TABLE IF NOT EXISTS tasks (
 
 -- Note: Admin login can be pre-configured by inserting it directly.
 -- INSERT OR IGNORE INTO users (username, encrypted_password, is_admin) VALUES ('admin', 'admin_encrypted_pw', 1);
+
+-- Performance Indexes
+CREATE INDEX IF NOT EXISTS idx_subjects_user ON subjects(user_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_subject ON tasks(subject_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority);

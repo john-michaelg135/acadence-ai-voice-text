@@ -15,11 +15,11 @@ class MoreView(ctk.CTkFrame):
         # Header
         ctk.CTkLabel(self, text="Settings & More", font=("Arial", 28, "bold"), text_color=self.tm.text_main()).pack(anchor="w", padx=20, pady=(20, 10))
         
-        scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        scroll = ctk.CTkScrollableFrame(self, fg_color="transparent", scrollbar_button_color=self.tm.bg_main(), scrollbar_button_hover_color=self.tm.text_sub())
         scroll.pack(fill="both", expand=True, padx=10, pady=5)
         
         # 1. Customization Card
-        cust_card = ctk.CTkFrame(scroll, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=1, corner_radius=15)
+        cust_card = ctk.CTkFrame(scroll, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=2, corner_radius=15)
         cust_card.pack(fill="x", pady=(0, 15), padx=10)
         
         ctk.CTkLabel(cust_card, text="Customization", font=("Arial", 18, "bold"), text_color=self.tm.text_main()).pack(anchor="w", padx=20, pady=(15, 10))
@@ -77,7 +77,7 @@ class MoreView(ctk.CTkFrame):
         self.accent_menu.pack(side="right")
         
         # 2. About Card
-        about_card = ctk.CTkFrame(scroll, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=1, corner_radius=15)
+        about_card = ctk.CTkFrame(scroll, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=2, corner_radius=15)
         about_card.pack(fill="x", pady=15, padx=10)
         
         ctk.CTkLabel(about_card, text="About Acadence", font=("Arial", 18, "bold"), text_color=self.tm.text_main()).pack(anchor="w", padx=20, pady=(15, 5))

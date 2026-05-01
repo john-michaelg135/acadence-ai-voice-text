@@ -1,6 +1,7 @@
 import customtkinter as ctk
 from utils.theme_manager import ThemeManager
 from database.db_manager import DatabaseManager
+from datetime import datetime
 
 class InsightsView(ctk.CTkFrame):
     def __init__(self, master, user_info, show_view_callback):
@@ -16,7 +17,7 @@ class InsightsView(ctk.CTkFrame):
     def setup_ui(self):
         ctk.CTkLabel(self, text="Priority Insights", font=("Arial", 28, "bold"), text_color=self.tm.text_main()).pack(anchor="w", padx=30, pady=(20, 10))
 
-        scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        scroll = ctk.CTkScrollableFrame(self, fg_color="transparent", scrollbar_button_color=self.tm.bg_main(), scrollbar_button_hover_color=self.tm.text_sub())
         scroll.pack(fill="both", expand=True, padx=20, pady=5)
         
         # Top Row
@@ -85,7 +86,7 @@ class InsightsView(ctk.CTkFrame):
                       command=lambda: self.show_view_callback("AllPending")).pack(fill="x", padx=20, pady=(15, 30))
 
     def _build_task_list(self, parent, title, tasks, empty_text, flag_color):
-        card = ctk.CTkFrame(parent, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=1, corner_radius=15)
+        card = ctk.CTkFrame(parent, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=2, corner_radius=15)
         card.pack(fill="both", expand=True)
         
         ctk.CTkLabel(card, text=title, font=("Arial", 18, "bold"), text_color=self.tm.text_main()).pack(pady=(20, 10))
@@ -93,7 +94,8 @@ class InsightsView(ctk.CTkFrame):
         if not tasks:
             ctk.CTkLabel(card, text=empty_text, font=("Arial", 14), text_color=self.tm.text_sub()).pack(pady=(20, 40))
             return
-            
+
+        today = datetime.today().strftime('%Y-%m-%d')  # Computed once for all cards
         for task in tasks:
             row = ctk.CTkFrame(card, fg_color=self.tm.bg_sub(), corner_radius=10, cursor="hand2")
             row.pack(fill="x", padx=20, pady=5)
@@ -127,8 +129,6 @@ class InsightsView(ctk.CTkFrame):
                 d_lbl.pack(side="left")
                 d_lbl.bind("<Button-1>", nav_cmd)
                 
-                from datetime import datetime
-                today = datetime.today().strftime('%Y-%m-%d')
                 if deadline_str < today and task.get('status', 'pending') == 'pending':
                     overdue_lbl = ctk.CTkLabel(sub, text="Overdue", font=("Arial", 10, "bold"), text_color="#FFFFFF", fg_color=self.tm.error_color(), corner_radius=6, width=60, height=20)
                     overdue_lbl.pack(side="left", padx=(10, 0))
@@ -139,3 +139,9 @@ class InsightsView(ctk.CTkFrame):
             view_btn.pack(side="right", padx=15)
             
         ctk.CTkFrame(card, fg_color="transparent", height=15).pack()
+
+    def refresh(self):
+        """Called by DashboardScreen when the cached view is shown to refresh data."""
+        for widget in self.winfo_children():
+            widget.destroy()
+        self.setup_ui()

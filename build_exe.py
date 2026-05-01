@@ -33,6 +33,7 @@ def build_executable():
         f"--add-data", f"{ctk_path};customtkinter/",
         "--add-data", "database/schema.sql;database/",
         "--add-data", "assets;assets/",
+        "--add-data", ".env;.",       # Bundle .env so SMTP credentials load in the exe
         "main.py"
     ]
     
