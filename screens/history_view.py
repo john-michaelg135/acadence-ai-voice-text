@@ -107,7 +107,10 @@ class HistoryView(ctk.CTkFrame):
                         canvas.create_window(x0, bottom_y, anchor="nw", window=bottom_square, width=bar_width, height=1)
                         
                     # Subject name label (always visible)
-                    canvas.create_text(x0 + (bar_width/2), bottom_y + 35, text=data['name'], fill=text_hex, font=(self.tm.main_font(), 11), width=bar_width + spacing - 5, justify="center")
+                    display_name = data['name']
+                    if len(display_name) > 18:
+                        display_name = display_name[:15] + "..."
+                    canvas.create_text(x0 + (bar_width/2), bottom_y + 10, text=display_name, fill=text_hex, font=(self.tm.main_font(), 11), width=bar_width + spacing - 5, justify="center", anchor="n")
                     # Count label (hidden initially, revealed after animation)
                     count_id = canvas.create_text(x0 + (bar_width/2), bottom_y - 12, text=str(data['count']), fill=text_hex, font=(self.tm.main_font(), 11, "bold"), state="hidden")
                     

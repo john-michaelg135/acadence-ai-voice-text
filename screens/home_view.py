@@ -240,8 +240,8 @@ class HomeView(ctk.CTkFrame):
                 
                 # Truncate text if it's incredibly long, and wrap it
                 display_name = sub['name']
-                if len(display_name) > 35:
-                    display_name = display_name[:32] + "..."
+                if len(display_name) > 25:
+                    display_name = display_name[:22] + "..."
                     
                 l1 = ctk.CTkLabel(c, text=display_name, font=(self.tm.main_font(), 14, "bold"), text_color="#1A1A1A", cursor="hand2", wraplength=140, height=40)
                 l1.pack(pady=(15, 0), padx=10)
@@ -271,8 +271,8 @@ class HomeView(ctk.CTkFrame):
                 
                 # Truncate text if it's incredibly long, and wrap it
                 display_name = sub['name']
-                if len(display_name) > 35:
-                    display_name = display_name[:32] + "..."
+                if len(display_name) > 25:
+                    display_name = display_name[:22] + "..."
                     
                 l1 = ctk.CTkLabel(c, text=display_name, font=(self.tm.main_font(), 14, "bold"), text_color="#1A1A1A", cursor="hand2", wraplength=140, height=40)
                 l1.pack(pady=(15, 0), padx=10)

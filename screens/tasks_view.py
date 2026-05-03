@@ -1,6 +1,6 @@
 import customtkinter as ctk
 from utils.theme_manager import ThemeManager
-from tkinter import messagebox
+from tkinter import messagebox, ttk
 from tkcalendar import DateEntry
 from database.db_manager import DatabaseManager
 from datetime import datetime, date
@@ -15,16 +15,24 @@ class AddTaskPopup(ctk.CTkToplevel):
         self.subject_name = subject_name
         self.on_success = on_success
         self.initial_data = initial_data
+        self.submitted = False
         
         self.title("")
-        self.geometry("800x600")
+        self.geometry("800x650")
         self.attributes("-topmost", True)
         self.resizable(False, False)
         
+        # Safe initialization for tkcalendar on some platforms/python versions
+        try:
+            style = ttk.Style()
+            style.theme_use('clam')
+        except:
+            pass
+
         # Center window over root
         self.update_idletasks()
         x = master.winfo_rootx() + (master.winfo_width() // 2) - (800 // 2)
-        y = master.winfo_rooty() + (master.winfo_height() // 2) - (600 // 2)
+        y = master.winfo_rooty() + (master.winfo_height() // 2) - (650 // 2) - 50
         self.geometry(f"+{x}+{y}")
         
         self.setup_ui()
@@ -42,6 +50,7 @@ class AddTaskPopup(ctk.CTkToplevel):
             "border_width": 1, 
             "border_color": self.tm.border_main(), 
             "text_color": self.tm.text_main(),
+            "font": (self.tm.main_font(), 13),
             "corner_radius": 8,
             "height": 45
         }
@@ -100,10 +109,14 @@ class AddTaskPopup(ctk.CTkToplevel):
             othermonthwebackground=bg_color
         )
         self.deadline_entry.pack(fill="x", padx=10, pady=5)
+        
+        # Patch for tkcalendar bug where _downarrow_name might be missing in some themes/environments
+        if not hasattr(self.deadline_entry, '_downarrow_name'):
+            setattr(self.deadline_entry, '_downarrow_name', 'downarrow')
 
         # Description (Taller textbox)
         self.desc_textbox = ctk.CTkTextbox(container, fg_color=self.tm.bg_sub(), border_width=1, border_color=self.tm.border_main(), 
-                                           text_color=self.tm.text_main(), corner_radius=8, height=100)
+                                           text_color=self.tm.text_main(), font=(self.tm.main_font(), 13), corner_radius=8, height=100)
         self.desc_textbox.pack(fill="x", padx=30, pady=(0, 20))
         
         # Priority Section
@@ -118,13 +131,13 @@ class AddTaskPopup(ctk.CTkToplevel):
             self.priority_var.set(val)
             update_prio_buttons()
 
-        self.btn_low = ctk.CTkButton(prio_frame, text="« Low", width=80, height=30, corner_radius=15, command=lambda: set_priority("Low"))
+        self.btn_low = ctk.CTkButton(prio_frame, text="« Low", width=80, height=30, corner_radius=15, font=(self.tm.main_font(), 12), command=lambda: set_priority("Low"))
         self.btn_low.pack(side="left", padx=5)
         
-        self.btn_med = ctk.CTkButton(prio_frame, text="→ Medium", width=80, height=30, corner_radius=15, command=lambda: set_priority("Medium"))
+        self.btn_med = ctk.CTkButton(prio_frame, text="→ Medium", width=80, height=30, corner_radius=15, font=(self.tm.main_font(), 12), command=lambda: set_priority("Medium"))
         self.btn_med.pack(side="left", padx=5)
         
-        self.btn_high = ctk.CTkButton(prio_frame, text="» High", width=80, height=30, corner_radius=15, command=lambda: set_priority("High"))
+        self.btn_high = ctk.CTkButton(prio_frame, text="» High", width=80, height=30, corner_radius=15, font=(self.tm.main_font(), 12), command=lambda: set_priority("High"))
         self.btn_high.pack(side="left", padx=5)
         
         def update_prio_buttons():
@@ -176,8 +189,15 @@ class AddTaskPopup(ctk.CTkToplevel):
             messagebox.showerror("Error", "Task Name is required.", parent=self)
             return
 
+        if self.submitted: return
+        self.submitted = True
+        
         self.db.add_task(self.subject_id, name, desc, deadline, priority=prio)
         self.on_success()
+        
+        # Safe destruction
+        self.grab_release()
+        self.update_idletasks()
         self.destroy()
 
 class EditTaskPopup(ctk.CTkToplevel):
@@ -189,15 +209,23 @@ class EditTaskPopup(ctk.CTkToplevel):
         self.task_data = task_data
         self.subject_name = subject_name
         self.on_success = on_success
+        self.submitted = False
         
         self.title("")
-        self.geometry("800x600")
+        self.geometry("800x650")
         self.attributes("-topmost", True)
         self.resizable(False, False)
         
+        # Safe initialization for tkcalendar
+        try:
+            style = ttk.Style()
+            style.theme_use('clam')
+        except:
+            pass
+
         self.update_idletasks()
         x = master.winfo_rootx() + (master.winfo_width() // 2) - (800 // 2)
-        y = master.winfo_rooty() + (master.winfo_height() // 2) - (600 // 2)
+        y = master.winfo_rooty() + (master.winfo_height() // 2) - (650 // 2) - 50
         self.geometry(f"+{x}+{y}")
         
         self.setup_ui()
@@ -215,6 +243,7 @@ class EditTaskPopup(ctk.CTkToplevel):
             "border_width": 1, 
             "border_color": self.tm.border_main(), 
             "text_color": self.tm.text_main(),
+            "font": (self.tm.main_font(), 13),
             "corner_radius": 8, 
             "height": 45
         }
@@ -267,8 +296,12 @@ class EditTaskPopup(ctk.CTkToplevel):
             othermonthwebackground=bg_color
         )
         self.deadline_entry.pack(fill="x", padx=10, pady=5)
+        
+        # Patch for tkcalendar bug
+        if not hasattr(self.deadline_entry, '_downarrow_name'):
+            setattr(self.deadline_entry, '_downarrow_name', 'downarrow')
 
-        self.desc_textbox = ctk.CTkTextbox(container, fg_color=self.tm.bg_sub(), border_width=1, border_color=self.tm.border_main(), text_color=self.tm.text_main(), corner_radius=8, height=100)
+        self.desc_textbox = ctk.CTkTextbox(container, fg_color=self.tm.bg_sub(), border_width=1, border_color=self.tm.border_main(), text_color=self.tm.text_main(), font=(self.tm.main_font(), 13), corner_radius=8, height=100)
         self.desc_textbox.pack(fill="x", padx=30, pady=(0, 20))
         
         ctk.CTkLabel(container, text="Priority Level", font=(self.tm.main_font(), 14), text_color=self.tm.text_sub()).pack(pady=(5, 5))
@@ -282,11 +315,11 @@ class EditTaskPopup(ctk.CTkToplevel):
             self.priority_var.set(val)
             update_prio_buttons()
 
-        self.btn_low = ctk.CTkButton(prio_frame, text="« Low", width=80, height=30, corner_radius=15, command=lambda: set_priority("Low"))
+        self.btn_low = ctk.CTkButton(prio_frame, text="« Low", width=80, height=30, corner_radius=15, font=(self.tm.main_font(), 12), command=lambda: set_priority("Low"))
         self.btn_low.pack(side="left", padx=5)
-        self.btn_med = ctk.CTkButton(prio_frame, text="→ Medium", width=80, height=30, corner_radius=15, command=lambda: set_priority("Medium"))
+        self.btn_med = ctk.CTkButton(prio_frame, text="→ Medium", width=80, height=30, corner_radius=15, font=(self.tm.main_font(), 12), command=lambda: set_priority("Medium"))
         self.btn_med.pack(side="left", padx=5)
-        self.btn_high = ctk.CTkButton(prio_frame, text="» High", width=80, height=30, corner_radius=15, command=lambda: set_priority("High"))
+        self.btn_high = ctk.CTkButton(prio_frame, text="» High", width=80, height=30, corner_radius=15, font=(self.tm.main_font(), 12), command=lambda: set_priority("High"))
         self.btn_high.pack(side="left", padx=5)
         
         def update_prio_buttons():
@@ -330,8 +363,15 @@ class EditTaskPopup(ctk.CTkToplevel):
             messagebox.showerror("Error", "Task Name is required.", parent=self)
             return
 
+        if self.submitted: return
+        self.submitted = True
+        
         self.db.update_task(self.task_data['id'], name, desc, deadline, prio)
         self.on_success()
+        
+        # Safe destruction
+        self.grab_release()
+        self.update_idletasks()
         self.destroy()
 
 class TasksView(ctk.CTkFrame):
@@ -358,7 +398,7 @@ class TasksView(ctk.CTkFrame):
         header_frame.pack(fill="x", padx=20, pady=(20, 10))
         
         # Back button
-        ctk.CTkButton(header_frame, text="← Back", width=60, fg_color="transparent", text_color=self.tm.text_sub(), 
+        ctk.CTkButton(header_frame, text="← Back", font=(self.tm.main_font(), 14), width=60, fg_color="transparent", text_color=self.tm.text_sub(), 
                       command=lambda: self.show_view_callback(self.source_view)).pack(side="left", padx=(0, 10))
 
         ctk.CTkLabel(header_frame, text=self.subject_name, font=(self.tm.main_font(), 24, "bold"), text_color=self.tm.text_main()).pack(side="left")
@@ -436,7 +476,7 @@ class TasksView(ctk.CTkFrame):
 
         if not tasks:
             msg = "No tasks found." if curr_f != "All" else "No tasks. Add one to get started!"
-            ctk.CTkLabel(self.scrollable_frame, text=msg, text_color=self.tm.text_sub()).pack(pady=20)
+            ctk.CTkLabel(self.scrollable_frame, text=msg, font=(self.tm.main_font(), 16), text_color=self.tm.text_sub()).pack(pady=20)
             return
 
         today = datetime.today().strftime('%Y-%m-%d')

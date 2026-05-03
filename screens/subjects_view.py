@@ -12,6 +12,7 @@ class AddSubjectPopup(ctk.CTkToplevel):
         self.user_id = user_id
         self.on_success = on_success
         self.initial_data = initial_data
+        self.submitted = False
         
         self.title("")
         self.geometry("700x450")
@@ -41,6 +42,7 @@ class AddSubjectPopup(ctk.CTkToplevel):
             "border_width": 1, 
             "border_color": self.tm.border_main(), 
             "text_color": self.tm.text_main(),
+            "font": (self.tm.main_font(), 13),
             "corner_radius": 8,
             "height": 45
         }
@@ -77,13 +79,13 @@ class AddSubjectPopup(ctk.CTkToplevel):
 
         self.btn_major = ctk.CTkButton(
             cat_frame, text="Major", width=80, height=30, corner_radius=15,
-            command=lambda: set_category("Major")
+            font=(self.tm.main_font(), 12), command=lambda: set_category("Major")
         )
         self.btn_major.pack(side="left", padx=5)
         
         self.btn_minor = ctk.CTkButton(
             cat_frame, text="Minor", width=80, height=30, corner_radius=15,
-            command=lambda: set_category("Minor")
+            font=(self.tm.main_font(), 12), command=lambda: set_category("Minor")
         )
         self.btn_minor.pack(side="left", padx=5)
         
@@ -125,8 +127,15 @@ class AddSubjectPopup(ctk.CTkToplevel):
             messagebox.showerror("Error", "Subject Name is required.", parent=self)
             return
 
+        if self.submitted: return
+        self.submitted = True
+        
         self.db.add_subject(self.user_id, name, code, desc, cat)
         self.on_success()
+        
+        # Safe destruction
+        self.grab_release()
+        self.update_idletasks()
         self.destroy()
 
 class EditSubjectPopup(ctk.CTkToplevel):
@@ -137,6 +146,7 @@ class EditSubjectPopup(ctk.CTkToplevel):
         self.db = db
         self.subject = subject
         self.on_success = on_success
+        self.submitted = False
         
         self.title("")
         self.geometry("700x450")
@@ -162,6 +172,7 @@ class EditSubjectPopup(ctk.CTkToplevel):
             "border_width": 1, 
             "border_color": self.tm.border_main(), 
             "text_color": self.tm.text_main(),
+            "font": (self.tm.main_font(), 13),
             "corner_radius": 8, 
             "height": 45
         }
@@ -189,10 +200,10 @@ class EditSubjectPopup(ctk.CTkToplevel):
             self.category_var.set(val)
             update_buttons()
 
-        self.btn_major = ctk.CTkButton(cat_frame, text="Major", width=80, height=30, corner_radius=15, command=lambda: set_category("Major"))
+        self.btn_major = ctk.CTkButton(cat_frame, text="Major", width=80, height=30, corner_radius=15, font=(self.tm.main_font(), 12), command=lambda: set_category("Major"))
         self.btn_major.pack(side="left", padx=5)
         
-        self.btn_minor = ctk.CTkButton(cat_frame, text="Minor", width=80, height=30, corner_radius=15, command=lambda: set_category("Minor"))
+        self.btn_minor = ctk.CTkButton(cat_frame, text="Minor", width=80, height=30, corner_radius=15, font=(self.tm.main_font(), 12), command=lambda: set_category("Minor"))
         self.btn_minor.pack(side="left", padx=5)
         
         def update_buttons():
@@ -224,8 +235,15 @@ class EditSubjectPopup(ctk.CTkToplevel):
             messagebox.showerror("Error", "Subject Name is required.", parent=self)
             return
 
+        if self.submitted: return
+        self.submitted = True
+        
         self.db.update_subject(self.subject['id'], name, code, desc, cat)
         self.on_success()
+        
+        # Safe destruction
+        self.grab_release()
+        self.update_idletasks()
         self.destroy()
 
 class SubjectsView(ctk.CTkFrame):
@@ -275,7 +293,7 @@ class SubjectsView(ctk.CTkFrame):
 
         subjects = self.db.get_subjects(self.user_id)
         if not subjects:
-            ctk.CTkLabel(self.scrollable_frame, text="No subjects found. Add one!", text_color=self.tm.text_sub()).pack(pady=20)
+            ctk.CTkLabel(self.scrollable_frame, text="No subjects found. Add one!", font=(self.tm.main_font(), 16), text_color=self.tm.text_sub()).pack(pady=20)
             return
 
         grid_container = ctk.CTkFrame(self.scrollable_frame, fg_color="transparent")
@@ -328,7 +346,10 @@ class SubjectsView(ctk.CTkFrame):
                       command=lambda s=subject: self.delete_subject(s)).pack(side="left", padx=3)
 
         # Subject Name
-        ctk.CTkLabel(card, text=subject['name'], font=(self.tm.main_font(), 22, "bold"), text_color=self.tm.text_main(), anchor="w").pack(fill="x", padx=15, pady=(5, 0))
+        display_name = subject['name']
+        if len(display_name) > 26:
+            display_name = display_name[:23] + "..."
+        ctk.CTkLabel(card, text=display_name, font=(self.tm.main_font(), 22, "bold"), text_color=self.tm.text_main(), anchor="w").pack(fill="x", padx=15, pady=(5, 0))
         
         # Subject Code Container (Fixed Height)
         code_container = ctk.CTkFrame(card, fg_color="transparent", height=25)
