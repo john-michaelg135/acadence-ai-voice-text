@@ -3,6 +3,7 @@ from utils.theme_manager import ThemeManager
 from database.db_manager import DatabaseManager
 from screens.walkthrough_popup import WalkthroughPopup
 from utils.animation_manager import animate_slide, animate_slide_in, _resolve_color
+from utils.logger import logger
 
 class PlaceholderView(ctk.CTkFrame):
     def __init__(self, master, title):
@@ -172,10 +173,18 @@ class DashboardScreen(ctk.CTkFrame):
             return PlaceholderView(self.content_area, internal_name + " View")
 
     def clear_cache(self):
-        """Clears all cached views. Call when data changes significantly (e.g. after add/delete)."""
-        for view in self._view_cache.values():
+        """Clears all cached views with proper cleanup."""
+        for view_name, view in list(self._view_cache.items()):
             try:
+                view.pack_forget()
                 view.destroy()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(f"Error cleaning up cached view {view_name}: {e}")
         self._view_cache.clear()
+
+    def __del__(self):
+        """Ensure cached views are cleaned up on object destruction."""
+        try:
+            self.clear_cache()
+        except Exception:
+            pass

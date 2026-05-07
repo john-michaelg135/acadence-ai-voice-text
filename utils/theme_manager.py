@@ -1,13 +1,28 @@
 import customtkinter as ctk
+import threading
 
 class ThemeManager:
     _instance = None
+    _lock = threading.Lock()
     
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super(ThemeManager, cls).__new__(cls)
-            cls._instance.current_accent = "Pastel Purple"
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super(ThemeManager, cls).__new__(cls)
+                    cls._instance.current_accent = "Pastel Purple"
+                    cls._instance._color_cache = {}
         return cls._instance
+
+    def _invalidate_cache(self):
+        """Clear cached color values when accent theme changes."""
+        self._color_cache.clear()
+
+    def set_accent(self, accent_name: str):
+        """Set the current accent theme and invalidate cached colors."""
+        if accent_name in self.palettes:
+            self.current_accent = accent_name
+            self._invalidate_cache()
 
     def main_font(self): return "Poppins"
 
@@ -47,12 +62,18 @@ class ThemeManager:
         }
         
     def accent_color(self):
-        pal = self.palettes.get(self.current_accent, self.palettes["Pastel Purple"])
-        return (pal[0], pal[1])
+        cache_key = ("accent_color", self.current_accent)
+        if cache_key not in self._color_cache:
+            pal = self.palettes.get(self.current_accent, self.palettes["Pastel Purple"])
+            self._color_cache[cache_key] = (pal[0], pal[1])
+        return self._color_cache[cache_key]
 
     def accent_hover(self):
-        pal = self.palettes.get(self.current_accent, self.palettes["Pastel Purple"])
-        return (pal[2], pal[2])
+        cache_key = ("accent_hover", self.current_accent)
+        if cache_key not in self._color_cache:
+            pal = self.palettes.get(self.current_accent, self.palettes["Pastel Purple"])
+            self._color_cache[cache_key] = (pal[2], pal[2])
+        return self._color_cache[cache_key]
 
     def accent_text(self):
         # Pastels often look best with dark text in light mode, but white text in dark mode (if dark mode accent is deeper)

@@ -23,10 +23,10 @@ EMAIL_SENDER = os.getenv("SMTP_EMAIL", "")
 EMAIL_APP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 EMAIL_DISPLAY_NAME = "Acadence Security"
 
-OTP_TTL_SECONDS  = 300
+OTP_TTL_SECONDS  = int(os.getenv('OTP_TTL_SECONDS', '300'))
 OTP_LENGTH       = 6
-OTP_MAX_ATTEMPTS = 5
-RESEND_COOLDOWN  = 60
+OTP_MAX_ATTEMPTS = int(os.getenv('OTP_MAX_ATTEMPTS', '5'))
+RESEND_COOLDOWN  = int(os.getenv('RESEND_COOLDOWN', '60'))
 
 _store = {}
 _resend_timestamps = {}

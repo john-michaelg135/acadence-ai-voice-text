@@ -70,7 +70,7 @@ class MoreView(ctk.CTkFrame):
         self.accent_var = ctk.StringVar(value=self.tm.current_accent)
         
         def change_accent(val):
-            self.tm.current_accent = val
+            self.tm.set_accent(val)
             self.reload_callback() # Rebuild the whole UI using the new color scheme
             
         self.accent_menu = ctk.CTkOptionMenu(accent_frame, values=self.tm.get_theme_names(),
@@ -86,7 +86,7 @@ class MoreView(ctk.CTkFrame):
         
         ctk.CTkLabel(about_card, text="About Acadence", font=(self.tm.main_font(), 18, "bold"), text_color=self.tm.text_main()).pack(anchor="w", padx=20, pady=(15, 5))
         
-        ctk.CTkLabel(about_card, text="Version 1.0.0", font=(self.tm.main_font(), 12, "bold"), text_color=self.tm.accent_color()).pack(anchor="w", padx=20)
+        ctk.CTkLabel(about_card, text="Version 1.1.0", font=(self.tm.main_font(), 12, "bold"), text_color=self.tm.accent_color()).pack(anchor="w", padx=20)
         
         desc = (
             "Acadence AI Voice to Text Tracker is an advanced academic management tool built to redefine how students and professionals "
@@ -182,7 +182,7 @@ class MoreView(ctk.CTkFrame):
         privacy_card.pack(fill="x", pady=(10, 30), padx=10)
         
         ctk.CTkLabel(privacy_card, text="Privacy Policy", font=(self.tm.main_font(), 18, "bold"), text_color=self.tm.text_main()).pack(anchor="w", padx=20, pady=(15, 5))
-        ctk.CTkLabel(privacy_card, text="Last Updated: May 3, 2026", font=(self.tm.main_font(), 12), text_color=self.tm.text_sub()).pack(anchor="w", padx=20)
+        ctk.CTkLabel(privacy_card, text="Last Updated: May 7, 2026", font=(self.tm.main_font(), 12), text_color=self.tm.text_sub()).pack(anchor="w", padx=20)
         
         privacy_text = (
             "Acadence values your privacy. Here’s how we handle your data:\n\n"

@@ -1,8 +1,10 @@
 import customtkinter as ctk
+import re
 from utils.theme_manager import ThemeManager
 from tkinter import messagebox
 from database.db_manager import DatabaseManager
 from utils.security import validate_password_strength
+from utils.logger import logger
 import threading
 
 class AuthScreen(ctk.CTkFrame):
@@ -246,7 +248,7 @@ class AuthScreen(ctk.CTkFrame):
         email = self.rec_email_entry.get().strip()
         
         if not user or not email:
-            messagebox.showerror("Error", "Fill all fields.")
+            messagebox.showerror("Incomplete Form", "Please fill in all required fields.")
             return
             
         if self.db.recover_password(user, email):
@@ -257,17 +259,23 @@ class AuthScreen(ctk.CTkFrame):
             self.btn_send_otp.configure(text="Connecting to SMTP...", state="disabled")
             
             def _send():
-                result = send_reset_otp(email)
-                if result.get("ok"):
-                    self.after(0, lambda: messagebox.showinfo("Email Sent", "An OTP has been sent securely to your email address."))
-                    self.after(0, self.show_forgot_step2)
-                else:
-                    self.after(0, lambda: messagebox.showerror("Email Error", result.get("reason")))
-                self.after(0, lambda: self.btn_send_otp.configure(text="Send Verification Code", state="normal"))
+                try:
+                    result = send_reset_otp(email)
+                    if result.get("ok"):
+                        self.after(0, lambda: messagebox.showinfo("Email Sent", "An OTP has been sent securely to your email address."))
+                        self.after(0, self.show_forgot_step2)
+                    else:
+                        self.after(0, lambda: messagebox.showerror("Email Error", result.get("reason")))
+                except Exception as e:
+                    logger.exception(f"Email send failed with exception: {e}")
+                    self.after(0, lambda: messagebox.showerror("Email Error",
+                        "Failed to send verification email. Please check your internet connection and try again."))
+                finally:
+                    self.after(0, lambda: self.btn_send_otp.configure(text="Send Verification Code", state="normal"))
                             
             threading.Thread(target=_send, daemon=True).start()
         else:
-            messagebox.showerror("Error", "Username or Recovery Email is incorrect.")
+            messagebox.showerror("Recovery Failed", "Username or Recovery Email is incorrect.")
 
     def process_step2(self):
         entered = self.otp_entry.get().strip()
@@ -301,7 +309,23 @@ class AuthScreen(ctk.CTkFrame):
         password = self.login_pass_entry.get().strip()
 
         if not username or not password:
-            messagebox.showerror("Error", "Please fill all fields.")
+            messagebox.showerror("Incomplete Form",
+                f"Please fill in all required fields:\n"
+                f"  Username: {'✓' if username else '✗'}\n"
+                f"  Password: {'✓' if password else '✗'}")
+            return
+
+        if len(username) < 3 or len(username) > 64:
+            messagebox.showerror("Invalid Username", "Username must be 3–64 characters long.")
+            return
+
+        if len(password) > 256:
+            messagebox.showerror("Invalid Password", "Password is too long.")
+            return
+
+        if not re.match(r'^[a-zA-Z0-9_\-\.]+$', username):
+            messagebox.showerror("Invalid Username",
+                "Username may only contain letters, numbers, underscores, hyphens, and periods.")
             return
 
         user, err_msg = self.db.authenticate_user(username, password)
@@ -317,11 +341,25 @@ class AuthScreen(ctk.CTkFrame):
         conf_pass = self.signup_conf_entry.get().strip()
 
         if not all([username, email, password, conf_pass]):
-            messagebox.showerror("Error", "Please fill all fields.")
+            messagebox.showerror("Incomplete Form",
+                f"Please fill in all required fields:\n"
+                f"  Username: {'✓' if username else '✗'}\n"
+                f"  Email: {'✓' if email else '✗'}\n"
+                f"  Password: {'✓' if password else '✗'}\n"
+                f"  Confirm: {'✓' if conf_pass else '✗'}")
+            return
+
+        if len(username) < 3 or len(username) > 64:
+            messagebox.showerror("Invalid Username", "Username must be 3–64 characters long.")
+            return
+
+        if not re.match(r'^[a-zA-Z0-9_\-\.]+$', username):
+            messagebox.showerror("Invalid Username",
+                "Username may only contain letters, numbers, underscores, hyphens, and periods.")
             return
 
         if password != conf_pass:
-            messagebox.showerror("Error", "Passwords do not match.")
+            messagebox.showerror("Password Mismatch", "Passwords do not match. Please re-enter.")
             return
 
         is_valid, msg = validate_password_strength(password)
@@ -341,4 +379,6 @@ class AuthScreen(ctk.CTkFrame):
             messagebox.showinfo("Success", "Account created successfully! You can now log in.")
             self.switch_mode("Log In")
         else:
-            messagebox.showerror("Error", "Username already exists.")
+            messagebox.showerror("Username Taken",
+                f"The username '{username}' is already registered.\n\n"
+                "Please choose a different username or log in if you have an account.")

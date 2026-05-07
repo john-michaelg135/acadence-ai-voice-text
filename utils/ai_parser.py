@@ -1,43 +1,69 @@
 import json
+import re
+from utils.logger import logger
 
 def parse_voice_command(text, command_type='subject'):
     """
-    Uses a free LLM provider via g4f (GPT4Free) to intelligently parse natural language 
-    voice transcripts into structured dictionary data.
+    Safely parses natural language voice transcripts into structured dictionary data.
+    Uses g4f (GPT4Free) LLM if online, falls back to rule-based parsing offline.
     
-    Make sure you have g4f installed: pip install -U g4f
+    Prevents prompt injection by sanitizing user input before LLM call.
     """
+    if not text or len(text) > 500:
+        logger.warning(f"Invalid input length: {len(text) if text else 0}")
+        return fallback_parse(text or "", command_type)
+    
+    # Sanitize user input: detect and reject potential prompt injection attempts
+    dangerous_patterns = [
+        r'ignore.*(?:previous|before|all).*instruction',
+        r'forget.*(?:everything|all).*before',
+        r'(?:system|hidden|secret).*prompt',
+        r'jailbreak',
+        r'bypass',
+        r'override',
+        r'execute.*code',
+        r'sql.*injection',
+    ]
+    
+    for pattern in dangerous_patterns:
+        if re.search(pattern, text, re.IGNORECASE):
+            logger.warning(f"Potential prompt injection detected in text: {text[:50]}")
+            return fallback_parse(text, command_type)
+    
     try:
         import g4f
     except ImportError:
-        print("g4f is not installed. Falling back to basic parsing.")
+        logger.debug("g4f not installed, using fallback parsing")
         return fallback_parse(text, command_type)
 
-    prompt = ""
+    # Build safe prompt using templates instead of f-string injection
     if command_type == 'subject':
-        prompt = f"""
-        Extract the following information from this text: "{text}"
-        Return ONLY a valid JSON object with the keys "name", "code", and "description".
-        CRITICAL INSTRUCTION FOR NAME: The 'name' must be in Title Case, but keep short conjunctions/prepositions (to, from, and, of, the) lowercase unless they are the first word.
-        CRITICAL INSTRUCTION FOR NUMBERS: You MUST aggressively convert ANY spelled-out numbers (e.g. 'one', 'two', 'forty five') into numerical digits ('1', '2', '45') in ALL fields.
-        CRITICAL INSTRUCTION FOR DESCRIPTION: You must ALWAYS expand the description to make it rich and professional, BUT KEEP IT CONCISE (maximum 1-2 sentences). 
-        If the user did not provide a description in the text, you MUST invent a high-quality academic description based on the subject name.
-        CRITICAL INSTRUCTION FOR CODE: The 'code' MUST ALWAYS be formatted with uppercase letters followed by a hyphen (-) and then digits (e.g., 'CS-101', 'DA-001'). 
-        If the user says things like "D A zero zero one", "DA double O one", or "D A o o 1", you MUST intelligently parse it as "DA-001".
-        If a code is missing, guess a reasonable uppercase value with a hyphen.
-        Example format: {{"name": "Introduction to Mathematics 1", "code": "MATH-101", "description": "An advanced exploration of mathematical concepts focusing on calculus and real-world applications."}}
-        """
+        system_prompt = """Extract subject information from user text and return ONLY a valid JSON object.
+Keys: "name", "code", "description".
+NAME: Title Case, keep small words (to, from, and, of, the) lowercase except at start.
+NUMBERS: Convert spelled-out numbers ('one' → '1', 'forty five' → '45').
+DESCRIPTION: Rich, professional, 1-2 sentences. If missing, invent based on name.
+CODE: Format as UPPERCASE-DIGITS (e.g. 'CS-101'). If missing, guess reasonable value.
+Return ONLY valid JSON."""
+        user_text_template = "Extract: [TEXT_HERE]"
     else:
-        prompt = f"""
-        Extract the following information from this text: "{text}"
-        Return ONLY a valid JSON object with the keys "name", "description", and "priority".
-        Priority must be "High", "Medium", or "Low". If not mentioned, use "Medium".
-        CRITICAL INSTRUCTION FOR NAME: The 'name' must be in Title Case, but keep short conjunctions/prepositions (to, from, and, of, the) lowercase unless they are the first word.
-        CRITICAL INSTRUCTION FOR NUMBERS: You MUST aggressively convert ANY spelled-out numbers (e.g. 'one', 'two', 'forty five') into numerical digits ('1', '2', '45') in ALL fields.
-        CRITICAL INSTRUCTION FOR DESCRIPTION: You must ALWAYS expand the description to make it rich and actionable, BUT KEEP IT CONCISE (maximum 1-2 sentences).
-        If the user did not provide a description, you MUST invent a helpful and descriptive one based on the task name.
-        Example format: {{"name": "Complete Essay 2", "description": "Research and write a 500-word essay on modern history, ensuring proper citations.", "priority": "High"}}
-        """
+        system_prompt = """Extract task information from user text and return ONLY a valid JSON object.
+Keys: "name", "description", "priority".
+NAME: Must be SHORT — only the task/activity name itself (2-5 words max). Do NOT include descriptions, details, or elaboration in the name.
+DESCRIPTION: All details, specifics, and elaboration go here. Rich, actionable, 1-2 sentences. If user provides details after the task name, put them here.
+PRIORITY: Must be 'High', 'Medium', or 'Low'. Default to 'Medium'.
+NUMBERS: Convert spelled-out numbers.
+Title Case the name, keep small words lowercase except at start.
+
+Examples:
+- Input: "performance task description is showcase presentation" → {"name": "Performance Task", "description": "Prepare and deliver a showcase presentation.", "priority": "Medium"}
+- Input: "essay about climate change high priority" → {"name": "Essay", "description": "Write an essay about climate change.", "priority": "High"}
+- Input: "study chapter 5 math" → {"name": "Study Chapter 5", "description": "Review and study Chapter 5 of the math textbook.", "priority": "Medium"}
+Return ONLY valid JSON."""
+        user_text_template = "Extract: [TEXT_HERE]"
+    
+    # Safely combine user text into template
+    user_message = user_text_template.replace("[TEXT_HERE]", text[:300])  # Limit text length
 
     import socket
     def is_online():
@@ -51,29 +77,50 @@ def parse_voice_command(text, command_type='subject'):
         try:
             response = g4f.ChatCompletion.create(
                 model=g4f.models.default,
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_message}
+                ],
                 timeout=10
             )
             
             # Clean up possible markdown formatting like ```json ... ```
-            response_text = response.strip()
+            response_text = response.strip() if response else ""
             if response_text.startswith("```json"):
                 response_text = response_text[7:]
             if response_text.startswith("```"):
                 response_text = response_text[3:]
             if response_text.endswith("```"):
                 response_text = response_text[:-3]
-                
-            data = json.loads(response_text.strip())
+            
+            response_text = response_text.strip()
+            
+            # Validate JSON structure before returning
+            data = json.loads(response_text)
+            
+            # Validate required keys
+            if command_type == 'subject':
+                required = {'name', 'code', 'description'}
+            else:
+                required = {'name', 'description', 'priority'}
+            
+            if not all(k in data for k in required):
+                logger.warning(f"Invalid response structure missing keys: {required - set(data.keys())}")
+                return fallback_parse(text, command_type)
+            
+            logger.debug(f"AI parsing successful for {command_type}")
             return data
+            
+        except json.JSONDecodeError as e:
+            logger.warning(f"AI response JSON parsing failed: {e}")
+            return fallback_parse(text, command_type)
         except Exception as e:
-            print(f"AI Parsing failed: {e}")
+            logger.warning(f"AI Parsing failed: {e}")
             return fallback_parse(text, command_type)
     else:
         # Instantly run fallback if offline to prevent g4f version checks and timeouts
+        logger.debug("Offline - using fallback parsing")
         return fallback_parse(text, command_type)
-
-import re
 
 def to_title_case(s):
     exceptions = ['a', 'an', 'the', 'and', 'but', 'or', 'for', 'nor', 'on', 'at', 'to', 'from', 'by', 'of', 'in']
@@ -171,25 +218,48 @@ def fallback_parse(text, command_type):
         }
     else:
         # Task Parsing
-        name = " ".join(text.split()[:3])
+        name = ""
         desc = text
         priority = "Medium"
         
+        # Try to extract name: capture text before any description/detail keywords
         name_match = re.search(r'(task is|task called|called)\s+([^,]+)', text, re.IGNORECASE)
         if name_match:
-            name = name_match.group(2).strip()
-            
-        desc_match = re.search(r'(description is|about|to)\s+(.+)', text, re.IGNORECASE)
+            raw_name = name_match.group(2).strip()
+        else:
+            raw_name = text
+        
+        # Split name from description at keywords like "description is", "about", etc.
+        # This prevents description content from leaking into the task name.
+        desc_split = re.split(r'\s+(?:description is|described as|details are|about)\s+', raw_name, maxsplit=1, flags=re.IGNORECASE)
+        if len(desc_split) > 1:
+            name = desc_split[0].strip()
+            desc = desc_split[1].strip()
+        else:
+            # No explicit description keyword found — use first few words as name
+            words = raw_name.split()
+            name = " ".join(words[:4])  # Max 4 words for the name
+            if len(words) > 4:
+                desc = " ".join(words[4:])
+            else:
+                desc = raw_name
+        
+        # Also check for description after the full text for cases not caught above
+        desc_match = re.search(r'(?:description is|described as|details are)\s+(.+)', text, re.IGNORECASE)
         if desc_match:
-            desc = desc_match.group(2).strip()
-            
+            desc = desc_match.group(1).strip()
+        
         if "high priority" in text.lower() or "urgent" in text.lower():
             priority = "High"
         elif "low priority" in text.lower():
             priority = "Low"
             
+        # Clean priority keywords from name
+        name = re.sub(r'\s*(high|low|medium)\s+priority\s*', '', name, flags=re.IGNORECASE).strip()
+        name = re.sub(r'\s*urgent\s*', '', name, flags=re.IGNORECASE).strip()
+            
         return {
-            'name': to_title_case(name),
+            'name': to_title_case(name) if name else to_title_case(" ".join(text.split()[:3])),
             'description': enrich_task_offline(name, desc),
             'priority': priority
         }

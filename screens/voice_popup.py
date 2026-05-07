@@ -5,6 +5,7 @@ from tkinter import messagebox
 from utils.theme_manager import ThemeManager
 from utils.voice_manager import start_continuous_listening
 from utils.ai_parser import parse_voice_command
+from utils.logger import logger
 
 class VoiceRecordingPopup(ctk.CTkToplevel):
     def __init__(self, master, on_complete_callback, command_type='subject'):
@@ -99,8 +100,8 @@ class VoiceRecordingPopup(ctk.CTkToplevel):
         if not self._destroyed and self.is_listening:
             try:
                 self.after(0, lambda: self._append_text(text))
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(f"Failed to append transcribed text: {e}", exc_info=True)
             
     def _append_text(self, text):
         current = self.text_box.get("0.0", "end").strip()
@@ -125,7 +126,7 @@ class VoiceRecordingPopup(ctk.CTkToplevel):
     def on_stop_speaking(self):
         self.is_listening = False
         if self.stop_listening_func:
-            self.stop_listening_func(wait_for_stop=False)
+            self.stop_listening_func()
             
         self.status_lbl.configure(text="Transcription Complete", text_color=self.tm.text_main())
         self.stop_btn.pack_forget()
@@ -134,9 +135,9 @@ class VoiceRecordingPopup(ctk.CTkToplevel):
     def on_cancel(self):
         if self.stop_listening_func:
             try:
-                self.stop_listening_func(wait_for_stop=False)
-            except Exception:
-                pass
+                self.stop_listening_func()
+            except Exception as e:
+                logger.warning(f"Error stopping listening on cancel: {e}")
         self.destroy()
         
     def on_confirm(self):

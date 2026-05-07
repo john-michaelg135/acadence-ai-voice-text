@@ -115,9 +115,12 @@ class AddTaskPopup(ctk.CTkToplevel):
             setattr(self.deadline_entry, '_downarrow_name', 'downarrow')
 
         # Description (Taller textbox)
-        self.desc_textbox = ctk.CTkTextbox(container, fg_color=self.tm.bg_sub(), border_width=1, border_color=self.tm.border_main(), 
+        desc_frame = ctk.CTkFrame(container, fg_color="transparent")
+        desc_frame.pack(fill="x", padx=30, pady=(0, 20))
+        ctk.CTkLabel(desc_frame, text="Description", font=(self.tm.main_font(), 11), text_color=self.tm.text_sub()).pack(anchor="w")
+        self.desc_textbox = ctk.CTkTextbox(desc_frame, fg_color=self.tm.bg_sub(), border_width=1, border_color=self.tm.border_main(), 
                                            text_color=self.tm.text_main(), font=(self.tm.main_font(), 13), corner_radius=8, height=100)
-        self.desc_textbox.pack(fill="x", padx=30, pady=(0, 20))
+        self.desc_textbox.pack(fill="x", pady=(5, 0))
         
         # Priority Section
         ctk.CTkLabel(container, text="Priority Level (Optional)", font=(self.tm.main_font(), 14), text_color=self.tm.text_sub()).pack(pady=(5, 5))
@@ -154,11 +157,7 @@ class AddTaskPopup(ctk.CTkToplevel):
             p = self.initial_data.get('priority', 'Medium')
             if p in ['Low', 'Medium', 'High']:
                 set_priority(p)
-        else:
-            self.desc_textbox.insert("0.0", "Description") # Placeholder
-            
-        update_prio_buttons()
-                    
+        
         update_prio_buttons()
 
         # Action Buttons
@@ -178,10 +177,7 @@ class AddTaskPopup(ctk.CTkToplevel):
     def submit(self):
         name = self.name_entry.get().strip()
         deadline = self.deadline_entry.get_date().strftime("%Y-%m-%d")
-        # Textbox includes trailing newline from Tkinter, strip it
         desc = self.desc_textbox.get("1.0", "end").strip()
-        if desc == "Description": # The placeholder
-            desc = ""
             
         prio = self.priority_var.get()
 
@@ -301,8 +297,11 @@ class EditTaskPopup(ctk.CTkToplevel):
         if not hasattr(self.deadline_entry, '_downarrow_name'):
             setattr(self.deadline_entry, '_downarrow_name', 'downarrow')
 
-        self.desc_textbox = ctk.CTkTextbox(container, fg_color=self.tm.bg_sub(), border_width=1, border_color=self.tm.border_main(), text_color=self.tm.text_main(), font=(self.tm.main_font(), 13), corner_radius=8, height=100)
-        self.desc_textbox.pack(fill="x", padx=30, pady=(0, 20))
+        desc_frame = ctk.CTkFrame(container, fg_color="transparent")
+        desc_frame.pack(fill="x", padx=30, pady=(0, 20))
+        ctk.CTkLabel(desc_frame, text="Description", font=(self.tm.main_font(), 11), text_color=self.tm.text_sub()).pack(anchor="w")
+        self.desc_textbox = ctk.CTkTextbox(desc_frame, fg_color=self.tm.bg_sub(), border_width=1, border_color=self.tm.border_main(), text_color=self.tm.text_main(), font=(self.tm.main_font(), 13), corner_radius=8, height=100)
+        self.desc_textbox.pack(fill="x", pady=(5, 0))
         
         ctk.CTkLabel(container, text="Priority Level", font=(self.tm.main_font(), 14), text_color=self.tm.text_sub()).pack(pady=(5, 5))
         

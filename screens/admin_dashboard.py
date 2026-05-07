@@ -11,6 +11,10 @@ class AdminDashboard(ctk.CTkFrame):
         self.on_logout = on_logout
         self.db = DatabaseManager()
         
+        self.sort_order = "newer"  # Default: newest accounts first
+        self.search_query = ""  # Current search filter
+        self._cached_users = []  # Cache DB results to avoid round-trips on each keystroke
+        self._search_after_id = None  # Debounce timer ID
         self.setup_ui()
         self._render_id = 0  # Incremented on each load to cancel stale renders
         self.load_users()
@@ -22,9 +26,26 @@ class AdminDashboard(ctk.CTkFrame):
 
         ctk.CTkLabel(header_frame, text="Admin Portal", font=(self.tm.main_font(), 28, "bold"), text_color=self.tm.accent_color()).pack(side="left")
         
-        # Right side actions (Logout and Theme Toggle)
+        # Right side actions (Search, Theme Toggle, Logout)
         actions_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
         actions_frame.pack(side="right")
+        
+        # Search bar for filtering usernames
+        self.search_var = ctk.StringVar()
+        self.search_var.trace_add("write", self._on_search_changed)
+        
+        self.search_entry = ctk.CTkEntry(
+            actions_frame, placeholder_text="Search username...",
+            textvariable=self.search_var,
+            width=200, height=32, corner_radius=16,
+            fg_color=self.tm.bg_sub(),
+            border_width=2, border_color=self.tm.accent_color(),
+            text_color=self.tm.text_main(),
+            placeholder_text_color=self.tm.text_sub(),
+            font=(self.tm.main_font(), 12)
+        )
+        ctk.CTkLabel(actions_frame, text="Search Username", font=(self.tm.main_font(), 13, "bold"), text_color=self.tm.text_main()).pack(side="left", padx=(0, 5))
+        self.search_entry.pack(side="left", padx=(0, 15))
         
         theme_menu = ctk.CTkOptionMenu(
             actions_frame, values=["Light", "Dark", "System"],
@@ -41,24 +62,87 @@ class AdminDashboard(ctk.CTkFrame):
                       font=(self.tm.main_font(), 12, "bold"),
                       command=self.on_logout).pack(side="left")
 
-        # Intro text
-        ctk.CTkLabel(self, text="System User Metrics", font=(self.tm.main_font(), 16), text_color=self.tm.text_sub()).pack(anchor="w", padx=20, pady=(0, 10))
+        # Subheader row: "System User Metrics" label + Sort toggle
+        subheader_frame = ctk.CTkFrame(self, fg_color="transparent")
+        subheader_frame.pack(fill="x", padx=20, pady=(0, 10))
+        
+        ctk.CTkLabel(subheader_frame, text="System User Metrics", font=(self.tm.main_font(), 16), text_color=self.tm.text_sub()).pack(side="left")
+        
+        # Sort toggle button (styled like the deadline sort toggle)
+        self.sort_btn = ctk.CTkButton(
+            subheader_frame, text="Sort: Newer", width=130, height=32, corner_radius=16,
+            fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(),
+            hover_color=self.tm.accent_hover(),
+            font=(self.tm.main_font(), 13, "bold"),
+            command=self.toggle_sort
+        )
+        self.sort_btn.pack(side="left", padx=15)
 
         # Scrollable list for standard users
         self.scroll_frame = ctk.CTkScrollableFrame(self, fg_color="transparent", scrollbar_button_color=self.tm.bg_main(), scrollbar_button_hover_color=self.tm.text_sub())
         self.scroll_frame.pack(fill="both", expand=True, padx=15, pady=10)
 
+    def toggle_sort(self):
+        """Toggle between Newer (DESC) and Older (ASC) account ordering."""
+        if self.sort_order == "newer":
+            self.sort_order = "older"
+            self.sort_btn.configure(
+                text="Sort: Older",
+                fg_color="transparent",
+                text_color=self.tm.accent_color(),
+                border_width=2,
+                border_color=self.tm.accent_color()
+            )
+        else:
+            self.sort_order = "newer"
+            self.sort_btn.configure(
+                text="Sort: Newer",
+                fg_color=self.tm.accent_color(),
+                text_color=self.tm.accent_text(),
+                border_width=0
+            )
+        self.load_users()
+
+    def _on_search_changed(self, *args):
+        """Debounced search: waits 300ms after last keystroke before filtering."""
+        if self._search_after_id is not None:
+            self.after_cancel(self._search_after_id)
+        self._search_after_id = self.after(300, self._apply_search)
+    
+    def _apply_search(self):
+        """Actually apply the search filter after debounce."""
+        self._search_after_id = None
+        self.search_query = self.search_var.get().strip().lower()
+        self._render_from_cache()
+
     def load_users(self):
+        """Fetches fresh data from DB, caches it, then renders."""
+        self._cached_users = self.db.get_all_users_for_admin()
+        self._render_from_cache()
+
+    def _render_from_cache(self):
+        """Renders user list from cached data with current search/sort applied."""
         self._render_id += 1
         current_render = self._render_id
 
         for widget in self.scroll_frame.winfo_children():
             widget.destroy()
 
-        users = self.db.get_all_users_for_admin()
+        users = list(self._cached_users)
+        
+        # Apply search filter
+        if self.search_query:
+            users = [u for u in users if self.search_query in u['username'].lower()]
+        
+        # Apply sort order
+        if self.sort_order == "newer":
+            users.sort(key=lambda u: u.get('created_at', ''), reverse=True)
+        else:
+            users.sort(key=lambda u: u.get('created_at', ''), reverse=False)
         
         if not users:
-            ctk.CTkLabel(self.scroll_frame, text="No standard users registered in the system yet.", text_color=self.tm.text_sub()).pack(pady=30)
+            msg = f"No users found matching \"{self.search_var.get().strip()}\"." if self.search_query else "No standard users registered in the system yet."
+            ctk.CTkLabel(self.scroll_frame, text=msg, text_color=self.tm.text_sub(), font=(self.tm.main_font(), 14)).pack(pady=30)
             return
             
         self._render_user_chunk(users, 0, current_render)
