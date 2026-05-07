@@ -411,7 +411,7 @@ class TasksView(ctk.CTkFrame):
         ctk.CTkButton(btn_frame, text="+ Add Task", width=120, font=(self.tm.main_font(), 14, "bold"), fg_color=self.tm.accent_color(), text_color=self.tm.text_main(), command=self.add_task_text).pack(side="left", padx=(0, 5))
         
         # Voice Add Button
-        ctk.CTkButton(btn_frame, text="Voice AI", width=100, font=(self.tm.main_font(), 14, "bold"), fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover(), command=self.add_task_voice).pack(side="left")
+        ctk.CTkButton(btn_frame, text="Voice AI Beta", width=100, font=(self.tm.main_font(), 14, "bold"), fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover(), command=self.add_task_voice).pack(side="left")
 
         # Modern Filter Buttons
         self.filter_frame = ctk.CTkFrame(self, fg_color=self.tm.bg_card(), corner_radius=20, border_color=self.tm.border_main(), border_width=1)
@@ -503,35 +503,9 @@ class TasksView(ctk.CTkFrame):
         card = ctk.CTkFrame(self.scrollable_frame, fg_color=bg_color, border_color=self.tm.border_main(), border_width=2, corner_radius=10, height=65)
         card.pack(fill="x", pady=5)
         card.pack_propagate(False)
-        
-        # Task Name/Description Display
-        text_color = self.tm.text_sub() if is_done else self.tm.text_main()
-        display_text = task.get('name') or task.get('description', 'Unnamed Task')
-        lbl = ctk.CTkLabel(card, text=display_text, font=(self.tm.main_font(), 16, "bold"), text_color=text_color, justify="left", width=250, anchor="w")
-        lbl.pack(side="left", padx=15)
-        
-        # Description snippet
-        desc_text = task.get('description', '')
-        if len(desc_text) > 30: desc_text = desc_text[:30] + "..."
-        ctk.CTkLabel(card, text=desc_text, font=(self.tm.main_font(), 13), text_color=self.tm.text_sub(), width=250, anchor="w").pack(side="left", padx=10)
 
-        # Deadline Label
-        deadline_str = task.get('deadline')
-        if deadline_str:
-            ctk.CTkLabel(card, text=f"📅 {deadline_str}", font=(self.tm.main_font(), 13), text_color=self.tm.accent_color(), width=100, anchor="w").pack(side="left", padx=10)
-            if deadline_str < today and task.get('status', 'pending') == 'pending':
-                ctk.CTkLabel(card, text="Overdue", font=(self.tm.main_font(), 10, "bold"), text_color="#FFFFFF", fg_color=self.tm.error_color(), corner_radius=6, width=60, height=20).pack(side="left", padx=(0, 10))
-            else:
-                ctk.CTkFrame(card, fg_color="transparent", width=60, height=20).pack(side="left", padx=(0, 10)) # Spacer to maintain alignment
-        else:
-            ctk.CTkLabel(card, text=f"📅 No Deadline", font=(self.tm.main_font(), 13), text_color=self.tm.text_sub(), width=100, anchor="w").pack(side="left", padx=10)
-            ctk.CTkFrame(card, fg_color="transparent", width=60, height=20).pack(side="left", padx=(0, 10)) # Spacer
-
-        # Priority Indicator
-        prio_color = "#FF6B6B" if task['priority'] == 'High' else ("#EAB308" if task['priority'] == 'Medium' else "#22C55E")
-        ctk.CTkLabel(card, text=task['priority'], font=(self.tm.main_font(), 13, "bold"), text_color=prio_color, width=90, anchor="w").pack(side="left", padx=15)
-
-        # Actions
+        # --- Pack action buttons FIRST (side="right") to anchor them ---
+        # This guarantees buttons are always visible regardless of name length.
         act_frame = ctk.CTkFrame(card, fg_color="transparent")
         act_frame.pack(side="right", padx=15)
         
@@ -564,6 +538,32 @@ class TasksView(ctk.CTkFrame):
         ctk.CTkButton(act_frame, text="Delete", font=(self.tm.main_font(), 11, "bold"), width=60, height=24, corner_radius=8,
                       fg_color=self.tm.error_color(), text_color="#FFFFFF", hover_color=self.tm.error_hover(),
                       command=lambda t=task: self.delete_task(t)).pack(side="left", padx=5)
+
+        # --- Priority Indicator (packed right, before left content) ---
+        prio_color = "#FF6B6B" if task['priority'] == 'High' else ("#EAB308" if task['priority'] == 'Medium' else "#22C55E")
+        ctk.CTkLabel(card, text=task['priority'], font=(self.tm.main_font(), 13, "bold"), text_color=prio_color, width=70, anchor="w").pack(side="right", padx=(0, 5))
+
+        # --- Left-side content (fills remaining space) ---
+        # Task Name — truncated so it never overflows into the buttons
+        text_color = self.tm.text_sub() if is_done else self.tm.text_main()
+        display_text = task.get('name') or task.get('description', 'Unnamed Task')
+        if len(display_text) > 38:
+            display_text = display_text[:35] + "..."
+        ctk.CTkLabel(card, text=display_text, font=(self.tm.main_font(), 16, "bold"), text_color=text_color, justify="left", anchor="w").pack(side="left", padx=15)
+        
+        # Description snippet
+        desc_text = task.get('description', '')
+        if len(desc_text) > 30: desc_text = desc_text[:30] + "..."
+        ctk.CTkLabel(card, text=desc_text, font=(self.tm.main_font(), 13), text_color=self.tm.text_sub(), width=200, anchor="w").pack(side="left", padx=10)
+
+        # Deadline Label
+        deadline_str = task.get('deadline')
+        if deadline_str:
+            ctk.CTkLabel(card, text=f"📅 {deadline_str}", font=(self.tm.main_font(), 13), text_color=self.tm.accent_color(), width=100, anchor="w").pack(side="left", padx=10)
+            if deadline_str < today and task.get('status', 'pending') == 'pending':
+                ctk.CTkLabel(card, text="Overdue", font=(self.tm.main_font(), 10, "bold"), text_color="#FFFFFF", fg_color=self.tm.error_color(), corner_radius=6, width=60, height=20).pack(side="left", padx=(0, 5))
+        else:
+            ctk.CTkLabel(card, text="📅 No Deadline", font=(self.tm.main_font(), 13), text_color=self.tm.text_sub(), width=100, anchor="w").pack(side="left", padx=10)
 
     def add_task_text(self):
         # Open detailed CustomTkinter TopLevel UI

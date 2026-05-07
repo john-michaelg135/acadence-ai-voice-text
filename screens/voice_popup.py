@@ -14,6 +14,9 @@ class VoiceRecordingPopup(ctk.CTkToplevel):
         self.command_type = command_type
         self.is_listening = True
         self.stop_listening_func = None
+        # Guard flag: set True BEFORE super().destroy() so background threads
+        # never schedule new after() callbacks onto a mid-destruction window.
+        self._destroyed = False
         
         self.title("Voice Assistant")
         self.geometry("450x450")
@@ -35,6 +38,15 @@ class VoiceRecordingPopup(ctk.CTkToplevel):
         # Start continuous listening
         self.stop_listening_func = start_continuous_listening(self.on_phrase_transcribed)
         self.animate_wave()
+
+    def destroy(self):
+        """Override destroy to set the guard flag first, preventing race conditions."""
+        self._destroyed = True
+        self.is_listening = False
+        try:
+            super().destroy()
+        except Exception:
+            pass
 
     def setup_ui(self):
         self.container = ctk.CTkFrame(self, fg_color=self.tm.bg_card(), corner_radius=15)
@@ -83,9 +95,12 @@ class VoiceRecordingPopup(ctk.CTkToplevel):
                       command=self.on_confirm)
 
     def on_phrase_transcribed(self, text):
-        if self.winfo_exists() and self.is_listening:
-            # Append safely in the main thread
-            self.after(0, lambda: self._append_text(text))
+        # _destroyed guard prevents after() calls onto a mid-destruction window
+        if not self._destroyed and self.is_listening:
+            try:
+                self.after(0, lambda: self._append_text(text))
+            except Exception:
+                pass
             
     def _append_text(self, text):
         current = self.text_box.get("0.0", "end").strip()
@@ -95,16 +110,17 @@ class VoiceRecordingPopup(ctk.CTkToplevel):
             self.text_box.insert("end", text)
 
     def animate_wave(self):
-        if not self.is_listening or not self.winfo_exists():
-            for bar in self.bars:
-                bar.configure(height=6)
+        if self._destroyed or not self.is_listening:
             return
-            
-        for bar in self.bars:
-            new_h = random.randint(20, 110)
-            bar.configure(height=new_h)
-            
-        self.after(120, self.animate_wave)
+        try:
+            if not self.winfo_exists():
+                return
+            for bar in self.bars:
+                new_h = random.randint(20, 110)
+                bar.configure(height=new_h)
+            self.after(120, self.animate_wave)
+        except Exception:
+            pass
 
     def on_stop_speaking(self):
         self.is_listening = False
@@ -117,7 +133,10 @@ class VoiceRecordingPopup(ctk.CTkToplevel):
         
     def on_cancel(self):
         if self.stop_listening_func:
-            self.stop_listening_func(wait_for_stop=False)
+            try:
+                self.stop_listening_func(wait_for_stop=False)
+            except Exception:
+                pass
         self.destroy()
         
     def on_confirm(self):
@@ -138,6 +157,6 @@ class VoiceRecordingPopup(ctk.CTkToplevel):
         threading.Thread(target=parse_thread, daemon=True).start()
         
     def _finish_confirm(self, parsed_data):
-        if self.winfo_exists():
+        if not self._destroyed:
             self.destroy()
             self.on_complete_callback(parsed_data)

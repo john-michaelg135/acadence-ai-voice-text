@@ -199,7 +199,7 @@ class MoreView(ctk.CTkFrame):
         email_frame = ctk.CTkFrame(privacy_card, fg_color="transparent")
         email_frame.pack(anchor="w", padx=20, pady=(0, 20))
         
-        ctk.CTkLabel(email_frame, text="For questions, contact us at ", font=(self.tm.main_font(), 13), text_color=self.tm.text_sub()).pack(side="left")
+        ctk.CTkLabel(email_frame, text="For questions and concerns, contact us at ", font=(self.tm.main_font(), 13), text_color=self.tm.text_sub()).pack(side="left")
         
         email_lbl = ctk.CTkLabel(email_frame, text="aiyosui@gmail.com", font=(self.tm.main_font(), 13, "bold"), text_color=self.tm.accent_color(), cursor="hand2")
         email_lbl.pack(side="left")
