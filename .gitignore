@@ -10,6 +10,7 @@ database/acadence.db
 .env*
 document.txt
 Acadence_Security_Implementation_Report.docx
+CODE_REVIEW_REPORT.md
 __pycache__/
 *.pyc
 Acadence.spec
