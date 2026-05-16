@@ -157,17 +157,27 @@ class HistoryView(ctk.CTkFrame):
                 info_frame = ctk.CTkFrame(task_row, fg_color="transparent")
                 info_frame.pack(side="left", fill="x", expand=True, pady=10)
                 
-                ctk.CTkLabel(info_frame, text=task['name'], font=(self.tm.main_font(), 15, "bold"), text_color=self.tm.text_main(), anchor="w").pack(fill="x")
+                # Truncate name
+                display_name = task['name']
+                if len(display_name) > 35: display_name = display_name[:32] + "..."
+                
+                ctk.CTkLabel(info_frame, text=display_name, font=(self.tm.main_font(), 15, "bold"), text_color=self.tm.text_main(), anchor="w").pack(fill="x")
                 
                 sub_frame = ctk.CTkFrame(info_frame, fg_color="transparent")
                 sub_frame.pack(fill="x")
                 
+                # Use fixed widths for alignment
                 p_color = self.tm.error_color() if task['priority'] == 'High' else self.tm.warning_color() if task['priority'] == 'Medium' else self.tm.success_color()
-                ctk.CTkLabel(sub_frame, text=task['priority'], font=(self.tm.main_font(), 12, "bold"), text_color=p_color).pack(side="left", padx=(0, 15))
-                ctk.CTkLabel(sub_frame, text=task['subject_name'], font=(self.tm.main_font(), 12), text_color=self.tm.text_sub()).pack(side="left", padx=(0, 15))
+                ctk.CTkLabel(sub_frame, text=task['priority'], font=(self.tm.main_font(), 12, "bold"), text_color=p_color, width=60, anchor="w").pack(side="left")
+                
+                # Truncate subject
+                display_sub = task['subject_name']
+                if len(display_sub) > 20: display_sub = display_sub[:17] + "..."
+                
+                ctk.CTkLabel(sub_frame, text=display_sub, font=(self.tm.main_font(), 12), text_color=self.tm.text_sub(), width=140, anchor="w").pack(side="left", padx=10)
                 
                 if task.get('completed_at'):
-                    ctk.CTkLabel(sub_frame, text=f"🕒 {task['completed_at'][:16]}", font=(self.tm.main_font(), 11), text_color=self.tm.accent_color()).pack(side="left")
+                    ctk.CTkLabel(sub_frame, text=f"🕒 {task['completed_at'][:16]}", font=(self.tm.main_font(), 11), text_color=self.tm.accent_color(), width=140, anchor="w").pack(side="left")
                 
         # View All Button
         ctk.CTkButton(list_card, text="View All Completed Tasks", fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), 
@@ -179,4 +189,3 @@ class HistoryView(ctk.CTkFrame):
         for widget in self.winfo_children():
             widget.destroy()
         self.setup_ui()
-

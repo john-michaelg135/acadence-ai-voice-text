@@ -311,8 +311,8 @@ class AuthScreen(ctk.CTkFrame):
         if not username or not password:
             messagebox.showerror("Incomplete Form",
                 f"Please fill in all required fields:\n"
-                f"  Username: {'✓' if username else '✗'}\n"
-                f"  Password: {'✓' if password else '✗'}")
+                f"  Username: {'Filled' if username else 'Required'}\n"
+                f"  Password: {'Filled' if password else 'Required'}")
             return
 
         if len(username) < 3 or len(username) > 64:
@@ -343,10 +343,10 @@ class AuthScreen(ctk.CTkFrame):
         if not all([username, email, password, conf_pass]):
             messagebox.showerror("Incomplete Form",
                 f"Please fill in all required fields:\n"
-                f"  Username: {'✓' if username else '✗'}\n"
-                f"  Email: {'✓' if email else '✗'}\n"
-                f"  Password: {'✓' if password else '✗'}\n"
-                f"  Confirm: {'✓' if conf_pass else '✗'}")
+                f"  Username: {'Filled' if username else 'Required'}\n"
+                f"  Email: {'Filled' if email else 'Required'}\n"
+                f"  Password: {'Filled' if password else 'Required'}\n"
+                f"  Confirm: {'Filled' if conf_pass else 'Required'}")
             return
 
         if len(username) < 3 or len(username) > 64:

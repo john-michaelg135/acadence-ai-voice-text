@@ -48,17 +48,18 @@ Return ONLY valid JSON."""
         user_text_template = "Extract: [TEXT_HERE]"
     else:
         system_prompt = """Extract task information from user text and return ONLY a valid JSON object.
-Keys: "name", "description", "priority".
+Keys: "name", "description", "priority", "deadline", "time".
 NAME: Must be SHORT — only the task/activity name itself (2-5 words max). Do NOT include descriptions, details, or elaboration in the name.
 DESCRIPTION: All details, specifics, and elaboration go here. Rich, actionable, 1-2 sentences. If user provides details after the task name, put them here.
 PRIORITY: Must be 'High', 'Medium', or 'Low'. Default to 'Medium'.
+DEADLINE: If user mentions a date (like tomorrow, next week), output it as YYYY-MM-DD. If none, omit.
+TIME: If user mentions a time (like 5 PM, noon), output it as HH:MM AM/PM (e.g. "05:00 PM"). If none, omit.
 NUMBERS: Convert spelled-out numbers.
 Title Case the name, keep small words lowercase except at start.
 
 Examples:
-- Input: "performance task description is showcase presentation" → {"name": "Performance Task", "description": "Prepare and deliver a showcase presentation.", "priority": "Medium"}
+- Input: "performance task description is showcase presentation due tomorrow at 5 PM" → {"name": "Performance Task", "description": "Prepare and deliver a showcase presentation.", "priority": "Medium", "time": "05:00 PM"}
 - Input: "essay about climate change high priority" → {"name": "Essay", "description": "Write an essay about climate change.", "priority": "High"}
-- Input: "study chapter 5 math" → {"name": "Study Chapter 5", "description": "Review and study Chapter 5 of the math textbook.", "priority": "Medium"}
 Return ONLY valid JSON."""
         user_text_template = "Extract: [TEXT_HERE]"
     

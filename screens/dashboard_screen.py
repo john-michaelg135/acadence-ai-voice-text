@@ -47,7 +47,7 @@ class DashboardScreen(ctk.CTkFrame):
         # App Logo/Title
         ctk.CTkLabel(self.sidebar, text="Acadence", font=(self.tm.main_font(), 26, "bold"), text_color=self.tm.accent_color()).pack(pady=(40, 40))
         
-        nav_items = [("Home", "🏠"), ("Insights", "📈"), ("History", "🕒"), ("Subjects", "📂"), ("Settings", "⚙️")]
+        nav_items = [("Home", "🏠"), ("Insights", "📈"), ("History", "🕒"), ("Subjects", "📂"), ("Notifications", "🔔"), ("Settings", "⚙️")]
         self.nav_buttons = {}
         self.nav_indicators = {}
         
@@ -103,7 +103,7 @@ class DashboardScreen(ctk.CTkFrame):
             self._active_nav = view_name
 
         # Cache logic
-        cacheable_views = {"Subjects", "Insights", "History", "More"}
+        cacheable_views = {"Subjects", "Insights", "History", "Notifications", "More"}
         is_cacheable = internal_name in cacheable_views and not args and not kwargs
 
         # Hide or destroy current view
@@ -166,6 +166,9 @@ class DashboardScreen(ctk.CTkFrame):
         elif internal_name == "AllPending":
             from screens.all_pending_tasks_view import AllPendingTasksView
             return AllPendingTasksView(self.content_area, self.user_info, self.show_view)
+        elif internal_name == "Notifications":
+            from screens.notifications_view import NotificationsView
+            return NotificationsView(self.content_area, self.user_info, self.show_view)
         elif internal_name == "More":
             from screens.more_view import MoreView
             return MoreView(self.content_area, self.user_info, self.on_logout, self.reload_callback)

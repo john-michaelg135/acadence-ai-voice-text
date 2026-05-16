@@ -7,6 +7,8 @@ notes-considerations/
 #Ignore specific files such as test files and local db files
 read_excel.py
 database/acadence.db
+database/acadence.db-shm
+database/acadence.db-wal
 .env*
 document.txt
 Acadence_Security_Implementation_Report.docx

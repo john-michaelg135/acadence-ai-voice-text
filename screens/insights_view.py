@@ -107,7 +107,11 @@ class InsightsView(ctk.CTkFrame):
             left.pack(side="left", fill="x", expand=True, padx=15, pady=12)
             left.bind("<Button-1>", nav_cmd)
             
-            n_lbl = ctk.CTkLabel(left, text=task['name'], font=(self.tm.main_font(), 14, "bold"), text_color=self.tm.text_main(), anchor="w", cursor="hand2")
+            # Truncate task name
+            display_name = task['name']
+            if len(display_name) > 30: display_name = display_name[:27] + "..."
+            
+            n_lbl = ctk.CTkLabel(left, text=display_name, font=(self.tm.main_font(), 14, "bold"), text_color=self.tm.text_main(), anchor="w", cursor="hand2")
             n_lbl.pack(fill="x")
             n_lbl.bind("<Button-1>", nav_cmd)
             
@@ -115,17 +119,22 @@ class InsightsView(ctk.CTkFrame):
             sub.pack(fill="x")
             sub.bind("<Button-1>", nav_cmd)
             
-            p_lbl = ctk.CTkLabel(sub, text=task['priority'], font=(self.tm.main_font(), 12, "bold"), text_color=flag_color, cursor="hand2")
-            p_lbl.pack(side="left", padx=(0, 10))
+            # Use fixed widths for alignment
+            p_lbl = ctk.CTkLabel(sub, text=task['priority'], font=(self.tm.main_font(), 12, "bold"), text_color=flag_color, cursor="hand2", width=60, anchor="w")
+            p_lbl.pack(side="left")
             p_lbl.bind("<Button-1>", nav_cmd)
             
-            s_lbl = ctk.CTkLabel(sub, text=task['subject_name'], font=(self.tm.main_font(), 12), text_color=self.tm.text_sub(), cursor="hand2")
-            s_lbl.pack(side="left", padx=(0, 10))
+            # Truncate subject name - More aggressive to fit layout
+            display_sub = task['subject_name']
+            if len(display_sub) > 18: display_sub = display_sub[:15] + "..."
+            
+            s_lbl = ctk.CTkLabel(sub, text=display_sub, font=(self.tm.main_font(), 12), text_color=self.tm.text_sub(), cursor="hand2", width=120, anchor="w")
+            s_lbl.pack(side="left", padx=10)
             s_lbl.bind("<Button-1>", nav_cmd)
             
             deadline_str = task.get('deadline')
             if deadline_str:
-                d_lbl = ctk.CTkLabel(sub, text=f"📅 {deadline_str}", font=(self.tm.main_font(), 12), text_color=self.tm.accent_color(), cursor="hand2")
+                d_lbl = ctk.CTkLabel(sub, text=f"📅 {deadline_str}", font=(self.tm.main_font(), 12), text_color=self.tm.accent_color(), cursor="hand2", width=120, anchor="w")
                 d_lbl.pack(side="left")
                 d_lbl.bind("<Button-1>", nav_cmd)
                 
