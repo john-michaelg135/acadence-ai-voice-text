@@ -152,10 +152,10 @@ class AllPendingTasksView(ctk.CTkFrame):
             ctk.CTkLabel(self.scroll, text=msg, font=(self.tm.main_font(), 14, "italic"), text_color=self.tm.text_sub()).pack(pady=40)
             return
             
-        today = datetime.today().strftime('%Y-%m-%d')
-        self._render_pending_chunk(tasks, 0, today, current_render)
+        now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
+        self._render_pending_chunk(tasks, 0, now_str, current_render)
 
-    def _render_pending_chunk(self, tasks, index, today, render_id, chunk_size=15):
+    def _render_pending_chunk(self, tasks, index, now_str, render_id, chunk_size=15):
         """Renders pending task cards in chunks to prevent UI freezing."""
         if render_id != self._render_id:
             return
@@ -164,12 +164,12 @@ class AllPendingTasksView(ctk.CTkFrame):
             
         end = min(index + chunk_size, len(tasks))
         for i in range(index, end):
-            self._create_task_card(tasks[i], today)
+            self._create_task_card(tasks[i], now_str)
             
         if end < len(tasks):
-            self.after(10, lambda: self._render_pending_chunk(tasks, end, today, render_id, chunk_size))
+            self.after(10, lambda: self._render_pending_chunk(tasks, end, now_str, render_id, chunk_size))
 
-    def _create_task_card(self, task, today):
+    def _create_task_card(self, task, now_str):
         card = ctk.CTkFrame(self.scroll, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=2, corner_radius=10, height=65)
         card.pack(fill="x", padx=10, pady=5)
         card.pack_propagate(False)
@@ -226,7 +226,11 @@ class AllPendingTasksView(ctk.CTkFrame):
         if deadline_str:
             deadline_lbl = ctk.CTkLabel(sub, text=f"📅 {deadline_str}", font=(self.tm.main_font(), 11), text_color=self.tm.accent_color(), width=120, anchor="w")
             deadline_lbl.pack(side="left", padx=10)
-            if deadline_str < today:
+            
+            # If deadline is date-only, assume it's due at end of day (23:59) for overdue calculation
+            compare_deadline = deadline_str if len(deadline_str) > 10 else deadline_str + " 23:59"
+            
+            if compare_deadline < now_str:
                 overdue_lbl = ctk.CTkLabel(sub, text="Overdue", font=(self.tm.main_font(), 10, "bold"), text_color="#FFFFFF", fg_color=self.tm.error_color(), corner_radius=6, width=60, height=20)
                 overdue_lbl.pack(side="left")
 

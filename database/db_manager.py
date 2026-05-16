@@ -84,6 +84,8 @@ class DatabaseManager:
                         ("ALTER TABLE users ADD COLUMN recent_login_duration INTEGER DEFAULT 0", "recent_login_duration"),
                         ("ALTER TABLE users ADD COLUMN has_seen_walkthrough BOOLEAN DEFAULT 0", "has_seen_walkthrough"),
                         ("ALTER TABLE tasks ADD COLUMN completed_at TIMESTAMP", "completed_at"),
+                        ("ALTER TABLE users ADD COLUMN notification_preferences TEXT", "notification_preferences"),
+                        ("ALTER TABLE users ADD COLUMN theme_preferences TEXT", "theme_preferences"),
                     ]
                     
                     for migration_sql, description in migrations:
@@ -232,6 +234,52 @@ class DatabaseManager:
         with self._db_lock:
             with self.get_connection() as conn:
                 conn.execute("UPDATE users SET has_seen_walkthrough = 1 WHERE id = ?", (user_id,))
+
+    def save_notification_preferences(self, user_id: int, settings: dict) -> None:
+        """Saves notification preferences as JSON for a specific user."""
+        import json
+        settings_json = json.dumps(settings)
+        with self._db_lock:
+            with self.get_connection() as conn:
+                conn.execute("UPDATE users SET notification_preferences = ? WHERE id = ?", (settings_json, user_id))
+
+    def get_notification_preferences(self, user_id: int) -> Optional[dict]:
+        """Returns notification preferences for a user, or None if not set."""
+        import json
+        with self._db_lock:
+            with self.get_connection() as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT notification_preferences FROM users WHERE id = ?", (user_id,))
+                row = cur.fetchone()
+                if row and row[0]:
+                    try:
+                        return json.loads(row[0])
+                    except Exception:
+                        return None
+                return None
+
+    def save_theme_preferences(self, user_id: int, settings: dict) -> None:
+        """Saves theme and appearance preferences as JSON for a specific user."""
+        import json
+        settings_json = json.dumps(settings)
+        with self._db_lock:
+            with self.get_connection() as conn:
+                conn.execute("UPDATE users SET theme_preferences = ? WHERE id = ?", (settings_json, user_id))
+
+    def get_theme_preferences(self, user_id: int) -> Optional[dict]:
+        """Returns theme and appearance preferences for a user, or None if not set."""
+        import json
+        with self._db_lock:
+            with self.get_connection() as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT theme_preferences FROM users WHERE id = ?", (user_id,))
+                row = cur.fetchone()
+                if row and row[0]:
+                    try:
+                        return json.loads(row[0])
+                    except Exception:
+                        return None
+                return None
 
     def disable_user(self, user_id: int) -> None:
         with self._db_lock:
