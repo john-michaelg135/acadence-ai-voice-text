@@ -95,7 +95,7 @@ class InsightsView(ctk.CTkFrame):
             ctk.CTkLabel(card, text=empty_text, font=(self.tm.main_font(), 14), text_color=self.tm.text_sub()).pack(pady=(20, 40))
             return
 
-        today = datetime.today().strftime('%Y-%m-%d')  # Computed once for all cards
+        now_str = datetime.now().strftime('%Y-%m-%d %H:%M')  # Computed once for all cards
         for task in tasks:
             row = ctk.CTkFrame(card, fg_color=self.tm.bg_sub(), corner_radius=10, cursor="hand2")
             row.pack(fill="x", padx=20, pady=5)
@@ -138,7 +138,10 @@ class InsightsView(ctk.CTkFrame):
                 d_lbl.pack(side="left")
                 d_lbl.bind("<Button-1>", nav_cmd)
                 
-                if deadline_str < today and task.get('status', 'pending') == 'pending':
+                # If deadline is date-only, assume it's due at end of day (23:59) for overdue calculation
+                compare_deadline = deadline_str if len(deadline_str) > 10 else deadline_str + " 23:59"
+                
+                if compare_deadline < now_str and task.get('status', 'pending') == 'pending':
                     overdue_lbl = ctk.CTkLabel(sub, text="Overdue", font=(self.tm.main_font(), 10, "bold"), text_color="#FFFFFF", fg_color=self.tm.error_color(), corner_radius=6, width=60, height=20)
                     overdue_lbl.pack(side="left", padx=(10, 0))
                     overdue_lbl.bind("<Button-1>", nav_cmd)

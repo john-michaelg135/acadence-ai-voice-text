@@ -303,24 +303,13 @@ class SubjectsView(ctk.CTkFrame):
         # Force 3 uniform columns so cards don't expand infinitely when there are < 3 subjects
         grid_container.grid_columnconfigure((0, 1, 2), weight=1, uniform="card_col")
         
-        # Render first batch immediately, then chunk the rest
-        self._render_subject_chunk(grid_container, subjects, 0, columns, current_render)
-
-    def _render_subject_chunk(self, grid_container, subjects, index, columns, render_id, chunk_size=9):
-        """Renders subject cards in chunks (3 rows at a time in a 3-col grid)."""
-        if render_id != self._render_id:
-            return
-        if not self.winfo_exists():
-            return
-
-        end = min(index + chunk_size, len(subjects))
-        for i in range(index, end):
+        # Render all subjects immediately to avoid pop-in animation
+        for i, subject in enumerate(subjects):
             row = i // columns
             col = i % columns
-            self.create_subject_card(grid_container, subjects[i], row, col)
+            self.create_subject_card(grid_container, subject, row, col)
 
-        if end < len(subjects):
-            self.after(10, lambda: self._render_subject_chunk(grid_container, subjects, end, columns, render_id, chunk_size))
+
 
     def create_subject_card(self, parent, subject, row, col):
         card = ctk.CTkFrame(parent, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=2, corner_radius=15, width=280)
@@ -430,11 +419,21 @@ class SubjectsView(ctk.CTkFrame):
     def edit_subject(self, subject):
         EditSubjectPopup(self.winfo_toplevel(), self.db, subject, self.load_subjects)
 
+    def _check_subject_limit(self):
+        subjects = self.db.get_subjects(self.user_id)
+        if len(subjects) >= 12:
+            messagebox.showwarning("Limit Reached", "You can only add up to 12 subjects max.\nPlease delete an existing subject to add a new one.")
+            return False
+        return True
+
     def add_subject_text(self):
         if not self.user_id:
             messagebox.showinfo("Guest", "You need to log in to save subjects.")
             return
             
+        if not self._check_subject_limit():
+            return
+
         # Open detailed CustomTkinter TopLevel UI
         AddSubjectPopup(self.winfo_toplevel(), self.db, self.user_id, self.load_subjects)
 
@@ -443,6 +442,9 @@ class SubjectsView(ctk.CTkFrame):
             messagebox.showinfo("Guest", "You need to log in to save subjects.")
             return
             
+        if not self._check_subject_limit():
+            return
+
         from screens.voice_popup import VoiceRecordingPopup
         
         def on_transcribed(parsed_data):

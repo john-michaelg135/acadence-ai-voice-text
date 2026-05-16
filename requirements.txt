@@ -11,3 +11,5 @@ openpyxl
 g4f
 openai-whisper
 setuptools-rust
+plyer
+win11toast

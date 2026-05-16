@@ -43,9 +43,18 @@ class MoreView(ctk.CTkFrame):
         
         self.mode_buttons = {}
         
+        def _save_theme():
+            from utils.session_manager import save_theme_settings
+            settings = {
+                "appearance_mode": ctk.get_appearance_mode(),
+                "accent_color": self.tm.current_accent
+            }
+            save_theme_settings(settings, user_id=self.user_info.get('id') if self.user_info else None)
+
         def toggle_mode(v):
             ctk.set_appearance_mode(v)
             self.update_mode_buttons(v)
+            _save_theme()
             
         for m_val in ["Light", "Dark", "System"]:
             btn = ctk.CTkButton(
@@ -71,6 +80,7 @@ class MoreView(ctk.CTkFrame):
         
         def change_accent(val):
             self.tm.set_accent(val)
+            _save_theme()
             self.reload_callback() # Rebuild the whole UI using the new color scheme
             
         self.accent_menu = ctk.CTkOptionMenu(accent_frame, values=self.tm.get_theme_names(),
@@ -80,13 +90,127 @@ class MoreView(ctk.CTkFrame):
                                         font=(self.tm.main_font(), 13), dropdown_font=(self.tm.main_font(), 13))
         self.accent_menu.pack(side="right")
         
-        # 2. About Card
+        # 2. Notification Preferences Card
+        notif_card = ctk.CTkFrame(scroll, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=2, corner_radius=15)
+        notif_card.pack(fill="x", pady=15, padx=10)
+        
+        ctk.CTkLabel(notif_card, text="Notification Preferences", font=(self.tm.main_font(), 18, "bold"), text_color=self.tm.text_main()).pack(anchor="w", padx=20, pady=(15, 10))
+        
+        from utils.session_manager import get_notification_settings, save_notification_settings
+        current_settings = get_notification_settings(user_id=self.user_info.get('id'))
+        
+        # Master Toggle
+        toggle_frame = ctk.CTkFrame(notif_card, fg_color="transparent")
+        toggle_frame.pack(fill="x", padx=20, pady=10)
+        
+        toggle_info = ctk.CTkFrame(toggle_frame, fg_color="transparent")
+        toggle_info.pack(side="left")
+        ctk.CTkLabel(toggle_info, text="System Notifications", font=(self.tm.main_font(), 15, "bold"), text_color=self.tm.text_main()).pack(anchor="w")
+        ctk.CTkLabel(toggle_info, text="Receive Windows desktop alerts for your tasks.", font=(self.tm.main_font(), 12), text_color=self.tm.text_sub()).pack(anchor="w")
+        
+        self._notif_enabled_var = ctk.BooleanVar(value=current_settings.get("enabled", True))
+        
+        def on_toggle_change():
+            self._save_notif_settings()
+            
+        def create_segment_toggle(parent, boolean_var):
+            toggle_bg = ctk.CTkFrame(parent, fg_color=self.tm.bg_sub(), corner_radius=16)
+            toggle_bg.pack(side="right")
+            
+            btn_on = ctk.CTkButton(toggle_bg, text="ON", width=50, height=26, corner_radius=13, font=(self.tm.main_font(), 11, "bold"))
+            btn_off = ctk.CTkButton(toggle_bg, text="OFF", width=50, height=26, corner_radius=13, font=(self.tm.main_font(), 11, "bold"))
+            
+            btn_on.pack(side="left", padx=2, pady=2)
+            btn_off.pack(side="left", padx=2, pady=2)
+            
+            def update_ui(val, b_on=btn_on, b_off=btn_off):
+                if val:
+                    b_on.configure(fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover())
+                    b_off.configure(fg_color="transparent", text_color=self.tm.text_sub(), hover_color=self.tm.border_main())
+                else:
+                    b_off.configure(fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover())
+                    b_on.configure(fg_color="transparent", text_color=self.tm.text_sub(), hover_color=self.tm.border_main())
+                    
+            def set_val(val, var=boolean_var, b_on=btn_on, b_off=btn_off):
+                var.set(val)
+                update_ui(val, b_on, b_off)
+                on_toggle_change()
+                
+            btn_on.configure(command=lambda: set_val(True))
+            btn_off.configure(command=lambda: set_val(False))
+            
+            update_ui(boolean_var.get())
+            
+        create_segment_toggle(toggle_frame, self._notif_enabled_var)
+        
+        # Persistent Toggle
+        persist_frame = ctk.CTkFrame(notif_card, fg_color="transparent")
+        persist_frame.pack(fill="x", padx=20, pady=5)
+        ctk.CTkLabel(persist_frame, text="Persistent Notifications", font=(self.tm.main_font(), 14), text_color=self.tm.text_main()).pack(side="left")
+        
+        self._notif_persist_var = ctk.BooleanVar(value=current_settings.get("persistent", True))
+        create_segment_toggle(persist_frame, self._notif_persist_var)
+        
+        # Group Notifications Toggle
+        group_frame = ctk.CTkFrame(notif_card, fg_color="transparent")
+        group_frame.pack(fill="x", padx=20, pady=5)
+        ctk.CTkLabel(group_frame, text="Group Notifications", font=(self.tm.main_font(), 14), text_color=self.tm.text_main()).pack(side="left")
+        
+        self._notif_group_var = ctk.BooleanVar(value=current_settings.get("group_notifications", False))
+        create_segment_toggle(group_frame, self._notif_group_var)
+        
+        ctk.CTkFrame(notif_card, height=1, fg_color=self.tm.border_main()).pack(fill="x", padx=20, pady=10)
+        
+        # Advance Notice by Priority (Dropdowns 0-7 days)
+        ctk.CTkLabel(notif_card, text="Advance Notice by Priority", font=(self.tm.main_font(), 14, "bold"), text_color=self.tm.text_main()).pack(anchor="w", padx=20, pady=(10, 5))
+        ctk.CTkLabel(notif_card, text="How many days before the deadline should you be notified?", font=(self.tm.main_font(), 12), text_color=self.tm.text_sub()).pack(anchor="w", padx=20, pady=(0, 10))
+        
+        advance_options = ["Due day only", "1 day before", "2 days before", "3 days before", "4 days before", "5 days before", "6 days before", "7 days before"]
+        advance_to_val = {opt: i for i, opt in enumerate(advance_options)}
+        val_to_advance = {i: opt for i, opt in enumerate(advance_options)}
+        
+        def make_advance_row(parent, label_text, setting_key, default_val):
+            row = ctk.CTkFrame(parent, fg_color="transparent")
+            row.pack(fill="x", padx=20, pady=6)
+            
+            ctk.CTkLabel(row, text=label_text, font=(self.tm.main_font(), 14), text_color=self.tm.text_main(), width=160, anchor="w").pack(side="left")
+            
+            current_val = current_settings.get(setting_key, default_val)
+            display_val = val_to_advance.get(current_val, "Due day only")
+            
+            var = ctk.StringVar(value=display_val)
+            
+            def on_change(val):
+                on_toggle_change()
+            
+            menu = ctk.CTkOptionMenu(
+                row, values=advance_options, variable=var, command=on_change,
+                fg_color=self.tm.accent_color(), button_color=self.tm.accent_hover(),
+                button_hover_color=self.tm.accent_color(), text_color=self.tm.accent_text(),
+                font=(self.tm.main_font(), 13), dropdown_font=(self.tm.main_font(), 13), width=160
+            )
+            menu.pack(side="right")
+            return var
+        
+        self._high_advance_var = make_advance_row(notif_card, "🔴 High Priority", "high_advance_days", 2)
+        self._med_advance_var = make_advance_row(notif_card, "🟡 Medium Priority", "medium_advance_days", 1)
+        self._low_advance_var = make_advance_row(notif_card, "🟢 Low Priority", "low_advance_days", 0)
+        
+        # Store mappings for the save method
+        self._advance_to_val = advance_to_val
+        
+        ctk.CTkFrame(notif_card, fg_color="transparent", height=10).pack()
+
+
+
+        
+        # 3. About Card
         about_card = ctk.CTkFrame(scroll, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=2, corner_radius=15)
         about_card.pack(fill="x", pady=15, padx=10)
         
         ctk.CTkLabel(about_card, text="About Acadence", font=(self.tm.main_font(), 18, "bold"), text_color=self.tm.text_main()).pack(anchor="w", padx=20, pady=(15, 5))
         
-        ctk.CTkLabel(about_card, text="Version 1.1.0", font=(self.tm.main_font(), 12, "bold"), text_color=self.tm.accent_color()).pack(anchor="w", padx=20)
+        ctk.CTkLabel(about_card, text="Version 1.2.0", font=(self.tm.main_font(), 12, "bold"), text_color=self.tm.accent_color()).pack(anchor="w", padx=20)
         
         desc = (
             "Acadence AI Voice to Text Tracker is an advanced academic management tool built to redefine how students and professionals "
@@ -211,3 +335,25 @@ class MoreView(ctk.CTkFrame):
                 btn.configure(fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover())
             else:
                 btn.configure(fg_color="transparent", text_color=self.tm.text_sub(), hover_color=self.tm.border_main())
+
+    def _save_notif_settings(self):
+        """Saves notification preferences and live-updates the running scheduler."""
+        from utils.session_manager import save_notification_settings
+
+        settings = {
+            "enabled": self._notif_enabled_var.get(),
+            "persistent": self._notif_persist_var.get(),
+            "group_notifications": self._notif_group_var.get(),
+            "high_advance_days": self._advance_to_val.get(self._high_advance_var.get(), 2),
+            "medium_advance_days": self._advance_to_val.get(self._med_advance_var.get(), 1),
+            "low_advance_days": self._advance_to_val.get(self._low_advance_var.get(), 0),
+        }
+        save_notification_settings(settings, user_id=self.user_info.get('id'))
+
+        # Live-update the running scheduler
+        try:
+            from utils.notification_scheduler import NotificationScheduler
+            scheduler = NotificationScheduler()
+            scheduler.update_settings(settings)
+        except Exception:
+            pass

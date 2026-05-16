@@ -12,7 +12,7 @@ class PlaceholderView(ctk.CTkFrame):
         ctk.CTkLabel(self, text=title, font=(tm.main_font(), 24, "bold"), text_color=tm.text_main()).pack(expand=True)
 
 class DashboardScreen(ctk.CTkFrame):
-    def __init__(self, master, user_info, on_logout, reload_callback):
+    def __init__(self, master, user_info, on_logout, reload_callback, initial_view="Home"):
         self.tm = ThemeManager()
         super().__init__(master, fg_color=self.tm.bg_sub())
         self.user_info = user_info
@@ -24,7 +24,7 @@ class DashboardScreen(ctk.CTkFrame):
         self._view_cache = {}
         self._active_nav = None
         self.setup_ui()
-        self.show_view("Home")
+        self.show_view(initial_view)
         
         # Trigger walkthrough if not seen
         if not self.user_info.get("has_seen_walkthrough"):
@@ -135,7 +135,10 @@ class DashboardScreen(ctk.CTkFrame):
 
         self.current_view = new_view
         self.current_view.pack(fill="both", expand=True)
-        self._do_page_transition()
+        
+        # Skip animation for Subjects page per user request
+        if internal_name != "Subjects":
+            self._do_page_transition()
 
     def _do_page_transition(self):
         """Left-to-right slide-in transition for the content area."""
