@@ -121,7 +121,8 @@ class DashboardScreen(ctk.CTkFrame):
             if hasattr(self.current_view, "refresh"):
                 self.current_view.refresh()
             self.current_view.pack(fill="both", expand=True)
-            self._do_page_transition()
+            if internal_name != "Subjects":
+                self._do_page_transition()
             return
 
         # Build new view

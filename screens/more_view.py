@@ -315,7 +315,7 @@ class MoreView(ctk.CTkFrame):
             "3. Data Usage: To securely store and manage your tasks. To enhance functionality and provide insights into your progress.\n\n"
             "4. Data Sharing: We do not sell or share your data, except when required by law or for app functionality.\n\n"
             "5. Security: Data is stored securely, and users are responsible for protecting their account credentials.\n\n"
-            "6. Your Rights: You have the ability to access, update, or delete your data at any time. If you choose to delete your account, all stored information will be erased.\n\n"
+            "6. Your Rights: You have the ability to access, edit, and update your data at any time. If your account is inactive for a period of 21 days, we reserve the right to delete your account and all stored information will be erased.\n\n"
             "7. Policy Updates: Changes to this policy will be communicated here."
         )
         ctk.CTkLabel(privacy_card, text=privacy_text, font=(self.tm.main_font(), 13), text_color=self.tm.text_sub(), wraplength=800, justify="left").pack(anchor="w", padx=20, pady=(10, 5))

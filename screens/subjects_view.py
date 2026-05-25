@@ -255,6 +255,7 @@ class SubjectsView(ctk.CTkFrame):
         self.db = DatabaseManager()
         self.user_id = self.user_info['id'] if self.user_info else None
         self._render_id = 0  # Incremented on each load to cancel stale renders
+        self._last_subjects = None  # Cache list of subjects to avoid redrawing widgets if they haven't changed
         
         self.setup_ui()
         self.load_subjects()
@@ -285,13 +286,23 @@ class SubjectsView(ctk.CTkFrame):
         current_render = self._render_id
 
         if not self.user_id:
+            for widget in self.scrollable_frame.winfo_children():
+                widget.destroy()
             ctk.CTkLabel(self.scrollable_frame, text="Guest users cannot save subjects permanently yet.", text_color=self.tm.text_sub()).pack(pady=20)
             return
+
+        subjects = self.db.get_subjects(self.user_id)
+        
+        # Check if the list of subjects has actually changed since the last load.
+        # This prevents destroying and recreating dozens of complex CustomTkinter widgets 
+        # when the user is simply navigating back and forth between tabs without modifying any subjects.
+        if self._last_subjects is not None and self._last_subjects == subjects:
+            return
+        self._last_subjects = subjects
 
         for widget in self.scrollable_frame.winfo_children():
             widget.destroy()
 
-        subjects = self.db.get_subjects(self.user_id)
         if not subjects:
             ctk.CTkLabel(self.scrollable_frame, text="No subjects found. Add one!", font=(self.tm.main_font(), 16), text_color=self.tm.text_sub()).pack(pady=20)
             return

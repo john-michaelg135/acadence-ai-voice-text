@@ -215,8 +215,55 @@ class AddTaskPopup(ctk.CTkToplevel):
         if self.submitted: return
         self.submitted = True
         
-        self.db.add_task(self.subject_id, name, desc, deadline, priority=prio)
+        task_id = self.db.add_task(self.subject_id, name, desc, deadline, priority=prio)
         self.on_success()
+        
+        # Async AI Generation
+        import threading
+        from utils.ai_parser import _check_online, is_research_task, generate_research_references, generate_task_tips
+        import os
+        import sys
+
+        def generate_attachment_async():
+            if not _check_online():
+                self.after(0, lambda: messagebox.showinfo("Offline", "AI Attachment generation is unavailable while offline.", parent=self.master))
+                return
+            
+            is_research = is_research_task(name, desc)
+            if is_research:
+                content = generate_research_references(name, desc)
+            else:
+                content = generate_task_tips(name, desc)
+                
+            if content:
+                # Save to database/attachments
+                if getattr(sys, 'frozen', False):
+                    base_dir = os.path.join(os.path.dirname(sys.executable), 'database', 'attachments')
+                else:
+                    base_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'database', 'attachments')
+                
+                os.makedirs(base_dir, exist_ok=True)
+                file_path = os.path.join(base_dir, f"{task_id}_ai_attachment.txt")
+                
+                try:
+                    with open(file_path, "w", encoding="utf-8") as f:
+                        f.write(content)
+                        
+                    def apply_update():
+                        try:
+                            self.db.update_task_attachment(task_id, file_path)
+                            self.on_success()
+                            from utils.notification_manager import NotificationManager
+                            NotificationManager.send("AI Attachment Ready", f"The AI attachment for '{name}' has been generated successfully.")
+                        except Exception as e:
+                            pass
+                            
+                    if self.master and self.master.winfo_exists():
+                        self.master.after(0, apply_update)
+                except Exception as e:
+                    pass
+                    
+        threading.Thread(target=generate_attachment_async, daemon=True).start()
         
         # Safe destruction
         self.grab_release()
@@ -435,7 +482,69 @@ class EditTaskPopup(ctk.CTkToplevel):
         self.submitted = True
         
         self.db.update_task(self.task_data['id'], name, desc, deadline, prio)
-        self.on_success()
+        
+        from utils.ai_parser import _check_online
+        will_regenerate = False
+        if _check_online():
+            # parent=self ensures the prompt appears on top of the EditTaskPopup window
+            if messagebox.askyesno("Regenerate AI Attachment", "Would you like to generate a new AI attachment based on these edits?", parent=self):
+                will_regenerate = True
+                
+                # Delete old attachment ONLY if they choose to regenerate
+                old_attachment = self.task_data.get('attachment_path')
+                if old_attachment:
+                    import os
+                    try:
+                        if os.path.exists(old_attachment):
+                            os.remove(old_attachment)
+                        self.db.update_task_attachment(self.task_data['id'], None)
+                        self.task_data['attachment_path'] = None
+                    except Exception as e:
+                        pass
+                        
+                import threading
+                from utils.ai_parser import is_research_task, generate_research_references, generate_task_tips
+                import os
+                import sys
+                
+                def regenerate_attachment_async():
+                    is_research = is_research_task(name, desc)
+                    if is_research:
+                        content = generate_research_references(name, desc)
+                    else:
+                        content = generate_task_tips(name, desc)
+                        
+                    if content:
+                        if getattr(sys, 'frozen', False):
+                            base_dir = os.path.join(os.path.dirname(sys.executable), 'database', 'attachments')
+                        else:
+                            base_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'database', 'attachments')
+                        
+                        os.makedirs(base_dir, exist_ok=True)
+                        file_path = os.path.join(base_dir, f"{self.task_data['id']}_ai_attachment.txt")
+                        
+                        try:
+                            with open(file_path, "w", encoding="utf-8") as f:
+                                f.write(content)
+                                
+                            def apply_update():
+                                try:
+                                    self.db.update_task_attachment(self.task_data['id'], file_path)
+                                    self.on_success()
+                                    from utils.notification_manager import NotificationManager
+                                    NotificationManager.send("AI Attachment Ready", f"The new AI attachment for '{name}' is ready.")
+                                except Exception as e:
+                                    pass
+                                    
+                            if self.master and self.master.winfo_exists():
+                                self.master.after(0, apply_update)
+                        except Exception as e:
+                            pass
+                            
+                threading.Thread(target=regenerate_attachment_async, daemon=True).start()
+                
+        if not will_regenerate:
+            self.on_success()
         
         # Safe destruction
         self.grab_release()
@@ -518,6 +627,52 @@ class TaskDetailsPopup(ctk.CTkToplevel):
         desc_box.pack(fill="x", pady=(0, 10))
         desc_box.insert("0.0", desc)
         desc_box.configure(state="disabled") # read-only
+        
+        # AI Attachment Section
+        attachment_path = self.task_data.get('attachment_path')
+        if attachment_path:
+            import os
+            import sys
+            # Dynamic path resolution in case the application folder was moved or is running as a built executable
+            if not os.path.exists(attachment_path):
+                filename = os.path.basename(attachment_path)
+                if getattr(sys, 'frozen', False):
+                    base_dir = os.path.join(os.path.dirname(sys.executable), 'database', 'attachments')
+                else:
+                    base_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'database', 'attachments')
+                fallback_path = os.path.join(base_dir, filename)
+                if os.path.exists(fallback_path):
+                    attachment_path = fallback_path
+                    
+            if os.path.exists(attachment_path):
+                att_lbl = ctk.CTkLabel(content, text="AI Attachment", font=(self.tm.main_font(), 14, "bold"), text_color=self.tm.text_sub())
+                att_lbl.pack(anchor="w", pady=(10, 5))
+                
+                att_frame = ctk.CTkFrame(content, fg_color=self.tm.bg_sub(), corner_radius=8, border_color=self.tm.accent_color(), border_width=1)
+                att_frame.pack(fill="x", pady=(0, 10))
+                
+                ctk.CTkLabel(att_frame, text="📎 AI Generated Reference", font=(self.tm.main_font(), 13, "bold"), text_color=self.tm.text_main()).pack(side="left", padx=15, pady=10)
+                
+                def download_attachment():
+                    from tkinter import filedialog
+                    import shutil
+                    save_path = filedialog.asksaveasfilename(
+                        defaultextension=".txt",
+                        filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")],
+                        initialfile=f"Task_{self.task_data.get('id', 'AI')}_Attachment.txt",
+                        title="Save AI Attachment",
+                        parent=self
+                    )
+                    if save_path:
+                        try:
+                            shutil.copy2(attachment_path, save_path)
+                            messagebox.showinfo("Success", "Attachment saved successfully!", parent=self)
+                        except Exception as e:
+                            messagebox.showerror("Error", f"Failed to save: {e}", parent=self)
+                            
+                ctk.CTkButton(att_frame, text="Download", font=(self.tm.main_font(), 12, "bold"), fg_color=self.tm.accent_color(), 
+                              text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover(), width=80, height=28, corner_radius=14,
+                              command=download_attachment).pack(side="right", padx=15, pady=10)
         
         # Actions
         actions_frame = ctk.CTkFrame(container, fg_color="transparent")
@@ -718,8 +873,8 @@ class TasksView(ctk.CTkFrame):
         display_text = task.get('name') or task.get('description', 'Unnamed Task')
         if len(display_text) > 38:
             display_text = display_text[:35] + "..."
-        name_lbl = ctk.CTkLabel(card, text=display_text, font=(self.tm.main_font(), 16, "bold"), text_color=text_color, justify="left", anchor="w")
-        name_lbl.pack(side="left", padx=15)
+        name_lbl = ctk.CTkLabel(card, text=display_text, font=(self.tm.main_font(), 16, "bold"), text_color=text_color, justify="left", anchor="w", width=300)
+        name_lbl.pack(side="left", padx=(20, 30))
         
         # Deadline Label
         deadline_lbl = None

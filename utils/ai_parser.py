@@ -264,3 +264,183 @@ def fallback_parse(text, command_type):
             'description': enrich_task_offline(name, desc),
             'priority': priority
         }
+
+
+# --- AI Attachment Generation ---
+
+def _check_online():
+    """Returns True if an internet connection is available."""
+    import socket
+    try:
+        socket.create_connection(("8.8.8.8", 53), timeout=1.5)
+        return True
+    except OSError:
+        return False
+
+def is_research_task(name, description):
+    """Detects if a task is research-related based on keywords in name or description."""
+    combined = f"{name} {description}".lower()
+    research_keywords = [
+        "research", "thesis", "dissertation", "literature review", "case study",
+        "journal", "references", "bibliography", "citation", "scholarly",
+        "academic paper", "study about", "study on", "analysis of", "investigate",
+        "survey on", "review of", "systematic review", "meta-analysis",
+        "research paper", "term paper", "white paper", "capstone"
+    ]
+    return any(kw in combined for kw in research_keywords)
+
+
+def generate_research_references(task_name, description):
+    """
+    Uses g4f LLM to generate a list of real research references with working URLs.
+    Returns the formatted text content for a .txt file, or None if offline/failed.
+    Online-only — returns None if no internet connection.
+    """
+    if not _check_online():
+        logger.info("AI attachment generation skipped: offline")
+        return None
+    
+    try:
+        import g4f
+    except ImportError:
+        logger.warning("g4f not installed, cannot generate research references")
+        return None
+    
+    prompt = f"""You are an academic research assistant. Based on the following task and its scope, generate a list of 8-12 REAL, relevant academic references that would help a student research this topic.
+
+Task: {task_name[:200]}
+Scope/Description: {description[:500]}
+
+For each reference, provide:
+1. Full citation (Author, Title, Year, Publisher/Journal)
+2. A working Google Scholar search link formatted EXACTLY like this: https://scholar.google.com/scholar?q=[Title+of+Paper+with+Plus+Signs+Instead+of+Spaces]
+
+Format the output EXACTLY like this:
+---
+ACADENCE AI — Research References
+Topic: [topic summary]
+Generated: [current date]
+---
+
+1. [Author(s)] — "[Title]" ([Year])
+   Source: [Journal/Publisher]
+   URL: https://scholar.google.com/scholar?q=[Title+with+plus+signs]
+
+2. [Author(s)] — "[Title]" ([Year])
+   Source: [Journal/Publisher]
+   URL: https://scholar.google.com/scholar?q=[Title+with+plus+signs]
+
+... (continue for 8-12 references)
+
+---
+Note: These references were AI-generated. Click the URLs to search for the papers on Google Scholar.
+---
+
+IMPORTANT: Only provide REAL papers and ALWAYS use the exact Google Scholar search URL format for the URL field. Do NOT fabricate paper titles or authors."""
+    
+    try:
+        response = g4f.ChatCompletion.create(
+            model=g4f.models.default,
+            messages=[
+                {"role": "system", "content": "You are a helpful academic research assistant. Generate real, verifiable research references with working URLs."},
+                {"role": "user", "content": prompt}
+            ],
+            timeout=30
+        )
+        
+        result = response.strip() if response else None
+        if result and len(result) > 100:
+            logger.info(f"Research references generated for task: {task_name[:50]}")
+            return result
+        else:
+            logger.warning("AI returned insufficient research references")
+            return None
+            
+    except Exception as e:
+        logger.warning(f"Failed to generate research references: {e}")
+        return None
+
+
+def generate_task_tips(task_name, description):
+    """
+    Uses g4f LLM to generate tips, guides, and strategies for completing a task.
+    Never provides direct answers — only guidance and methodology.
+    Returns the formatted text content for a .txt file, or None if offline/failed.
+    Online-only — returns None if no internet connection.
+    """
+    if not _check_online():
+        logger.info("AI attachment generation skipped: offline")
+        return None
+    
+    try:
+        import g4f
+    except ImportError:
+        logger.warning("g4f not installed, cannot generate task tips")
+        return None
+    
+    prompt = f"""You are an academic advisor helping a student complete a task. Based on the following task, generate helpful tips, strategies, and guidance.
+
+Task: {task_name[:200]}
+Description: {description[:500]}
+
+IMPORTANT RULES:
+- NEVER provide direct answers, solutions, or completed work
+- ONLY provide tips, strategies, methodology, and guidance
+- Suggest approaches, tools, and frameworks the student can use
+- Recommend time management strategies specific to this task type
+- Include helpful online resources and tools (with URLs when possible)
+
+Format the output EXACTLY like this:
+---
+ACADENCE AI — Task Guide
+Task: [task name]
+Generated: [current date]
+---
+
+📋 OVERVIEW
+[Brief overview of what this task involves and key objectives]
+
+💡 TIPS & STRATEGIES
+1. [Tip 1]
+2. [Tip 2]
+3. [Tip 3]
+... (provide 5-8 actionable tips)
+
+🛠️ RECOMMENDED TOOLS & RESOURCES
+- [Tool/Resource 1] — [URL if applicable]
+- [Tool/Resource 2] — [URL if applicable]
+... (provide 3-5 resources)
+
+⏰ TIME MANAGEMENT
+[Suggest how to break down and schedule this task]
+
+⚠️ COMMON MISTAKES TO AVOID
+1. [Mistake 1]
+2. [Mistake 2]
+3. [Mistake 3]
+
+---
+Note: This guide was AI-generated. Use it as a starting point for your own work.
+---"""
+    
+    try:
+        response = g4f.ChatCompletion.create(
+            model=g4f.models.default,
+            messages=[
+                {"role": "system", "content": "You are a helpful academic advisor. Provide tips and guidance only — never direct answers or completed work."},
+                {"role": "user", "content": prompt}
+            ],
+            timeout=30
+        )
+        
+        result = response.strip() if response else None
+        if result and len(result) > 100:
+            logger.info(f"Task tips generated for task: {task_name[:50]}")
+            return result
+        else:
+            logger.warning("AI returned insufficient task tips")
+            return None
+            
+    except Exception as e:
+        logger.warning(f"Failed to generate task tips: {e}")
+        return None

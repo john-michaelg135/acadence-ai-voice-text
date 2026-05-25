@@ -23,6 +23,19 @@ if not os.path.exists(db_dir):
 DB_PATH = os.path.join(db_dir, 'acadence.db')
 SCHEMA_PATH = os.path.join(bundle_dir, 'database', 'schema.sql')
 
+def configure_connection(conn: sqlite3.Connection):
+    """Configures the SQLite connection with performance-tuning pragmas."""
+    try:
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA journal_mode = WAL;")
+        cursor.execute("PRAGMA synchronous = NORMAL;")
+        cursor.execute("PRAGMA temp_store = MEMORY;")
+        cursor.execute("PRAGMA cache_size = -64000;")  # 64MB cache
+        cursor.execute("PRAGMA foreign_keys = ON;")
+        cursor.close()
+    except Exception as e:
+        logger.error(f"Failed to configure database pragmas: {e}")
+
 class DatabaseManager:
     _instance = None
     _lock = threading.Lock()
@@ -42,6 +55,7 @@ class DatabaseManager:
         if self._conn is None:
             # check_same_thread=True re-enables thread safety checks
             self._conn = sqlite3.connect(DB_PATH, check_same_thread=True, timeout=30.0)
+            configure_connection(self._conn)
         return self._conn
 
     def init_db(self):
@@ -86,6 +100,7 @@ class DatabaseManager:
                         ("ALTER TABLE tasks ADD COLUMN completed_at TIMESTAMP", "completed_at"),
                         ("ALTER TABLE users ADD COLUMN notification_preferences TEXT", "notification_preferences"),
                         ("ALTER TABLE users ADD COLUMN theme_preferences TEXT", "theme_preferences"),
+                        ("ALTER TABLE tasks ADD COLUMN attachment_path TEXT", "attachment_path"),
                     ]
                     
                     for migration_sql, description in migrations:
@@ -102,6 +117,10 @@ class DatabaseManager:
                     conn.execute("CREATE INDEX IF NOT EXISTS idx_tasks_subject ON tasks(subject_id)")
                     conn.execute("CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)")
                     conn.execute("CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority)")
+                    
+                    # Composite Performance Indexes for High-Scale Queries
+                    conn.execute("CREATE INDEX IF NOT EXISTS idx_tasks_subject_status_deadline ON tasks(subject_id, status, deadline)")
+                    conn.execute("CREATE INDEX IF NOT EXISTS idx_tasks_subject_status_priority ON tasks(subject_id, status, priority, created_at DESC)")
             except Exception as e:
                 logger.error(f"Database migration failed: {e}", exc_info=True)
                 raise
@@ -403,13 +422,22 @@ class DatabaseManager:
                 cur.execute("SELECT * FROM tasks WHERE subject_id = ? ORDER BY created_at DESC", (subject_id,))
                 return [dict(row) for row in cur.fetchall()]
 
-    def add_task(self, subject_id: int, name: str, description: str, deadline: str = '', status: str = 'pending', priority: str = 'Medium') -> None:
+    def add_task(self, subject_id: int, name: str, description: str, deadline: str = '', status: str = 'pending', priority: str = 'Medium') -> int:
+        """Creates a new task and returns its ID."""
         now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with self._db_lock:
             with self.get_connection() as conn:
-                conn.execute("INSERT INTO tasks (subject_id, name, description, deadline, status, priority, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                cur = conn.cursor()
+                cur.execute("INSERT INTO tasks (subject_id, name, description, deadline, status, priority, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
                              (subject_id, name, description, deadline, status, priority, now_str))
+                return cur.lastrowid
                          
+    def update_task_attachment(self, task_id: int, attachment_path: str) -> None:
+        """Sets the attachment file path for a task."""
+        with self._db_lock:
+            with self.get_connection() as conn:
+                conn.execute("UPDATE tasks SET attachment_path = ? WHERE id = ?", (attachment_path, task_id))
+
     def delete_task(self, task_id: int) -> None:
         with self._db_lock:
             with self.get_connection() as conn:
@@ -501,19 +529,31 @@ class DatabaseManager:
                 
                 return [dict(row) for row in cur.fetchall()]
             
-    def get_all_pending_tasks(self, user_id: int) -> List[Dict]:
+    def get_all_pending_tasks(self, user_id: int, limit: Optional[int] = 200) -> List[Dict]:
         with self._db_lock:
             with self.get_connection() as conn:
                 conn.row_factory = sqlite3.Row
                 cur = conn.cursor()
-                query = """
-                    SELECT t.*, s.name as subject_name 
-                    FROM tasks t 
-                    JOIN subjects s ON t.subject_id = s.id 
-                    WHERE s.user_id = ? AND t.status = 'pending'
-                    ORDER BY CASE t.priority WHEN 'High' THEN 1 WHEN 'Medium' THEN 2 ELSE 3 END, t.created_at DESC
-                """
-                cur.execute(query, (user_id,))
+                if limit is not None:
+                    limit = max(1, int(limit))
+                    query = """
+                        SELECT t.*, s.name as subject_name 
+                        FROM tasks t 
+                        JOIN subjects s ON t.subject_id = s.id 
+                        WHERE s.user_id = ? AND t.status = 'pending'
+                        ORDER BY CASE t.priority WHEN 'High' THEN 1 WHEN 'Medium' THEN 2 ELSE 3 END, t.created_at DESC
+                        LIMIT ?
+                    """
+                    cur.execute(query, (user_id, limit))
+                else:
+                    query = """
+                        SELECT t.*, s.name as subject_name 
+                        FROM tasks t 
+                        JOIN subjects s ON t.subject_id = s.id 
+                        WHERE s.user_id = ? AND t.status = 'pending'
+                        ORDER BY CASE t.priority WHEN 'High' THEN 1 WHEN 'Medium' THEN 2 ELSE 3 END, t.created_at DESC
+                    """
+                    cur.execute(query, (user_id,))
                 return [dict(row) for row in cur.fetchall()]
 
     # --- Dashboard Metrics ---
@@ -527,7 +567,7 @@ class DatabaseManager:
                 # Single query with aggregates — avoids multiple DB round trips
                 cur.execute("""
                     SELECT s.id, s.name, s.category,
-                           COUNT(DISTINCT t.id) as task_count,
+                           COUNT(t.id) as task_count,
                            SUM(CASE WHEN t.status = 'pending' THEN 1 ELSE 0 END) as pending_task_count,
                            SUM(CASE WHEN t.status = 'pending' AND t.priority = 'High' THEN 1 ELSE 0 END) as high_priority_count
                     FROM subjects s

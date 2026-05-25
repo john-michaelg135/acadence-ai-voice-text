@@ -91,9 +91,10 @@ class NotificationScheduler:
         # Create a dedicated SQLite connection for this thread.
         # DatabaseManager is a singleton with check_same_thread=True, so we can't reuse it.
         try:
-            from database.db_manager import DB_PATH
+            from database.db_manager import DB_PATH, configure_connection
             conn = sqlite3.connect(DB_PATH, check_same_thread=True, timeout=30.0)
             conn.row_factory = sqlite3.Row
+            configure_connection(conn)
         except Exception as e:
             logger.error(f"NotificationScheduler: Failed to open database: {e}")
             return
@@ -126,15 +127,24 @@ class NotificationScheduler:
         today = datetime.today().date()
         now_dt = datetime.now()
 
+        # Only fetch tasks within the notification-relevant window:
+        # - Overdue: up to 30 days past deadline (older tasks are stale)
+        # - Upcoming: up to max(advance_days) ahead (default max is 7)
+        max_advance = max(self._advance_days.values(), default=2)
+        window_start = (today - timedelta(days=30)).strftime("%Y-%m-%d")
+        window_end = (today + timedelta(days=max_advance + 1)).strftime("%Y-%m-%d")
+
         try:
             cur = conn.cursor()
             cur.execute("""
                 SELECT t.*, s.name as subject_name 
                 FROM tasks t 
                 JOIN subjects s ON t.subject_id = s.id 
-                WHERE s.user_id = ? AND t.status = 'pending'
+                WHERE s.user_id = ? AND t.status = 'pending' 
+                  AND t.deadline IS NOT NULL
+                  AND t.deadline >= ? AND t.deadline <= ?
                 ORDER BY t.deadline ASC
-            """, (self._user_id,))
+            """, (self._user_id, window_start, window_end))
             tasks = [dict(row) for row in cur.fetchall()]
         except Exception as e:
             logger.error(f"NotificationScheduler failed to fetch tasks: {e}")

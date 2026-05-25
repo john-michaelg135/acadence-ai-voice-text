@@ -22,3 +22,7 @@ dist/
 .vscode/
 logs
 session.json
+
+# Ignore AI generated reference files
+database/attachments/
+scratch

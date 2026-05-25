@@ -51,3 +51,6 @@ CREATE INDEX IF NOT EXISTS idx_tasks_subject ON tasks(subject_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority);
 
+-- Composite Performance Indexes for High-Scale Queries
+CREATE INDEX IF NOT EXISTS idx_tasks_subject_status_deadline ON tasks(subject_id, status, deadline);
+CREATE INDEX IF NOT EXISTS idx_tasks_subject_status_priority ON tasks(subject_id, status, priority, created_at DESC);
