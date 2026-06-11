@@ -316,9 +316,9 @@ class AddTaskPopup(ctk.CTkToplevel):
         hours = [f"{i:02d}" for i in range(1, 13)]
         mins = ["00", "15", "30", "45"]
         
-        ctk.CTkOptionMenu(time_wrapper, variable=self.hour_var, values=hours, width=60, font=(self.tm.main_font(), 12), fg_color=self.tm.bg_sub(), button_color=self.tm.border_main(), text_color=self.tm.text_main()).pack(side="left", padx=2)
+        ctk.CTkComboBox(time_wrapper, variable=self.hour_var, values=hours, width=65, font=(self.tm.main_font(), 12), fg_color=self.tm.bg_sub(), button_color=self.tm.border_main(), text_color=self.tm.text_main(), border_color=self.tm.border_main(), border_width=1).pack(side="left", padx=2)
         ctk.CTkLabel(time_wrapper, text=":", font=(self.tm.main_font(), 14, "bold"), text_color=self.tm.text_main()).pack(side="left")
-        ctk.CTkOptionMenu(time_wrapper, variable=self.min_var, values=mins, width=60, font=(self.tm.main_font(), 12), fg_color=self.tm.bg_sub(), button_color=self.tm.border_main(), text_color=self.tm.text_main()).pack(side="left", padx=2)
+        ctk.CTkComboBox(time_wrapper, variable=self.min_var, values=mins, width=65, font=(self.tm.main_font(), 12), fg_color=self.tm.bg_sub(), button_color=self.tm.border_main(), text_color=self.tm.text_main(), border_color=self.tm.border_main(), border_width=1).pack(side="left", padx=2)
         ctk.CTkOptionMenu(time_wrapper, variable=self.ampm_var, values=["AM", "PM"], width=65, font=(self.tm.main_font(), 12), fg_color=self.tm.bg_sub(), button_color=self.tm.border_main(), text_color=self.tm.text_main()).pack(side="left", padx=2)
 
         # Description (Taller textbox)
@@ -361,9 +361,63 @@ class AddTaskPopup(ctk.CTkToplevel):
         if self.initial_data:
             self.name_entry.insert(0, self.initial_data.get('name', ''))
             self.desc_textbox.insert("0.0", self.initial_data.get('description', ''))
-            p = self.initial_data.get('priority', 'Medium')
+            
+            p = str(self.initial_data.get('priority', 'Medium')).strip().capitalize()
             if p in ['Low', 'Medium', 'High']:
                 set_priority(p)
+
+            # Deadline mapping
+            deadline_str = self.initial_data.get('deadline')
+            if deadline_str:
+                import datetime
+                import re
+                try:
+                    clean_date = re.sub(r'(?i)(due on|due by|due at|due|on)\s+', '', str(deadline_str)).strip()
+                    parsed_dt = None
+                    formats = [
+                        "%Y-%m-%d", "%Y/%m/%d", "%m/%d/%Y", "%m-%d-%Y", 
+                        "%B %d, %Y", "%b %d, %Y", "%B %d %Y", "%b %d %Y",
+                        "%d %B %Y", "%d %b %Y"
+                    ]
+                    for fmt in formats:
+                        try:
+                            parsed_dt = datetime.datetime.strptime(clean_date, fmt).date()
+                            break
+                        except ValueError:
+                            pass
+                    
+                    if not parsed_dt:
+                        m = re.search(r'(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2}).*?(\d{4})?', clean_date, re.IGNORECASE)
+                        if m:
+                            months = {"january":1, "february":2, "march":3, "april":4, "may":5, "june":6, "july":7, "august":8, "september":9, "october":10, "november":11, "december":12}
+                            month = months.get(m.group(1).lower(), 1)
+                            day = int(m.group(2))
+                            year = int(m.group(3)) if m.group(3) else datetime.datetime.now().year
+                            parsed_dt = datetime.date(year, month, day)
+                            
+                    if parsed_dt:
+                        self.deadline_entry.set_date(parsed_dt)
+                except Exception:
+                    pass
+            
+            # Time mapping
+            time_str = self.initial_data.get('time')
+            if time_str:
+                try:
+                    # Format is expected to be HH:MM AM/PM
+                    import re
+                    match = re.match(r'(\d+):(\d+)\s*(AM|PM)', time_str, re.IGNORECASE)
+                    if match:
+                        h = int(match.group(1))
+                        m = match.group(2)
+                        ampm = match.group(3).upper()
+                        if h == 0: h = 12
+                        if h > 12: h = 12
+                        self.hour_var.set(f"{h:02d}")
+                        self.min_var.set(m)
+                        self.ampm_var.set(ampm)
+                except Exception:
+                    pass
         
         update_prio_buttons()
 
@@ -388,8 +442,19 @@ class AddTaskPopup(ctk.CTkToplevel):
         name = self.name_entry.get().strip()
         date_str = self.deadline_entry.get_date().strftime("%Y-%m-%d")
         
-        h = int(self.hour_var.get())
-        m = self.min_var.get()
+        try:
+            h_val = int(self.hour_var.get().strip())
+            m_val = int(self.min_var.get().strip())
+            if not (1 <= h_val <= 12):
+                raise ValueError()
+            if not (0 <= m_val <= 59):
+                raise ValueError()
+        except ValueError:
+            messagebox.showerror("Error", "Please enter a valid time (Hour: 1-12, Min: 0-59).", parent=self)
+            return
+            
+        h = h_val
+        m = f"{m_val:02d}"
         ampm = self.ampm_var.get()
         if ampm == "PM" and h < 12: h += 12
         if ampm == "AM" and h == 12: h = 0
@@ -589,9 +654,9 @@ class EditTaskPopup(ctk.CTkToplevel):
         hours = [f"{i:02d}" for i in range(1, 13)]
         mins = ["00", "15", "30", "45", "59"]
         
-        ctk.CTkOptionMenu(time_wrapper, variable=self.hour_var, values=hours, width=60, font=(self.tm.main_font(), 12), fg_color=self.tm.bg_sub(), button_color=self.tm.border_main(), text_color=self.tm.text_main()).pack(side="left", padx=2)
+        ctk.CTkComboBox(time_wrapper, variable=self.hour_var, values=hours, width=65, font=(self.tm.main_font(), 12), fg_color=self.tm.bg_sub(), button_color=self.tm.border_main(), text_color=self.tm.text_main(), border_color=self.tm.border_main(), border_width=1).pack(side="left", padx=2)
         ctk.CTkLabel(time_wrapper, text=":", font=(self.tm.main_font(), 14, "bold"), text_color=self.tm.text_main()).pack(side="left")
-        ctk.CTkOptionMenu(time_wrapper, variable=self.min_var, values=mins, width=60, font=(self.tm.main_font(), 12), fg_color=self.tm.bg_sub(), button_color=self.tm.border_main(), text_color=self.tm.text_main()).pack(side="left", padx=2)
+        ctk.CTkComboBox(time_wrapper, variable=self.min_var, values=mins, width=65, font=(self.tm.main_font(), 12), fg_color=self.tm.bg_sub(), button_color=self.tm.border_main(), text_color=self.tm.text_main(), border_color=self.tm.border_main(), border_width=1).pack(side="left", padx=2)
         ctk.CTkOptionMenu(time_wrapper, variable=self.ampm_var, values=["AM", "PM"], width=65, font=(self.tm.main_font(), 12), fg_color=self.tm.bg_sub(), button_color=self.tm.border_main(), text_color=self.tm.text_main()).pack(side="left", padx=2)
 
         desc_frame = ctk.CTkFrame(container, fg_color="transparent")
@@ -672,8 +737,19 @@ class EditTaskPopup(ctk.CTkToplevel):
         name = self.name_entry.get().strip()
         date_str = self.deadline_entry.get_date().strftime("%Y-%m-%d")
         
-        h = int(self.hour_var.get())
-        m = self.min_var.get()
+        try:
+            h_val = int(self.hour_var.get().strip())
+            m_val = int(self.min_var.get().strip())
+            if not (1 <= h_val <= 12):
+                raise ValueError()
+            if not (0 <= m_val <= 59):
+                raise ValueError()
+        except ValueError:
+            messagebox.showerror("Error", "Please enter a valid time (Hour: 1-12, Min: 0-59).", parent=self)
+            return
+            
+        h = h_val
+        m = f"{m_val:02d}"
         ampm = self.ampm_var.get()
         if ampm == "PM" and h < 12: h += 12
         if ampm == "AM" and h == 12: h = 0

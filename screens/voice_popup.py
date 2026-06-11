@@ -104,6 +104,8 @@ class VoiceRecordingPopup(ctk.CTkToplevel):
                 logger.error(f"Failed to append transcribed text: {e}", exc_info=True)
             
     def _append_text(self, text):
+        if self._destroyed or not self.winfo_exists() or not hasattr(self, 'text_box') or not self.text_box.winfo_exists():
+            return
         current = self.text_box.get("0.0", "end").strip()
         if current:
             self.text_box.insert("end", " " + text)
@@ -170,7 +172,15 @@ class VoiceRecordingPopup(ctk.CTkToplevel):
         
     def _finish_confirm(self, parsed_data):
         if not self._destroyed:
-            self.on_complete_callback(parsed_data)
-            # Safe deferred destruction to prevent Tkinter crashes
+            self.grab_release()
+            cb = self.on_complete_callback
             master_ref = self.master
-            (master_ref if hasattr(self, 'master') and master_ref else self).after(50, self.destroy)
+            
+            # Schedule destruction and callback on the master window
+            # to prevent Tkinter from crashing when cleaning up 'after' tasks on a destroyed widget
+            if master_ref and master_ref.winfo_exists():
+                master_ref.after(10, self.destroy)
+                master_ref.after(50, lambda: cb(parsed_data))
+            else:
+                self.destroy()
+                cb(parsed_data)

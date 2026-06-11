@@ -235,6 +235,13 @@ def fallback_parse(text, command_type):
         desc = text
         priority = "Medium"
         
+        # Priority Extraction
+        lower_text = text.lower()
+        if "high priority" in lower_text or "urgent" in lower_text:
+            priority = "High"
+        elif "low priority" in lower_text:
+            priority = "Low"
+        
         # Try to extract name: capture text before any description/detail keywords
         name_match = re.search(r'(task is|task called|called)\s+([^,]+)', text, re.IGNORECASE)
         if name_match:
@@ -270,12 +277,51 @@ def fallback_parse(text, command_type):
         # Clean priority keywords from name
         name = re.sub(r'\s*(high|low|medium)\s+priority\s*', '', name, flags=re.IGNORECASE).strip()
         name = re.sub(r'\s*urgent\s*', '', name, flags=re.IGNORECASE).strip()
+        
+        # Extract date and time
+        deadline = None
+        time_str = None
+        
+        # Simple regex for month day, year (e.g. june 30, 2026)
+        date_match = re.search(r'(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})(?:st|nd|rd|th)?(?:,|\s)?\s*(\d{4})?', text, re.IGNORECASE)
+        if date_match:
+            month_str = date_match.group(1).lower()
+            months = {"january":"01", "february":"02", "march":"03", "april":"04", "may":"05", "june":"06", "july":"07", "august":"08", "september":"09", "october":"10", "november":"11", "december":"12"}
+            m_num = months.get(month_str, "01")
+            day = int(date_match.group(2))
+            year = date_match.group(3)
+            if not year:
+                from datetime import datetime
+                year = str(datetime.now().year)
+            deadline = f"{year}-{m_num}-{day:02d}"
+            # Clean from name and desc
+            name = re.sub(date_match.group(0), '', name, flags=re.IGNORECASE).strip()
+            desc = re.sub(date_match.group(0), '', desc, flags=re.IGNORECASE).strip()
+
+        # Simple regex for time (e.g. 11:59 am)
+        time_match = re.search(r'\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b', text, re.IGNORECASE)
+        if time_match:
+            h = int(time_match.group(1))
+            m = time_match.group(2) if time_match.group(2) else "00"
+            ampm = time_match.group(3).upper()
+            time_str = f"{h:02d}:{m} {ampm}"
+            name = re.sub(time_match.group(0), '', name, flags=re.IGNORECASE).strip()
+            desc = re.sub(time_match.group(0), '', desc, flags=re.IGNORECASE).strip()
+
+        # Clean trailing prepositions
+        name = re.sub(r'\s+(due on|due at|due|at|on)$', '', name, flags=re.IGNORECASE).strip()
+        desc = re.sub(r'\s+(due on|due at|due|at|on)$', '', desc, flags=re.IGNORECASE).strip()
             
-        return {
+        result = {
             'name': to_title_case(name) if name else to_title_case(" ".join(text.split()[:3])),
             'description': enrich_task_offline(name, desc),
             'priority': priority
         }
+        if deadline:
+            result['deadline'] = deadline
+        if time_str:
+            result['time'] = time_str
+        return result
 
 
 # --- AI Attachment Generation ---
