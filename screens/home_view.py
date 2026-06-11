@@ -25,8 +25,10 @@ class HomeView(ctk.CTkFrame):
         else:
             metrics = {"total_subjects": 0, "total_pending_tasks": 0, "high_priority_count": 0, "subjects": []}
             
+        ctk.CTkLabel(self, text="Dashboard", font=(self.tm.main_font(), 28, "bold"), text_color=self.tm.text_main()).pack(anchor="w", padx=30, pady=(20, 10))
+
         main_scroll = ctk.CTkScrollableFrame(self, fg_color="transparent", scrollbar_button_color=self.tm.bg_main(), scrollbar_button_hover_color=self.tm.text_sub())
-        main_scroll.pack(fill="both", expand=True, padx=20, pady=20)
+        main_scroll.pack(fill="both", expand=True, padx=20, pady=5)
         
         # --- Top Row: 3 Cards ---
         top_row = ctk.CTkFrame(main_scroll, fg_color="transparent")

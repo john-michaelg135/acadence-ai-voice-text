@@ -40,11 +40,10 @@ def get_session():
     return data.get("username")
 
 def clear_session():
-    if os.path.exists(SESSION_FILE):
-        try:
-            os.remove(SESSION_FILE)
-        except Exception:
-            pass
+    data = _read_session_data()
+    if "username" in data:
+        del data["username"]
+        _write_session_data(data)
 
 def save_notification_settings(settings: dict, user_id: int = None):
     """Saves notification preference settings to the database (per-user) and session file."""

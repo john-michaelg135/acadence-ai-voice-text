@@ -138,7 +138,8 @@ class VoiceRecordingPopup(ctk.CTkToplevel):
                 self.stop_listening_func()
             except Exception as e:
                 logger.warning(f"Error stopping listening on cancel: {e}")
-        self.destroy()
+        master_ref = self.master
+        (master_ref if hasattr(self, 'master') and master_ref else self).after(50, self.destroy)
         
     def on_confirm(self):
         final_text = self.text_box.get("0.0", "end").strip()
@@ -159,5 +160,7 @@ class VoiceRecordingPopup(ctk.CTkToplevel):
         
     def _finish_confirm(self, parsed_data):
         if not self._destroyed:
-            self.destroy()
             self.on_complete_callback(parsed_data)
+            # Safe deferred destruction to prevent Tkinter crashes
+            master_ref = self.master
+            (master_ref if hasattr(self, 'master') and master_ref else self).after(50, self.destroy)

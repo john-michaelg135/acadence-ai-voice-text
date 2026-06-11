@@ -15,11 +15,15 @@ class AcadenceApp(ctk.CTk):
         self.title("Acadence")
         self.geometry("1100x700")
         
-        # Setup Initial Theme Colors
-        ctk.set_appearance_mode("Light")
+        # Setup Initial Theme Colors from last saved session
+        from utils.session_manager import get_theme_settings
+        theme_prefs = get_theme_settings()
+        ctk.set_appearance_mode(theme_prefs.get('appearance_mode', 'Light'))
+        self.tm.set_accent(theme_prefs.get('accent_color', 'Pastel Purple'))
         self.configure(fg_color=self.tm.bg_main())
 
-        self.after(0, lambda: self.state('zoomed'))
+        # Delay zoomed state slightly so CustomTkinter has time to map the window
+        self.after(200, lambda: self.state('zoomed'))
         
         self.db = DatabaseManager()
         self.current_user = None
@@ -118,12 +122,13 @@ class AcadenceApp(ctk.CTk):
         self.record_session()
         self.current_user = None
         
-        from utils.session_manager import clear_session
+        from utils.session_manager import clear_session, get_theme_settings
         clear_session()
         
-        # Reset theme to default for login screen
-        ctk.set_appearance_mode("Light")
-        self.tm.set_accent("Pastel Purple")
+        # Load theme from session fallback (the last theme used)
+        theme_prefs = get_theme_settings()
+        ctk.set_appearance_mode(theme_prefs.get('appearance_mode', 'Light'))
+        self.tm.set_accent(theme_prefs.get('accent_color', 'Pastel Purple'))
         self.configure(fg_color=self.tm.bg_main())
         
         # Stop the notification scheduler

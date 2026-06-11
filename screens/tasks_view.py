@@ -2,10 +2,198 @@ import customtkinter as ctk
 from utils.theme_manager import ThemeManager
 from tkinter import messagebox, ttk
 from tkcalendar import DateEntry
+
+# Patch DateEntry to prevent disappearing when clicking arrows
+_orig_focus_out = getattr(DateEntry, '_on_focus_out_cal', None)
+if _orig_focus_out:
+    def _safe_focus_out(self, event):
+        if getattr(self, '_top_cal', None) and self._top_cal.winfo_ismapped():
+            x, y = self._top_cal.winfo_pointerxy()
+            xc = self._top_cal.winfo_rootx()
+            yc = self._top_cal.winfo_rooty()
+            w = self._top_cal.winfo_width()
+            h = self._top_cal.winfo_height()
+            if xc <= x <= xc + w and yc <= y <= yc + h:
+                self._calendar.focus_force()
+                return
+        if self.focus_get() is None:
+            return
+        _orig_focus_out(self, event)
+    DateEntry._on_focus_out_cal = _safe_focus_out
 from database.db_manager import DatabaseManager
 from datetime import datetime, date
 
+
+class AIProgressPopup(ctk.CTkToplevel):
+    """
+    A non-blocking floating progress popup shown during AI Aid generation.
+    Displays a modern animated progress bar, stage label, and auto-dismisses.
+    """
+    _W = 340
+    _H = 110
+
+    def __init__(self, master, task_name):
+        self.tm = ThemeManager()
+        super().__init__(master)
+        
+        # Windows transparent corners hack
+        transparent_color = '#000001'
+        self.configure(fg_color=transparent_color)
+        try:
+            self.attributes("-transparentcolor", transparent_color)
+        except Exception:
+            pass
+
+        self._done = False
+        self._anim_id = None
+        self._task_name = task_name
+
+        self.title("")
+        self.geometry(f"{self._W}x{self._H}")
+        self.resizable(False, False)
+        self.overrideredirect(True)
+        self.attributes("-topmost", True)
+
+        # Dragging variables
+        self._drag_data = {"x": 0, "y": 0}
+        
+        # Position logic: Load from config, or fallback to bottom-right of screen
+        try:
+            self.update_idletasks()
+            import os
+            import json
+            import sys
+            if getattr(sys, 'frozen', False):
+                self._pos_file = os.path.join(os.path.dirname(sys.executable), 'database', 'ai_popup_pos.json')
+            else:
+                self._pos_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'database', 'ai_popup_pos.json')
+                
+            if os.path.exists(self._pos_file):
+                with open(self._pos_file, 'r') as f:
+                    pos = json.load(f)
+                    self.geometry(f"+{pos['x']}+{pos['y']}")
+            else:
+                sw = master.winfo_screenwidth()
+                sh = master.winfo_screenheight()
+                x = sw - self._W - 40   # 40px from right edge of screen
+                y = sh - self._H - 80   # 80px from bottom edge (avoids taskbar)
+                self.geometry(f"+{x}+{y}")
+        except Exception:
+            pass
+
+        self._build_ui()
+        self._animate_shimmer()
+
+    def _build_ui(self):
+        # bg_color must match transparent_color so the corners blend into the transparency
+        outer = ctk.CTkFrame(self, fg_color=self.tm.bg_card(), corner_radius=10,
+                             border_width=1, border_color=self.tm.accent_color(),
+                             bg_color='#000001')
+        outer.pack(fill="both", expand=True, padx=2, pady=2)
+
+        # Header: icon + title
+        hdr = ctk.CTkFrame(outer, fg_color="transparent")
+        hdr.pack(fill="x", padx=14, pady=(10, 3))
+        ctk.CTkLabel(hdr, text="✦ AI Aid Generating",
+                     font=(self.tm.main_font(), 12, "bold"),
+                     text_color=self.tm.accent_color()).pack(side="left")
+
+        # Task name (truncated)
+        short_name = self._task_name[:40] + "…" if len(self._task_name) > 40 else self._task_name
+        ctk.CTkLabel(outer, text=short_name,
+                     font=(self.tm.main_font(), 10),
+                     text_color=self.tm.text_sub()).pack(anchor="w", padx=14, pady=(0, 6))
+
+        # Thin progress bar (height=7)
+        bar_bg = ctk.CTkFrame(outer, fg_color=self.tm.bg_sub(), corner_radius=4, height=7)
+        bar_bg.pack(fill="x", padx=14, pady=(0, 5))
+        bar_bg.pack_propagate(False)
+
+        self._bar_fill = ctk.CTkFrame(bar_bg, fg_color=self.tm.accent_color(),
+                                      corner_radius=4, height=7)
+        self._bar_fill.place(relx=0, rely=0, relwidth=0.05, relheight=1.0)
+
+        # Stage status label
+        self._stage_lbl = ctk.CTkLabel(outer, text="Initializing…",
+                                       font=(self.tm.main_font(), 10),
+                                       text_color=self.tm.text_sub())
+        self._stage_lbl.pack(anchor="w", padx=14, pady=(0, 8))
+
+        # Bind drag events to outer frame and its children
+        for widget in [outer, hdr, self._stage_lbl, bar_bg]:
+            widget.bind("<ButtonPress-1>", self._start_drag)
+            widget.bind("<B1-Motion>", self._do_drag)
+            widget.bind("<ButtonRelease-1>", self._end_drag)
+
+    def update_progress(self, percent: int, message: str):
+        """Called from the main thread via master.after(). Updates bar and label."""
+        if self._done or not self.winfo_exists():
+            return
+        try:
+            rel = max(0.03, min(1.0, percent / 100))
+            self._bar_fill.place_configure(relwidth=rel)
+            self._stage_lbl.configure(text=message)
+        except Exception:
+            pass
+
+    def finish(self):
+        """Called after generation completes. Shows 100% briefly then destroys."""
+        if self._done:
+            return
+        self._done = True
+        try:
+            if self._anim_id:
+                self.after_cancel(self._anim_id)
+            self._bar_fill.place_configure(relwidth=1.0)
+            self._stage_lbl.configure(text="Done! AI Aid is ready.")
+        except Exception:
+            pass
+        self.after(1200, self._safe_destroy)
+
+    def _safe_destroy(self):
+        try:
+            if self.winfo_exists():
+                self.destroy()
+        except Exception:
+            pass
+
+    def _animate_shimmer(self):
+        """Pulse the fill between accent and accent_hover to show activity."""
+        if self._done or not self.winfo_exists():
+            return
+        try:
+            import math
+            self._shimmer_pos = (getattr(self, '_shimmer_pos', 0.0) + 0.07) % 1.0
+            t = (math.sin(self._shimmer_pos * 2 * math.pi) + 1) / 2
+            color = self.tm.accent_color() if t > 0.5 else self.tm.accent_hover()
+            self._bar_fill.configure(fg_color=color)
+        except Exception:
+            pass
+        self._anim_id = self.after(120, self._animate_shimmer)
+
+    def _start_drag(self, event):
+        self._drag_data["x"] = event.x
+        self._drag_data["y"] = event.y
+
+    def _do_drag(self, event):
+        x = self.winfo_x() - self._drag_data["x"] + event.x
+        y = self.winfo_y() - self._drag_data["y"] + event.y
+        self.geometry(f"+{x}+{y}")
+
+    def _end_drag(self, event):
+        # Save new position
+        try:
+            import json
+            import os
+            os.makedirs(os.path.dirname(self._pos_file), exist_ok=True)
+            with open(self._pos_file, 'w') as f:
+                json.dump({"x": self.winfo_x(), "y": self.winfo_y()}, f)
+        except Exception:
+            pass
+
+
 class AddTaskPopup(ctk.CTkToplevel):
+
     def __init__(self, master, db, subject_id, subject_name, on_success, initial_data=None):
         self.tm = ThemeManager()
         super().__init__(master, fg_color=self.tm.bg_card())
@@ -142,7 +330,7 @@ class AddTaskPopup(ctk.CTkToplevel):
         self.desc_textbox.pack(fill="x", pady=(5, 0))
         
         # Priority Section
-        ctk.CTkLabel(container, text="Priority Level (Optional)", font=(self.tm.main_font(), 14), text_color=self.tm.text_sub()).pack(pady=(5, 5))
+        ctk.CTkLabel(container, text="Priority Level", font=(self.tm.main_font(), 14), text_color=self.tm.text_sub()).pack(pady=(5, 5))
         
         prio_frame = ctk.CTkFrame(container, fg_color="transparent")
         prio_frame.pack(pady=(0, 20))
@@ -186,12 +374,15 @@ class AddTaskPopup(ctk.CTkToplevel):
         # Cancel
         ctk.CTkButton(actions_frame, text="Cancel", font=(self.tm.main_font(), 14, "bold"), fg_color="transparent", text_color=self.tm.text_main(),
                       border_width=1, border_color=self.tm.border_main(), corner_radius=20, width=120, height=40,
-                      command=self.destroy).pack(side="left")
+                      command=self.close).pack(side="left")
 
         # Add Task
         ctk.CTkButton(actions_frame, text="Add Task", font=(self.tm.main_font(), 14, "bold"), fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), 
                       corner_radius=20, width=120, height=40, hover_color=self.tm.accent_hover(),
                       command=self.submit).pack(side="right")
+
+    def close(self):
+        (self.master if hasattr(self, 'master') and self.master else self).after(50, self.destroy)
 
     def submit(self):
         name = self.name_entry.get().strip()
@@ -218,57 +409,63 @@ class AddTaskPopup(ctk.CTkToplevel):
         task_id = self.db.add_task(self.subject_id, name, desc, deadline, priority=prio)
         self.on_success()
         
-        # Async AI Generation
+        # Safe destruction before launching background generation
+        self.grab_release()
+        self.update_idletasks()
+        master_ref = self.master
+        (master_ref if hasattr(self, 'master') and master_ref else self).after(50, self.destroy)
+
+        # Async AI Generation with progress bar
         import threading
+        import re as _re
         from utils.ai_parser import _check_online, is_research_task, generate_research_references, generate_task_tips
         import os
         import sys
 
-        def generate_attachment_async():
+        def start_generation():
             if not _check_online():
-                self.after(0, lambda: messagebox.showinfo("Offline", "AI Attachment generation is unavailable while offline.", parent=self.master))
                 return
-            
-            is_research = is_research_task(name, desc)
-            if is_research:
-                content = generate_research_references(name, desc)
-            else:
-                content = generate_task_tips(name, desc)
-                
-            if content:
-                # Save to database/attachments
-                if getattr(sys, 'frozen', False):
-                    base_dir = os.path.join(os.path.dirname(sys.executable), 'database', 'attachments')
-                else:
-                    base_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'database', 'attachments')
-                
-                os.makedirs(base_dir, exist_ok=True)
-                file_path = os.path.join(base_dir, f"{task_id}_ai_attachment.txt")
-                
-                try:
-                    with open(file_path, "w", encoding="utf-8") as f:
-                        f.write(content)
-                        
-                    def apply_update():
-                        try:
-                            self.db.update_task_attachment(task_id, file_path)
-                            self.on_success()
-                            from utils.notification_manager import NotificationManager
-                            NotificationManager.send("AI Attachment Ready", f"The AI attachment for '{name}' has been generated successfully.")
-                        except Exception as e:
-                            pass
-                            
-                    if self.master and self.master.winfo_exists():
-                        self.master.after(0, apply_update)
-                except Exception as e:
-                    pass
-                    
-        threading.Thread(target=generate_attachment_async, daemon=True).start()
-        
-        # Safe destruction
-        self.grab_release()
-        self.update_idletasks()
-        self.destroy()
+            progress_popup = AIProgressPopup(master_ref, name)
+
+            def progress_callback(stage, percent, message):
+                print(f"[AI Aid] [{percent:3d}%] {message}")
+                if master_ref and master_ref.winfo_exists():
+                    master_ref.after(0, lambda p=percent, m=message: progress_popup.update_progress(p, m))
+
+            def generate():
+                is_research = is_research_task(name, desc)
+                content = generate_research_references(name, desc, progress_callback) if is_research else generate_task_tips(name, desc, progress_callback)
+                if content:
+                    if getattr(sys, 'frozen', False):
+                        base_dir = os.path.join(os.path.dirname(sys.executable), 'database', 'attachments')
+                    else:
+                        base_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'database', 'attachments')
+                    os.makedirs(base_dir, exist_ok=True)
+                    # Use sanitized task name as filename
+                    safe_name = _re.sub(r'[^\w\s-]', '', name).strip().replace(' ', '_')[:60]
+                    file_path = os.path.join(base_dir, f"{task_id}_{safe_name}_AI_Aid.txt")
+                    try:
+                        with open(file_path, "w", encoding="utf-8") as f:
+                            f.write(content)
+                        def apply_update():
+                            try:
+                                self.db.update_task_attachment(task_id, file_path)
+                                self.on_success()
+                                from utils.notification_manager import NotificationManager
+                                NotificationManager.send("AI Aid Ready", f"The AI Aid for '{name}' has been generated successfully.")
+                            except Exception:
+                                pass
+                        if master_ref and master_ref.winfo_exists():
+                            master_ref.after(0, apply_update)
+                    except Exception:
+                        pass
+                if master_ref and master_ref.winfo_exists():
+                    master_ref.after(500, progress_popup.finish)
+
+            threading.Thread(target=generate, daemon=True).start()
+
+        if master_ref and master_ref.winfo_exists():
+            master_ref.after(150, start_generation)
 
 class EditTaskPopup(ctk.CTkToplevel):
     def __init__(self, master, db, task_data, subject_name, on_success):
@@ -425,7 +622,7 @@ class EditTaskPopup(ctk.CTkToplevel):
         actions_frame = ctk.CTkFrame(container, fg_color="transparent")
         actions_frame.pack(fill="x", padx=50, pady=(10, 20), side="bottom")
 
-        ctk.CTkButton(actions_frame, text="Cancel", font=(self.tm.main_font(), 14, "bold"), fg_color="transparent", text_color=self.tm.text_main(), border_width=1, border_color=self.tm.border_main(), corner_radius=20, width=120, height=40, command=self.destroy).pack(side="left")
+        ctk.CTkButton(actions_frame, text="Cancel", font=(self.tm.main_font(), 14, "bold"), fg_color="transparent", text_color=self.tm.text_main(), border_width=1, border_color=self.tm.border_main(), corner_radius=20, width=120, height=40, command=self.close).pack(side="left")
         ctk.CTkButton(actions_frame, text="Save Changes", font=(self.tm.main_font(), 14, "bold"), fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), corner_radius=20, width=120, height=40, hover_color=self.tm.accent_hover(), command=self.submit).pack(side="right")
 
     def populate_data(self):
@@ -460,6 +657,9 @@ class EditTaskPopup(ctk.CTkToplevel):
         self.priority_var.set(self.task_data.get('priority', 'Medium'))
         self.update_prio_buttons()
 
+    def close(self):
+        (self.master if hasattr(self, 'master') and self.master else self).after(50, self.destroy)
+
     def submit(self):
         name = self.name_entry.get().strip()
         date_str = self.deadline_entry.get_date().strftime("%Y-%m-%d")
@@ -482,74 +682,81 @@ class EditTaskPopup(ctk.CTkToplevel):
         self.submitted = True
         
         self.db.update_task(self.task_data['id'], name, desc, deadline, prio)
-        
+
         from utils.ai_parser import _check_online
         will_regenerate = False
         if _check_online():
-            # parent=self ensures the prompt appears on top of the EditTaskPopup window
-            if messagebox.askyesno("Regenerate AI Attachment", "Would you like to generate a new AI attachment based on these edits?", parent=self):
+            if messagebox.askyesno("Regenerate AI Aid", "Would you like to regenerate the AI Aid based on your edits?", parent=self):
                 will_regenerate = True
-                
-                # Delete old attachment ONLY if they choose to regenerate
                 old_attachment = self.task_data.get('attachment_path')
                 if old_attachment:
-                    import os
+                    import os as _os
                     try:
-                        if os.path.exists(old_attachment):
-                            os.remove(old_attachment)
+                        if _os.path.exists(old_attachment):
+                            _os.remove(old_attachment)
                         self.db.update_task_attachment(self.task_data['id'], None)
                         self.task_data['attachment_path'] = None
-                    except Exception as e:
+                    except Exception:
                         pass
-                        
-                import threading
-                from utils.ai_parser import is_research_task, generate_research_references, generate_task_tips
-                import os
-                import sys
-                
-                def regenerate_attachment_async():
+
+        if not will_regenerate:
+            self.on_success()
+
+        # Safe destruction
+        self.grab_release()
+        self.update_idletasks()
+        master_ref = self.master
+        task_id = self.task_data['id']
+        (master_ref if hasattr(self, 'master') and master_ref else self).after(50, self.destroy)
+
+        if will_regenerate:
+            import threading
+            import re as _re
+            from utils.ai_parser import is_research_task, generate_research_references, generate_task_tips
+            import os
+            import sys
+
+            def start_regeneration():
+                progress_popup = AIProgressPopup(master_ref, name)
+
+                def progress_callback(stage, percent, message):
+                    print(f"[AI Aid] [{percent:3d}%] {message}")
+                    if master_ref and master_ref.winfo_exists():
+                        master_ref.after(0, lambda p=percent, m=message: progress_popup.update_progress(p, m))
+
+                def generate():
                     is_research = is_research_task(name, desc)
-                    if is_research:
-                        content = generate_research_references(name, desc)
-                    else:
-                        content = generate_task_tips(name, desc)
-                        
+                    content = generate_research_references(name, desc, progress_callback) if is_research else generate_task_tips(name, desc, progress_callback)
                     if content:
                         if getattr(sys, 'frozen', False):
                             base_dir = os.path.join(os.path.dirname(sys.executable), 'database', 'attachments')
                         else:
                             base_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'database', 'attachments')
-                        
                         os.makedirs(base_dir, exist_ok=True)
-                        file_path = os.path.join(base_dir, f"{self.task_data['id']}_ai_attachment.txt")
-                        
+                        safe_name = _re.sub(r'[^\w\s-]', '', name).strip().replace(' ', '_')[:60]
+                        file_path = os.path.join(base_dir, f"{task_id}_{safe_name}_AI_Aid.txt")
                         try:
                             with open(file_path, "w", encoding="utf-8") as f:
                                 f.write(content)
-                                
                             def apply_update():
                                 try:
-                                    self.db.update_task_attachment(self.task_data['id'], file_path)
+                                    self.db.update_task_attachment(task_id, file_path)
                                     self.on_success()
                                     from utils.notification_manager import NotificationManager
-                                    NotificationManager.send("AI Attachment Ready", f"The new AI attachment for '{name}' is ready.")
-                                except Exception as e:
+                                    NotificationManager.send("AI Aid Ready", f"The new AI Aid for '{name}' is ready.")
+                                except Exception:
                                     pass
-                                    
-                            if self.master and self.master.winfo_exists():
-                                self.master.after(0, apply_update)
-                        except Exception as e:
+                            if master_ref and master_ref.winfo_exists():
+                                master_ref.after(0, apply_update)
+                        except Exception:
                             pass
-                            
-                threading.Thread(target=regenerate_attachment_async, daemon=True).start()
-                
-        if not will_regenerate:
-            self.on_success()
-        
-        # Safe destruction
-        self.grab_release()
-        self.update_idletasks()
-        self.destroy()
+                    if master_ref and master_ref.winfo_exists():
+                        master_ref.after(500, progress_popup.finish)
+
+                threading.Thread(target=generate, daemon=True).start()
+
+            if master_ref and master_ref.winfo_exists():
+                master_ref.after(150, start_regeneration)
 
 class TaskDetailsPopup(ctk.CTkToplevel):
     def __init__(self, master, task_data, db_manager, fetch_callback, subject_name=""):
@@ -645,34 +852,87 @@ class TaskDetailsPopup(ctk.CTkToplevel):
                     attachment_path = fallback_path
                     
             if os.path.exists(attachment_path):
-                att_lbl = ctk.CTkLabel(content, text="AI Attachment", font=(self.tm.main_font(), 14, "bold"), text_color=self.tm.text_sub())
+                att_lbl = ctk.CTkLabel(content, text="AI Aid", font=(self.tm.main_font(), 14, "bold"), text_color=self.tm.text_sub())
                 att_lbl.pack(anchor="w", pady=(10, 5))
                 
                 att_frame = ctk.CTkFrame(content, fg_color=self.tm.bg_sub(), corner_radius=8, border_color=self.tm.accent_color(), border_width=1)
                 att_frame.pack(fill="x", pady=(0, 10))
                 
-                ctk.CTkLabel(att_frame, text="📎 AI Generated Reference", font=(self.tm.main_font(), 13, "bold"), text_color=self.tm.text_main()).pack(side="left", padx=15, pady=10)
+                ctk.CTkLabel(att_frame, text="\U0001f4ce AI Generated Reference", font=(self.tm.main_font(), 13, "bold"), text_color=self.tm.text_main()).pack(side="left", padx=15, pady=10)
                 
+                def view_attachment():
+                    """Open a scrollable read-only viewer popup for the AI Aid file."""
+                    viewer = ctk.CTkToplevel(self)
+                    viewer.title("Viewer")
+                    viewer.geometry("720x600")
+                    viewer.resizable(True, True)
+                    viewer.transient(self)
+                    viewer.grab_set()
+                    viewer.configure(fg_color=self.tm.bg_main())
+                    viewer.update_idletasks()
+                    sw = viewer.winfo_screenwidth()
+                    sh = viewer.winfo_screenheight()
+                    vx = (sw - 720) // 2 + 200   # offset right so it doesn't cover the task popup
+                    vy = (sh - 600) // 2
+                    viewer.geometry(f"+{vx}+{vy}")
+
+                    # Header
+                    hdr = ctk.CTkFrame(viewer, fg_color="transparent")
+                    hdr.pack(fill="x", padx=20, pady=(15, 5))
+                    task_name_raw = self.task_data.get('name') or self.task_data.get('description', 'AI Aid')
+                    ctk.CTkLabel(hdr, text=f"AI Aid \u2014 {task_name_raw}", font=(self.tm.main_font(), 16, "bold"), text_color=self.tm.text_main()).pack(side="left")
+
+                    # Text content
+                    try:
+                        with open(attachment_path, "r", encoding="utf-8") as f:
+                            file_content = f.read()
+                    except Exception as e:
+                        file_content = f"Error reading file: {e}"
+                    
+                    text_box = ctk.CTkTextbox(viewer, font=(self.tm.main_font(), 13), text_color=self.tm.text_main(),
+                                              fg_color=self.tm.bg_card(), corner_radius=10, wrap="word")
+                    text_box.pack(fill="both", expand=True, padx=20, pady=(5, 10))
+                    text_box.insert("0.0", file_content)
+                    text_box.configure(state="disabled")
+
+                    # Close button
+                    ctk.CTkButton(viewer, text="Close", font=(self.tm.main_font(), 13, "bold"),
+                                  fg_color="transparent", text_color=self.tm.text_main(),
+                                  border_width=1, border_color=self.tm.border_main(),
+                                  corner_radius=20, width=100, height=34,
+                                  command=viewer.destroy).pack(pady=(0, 15))
+
                 def download_attachment():
                     from tkinter import filedialog
                     import shutil
+                    import re as _re
+                    task_name_raw = self.task_data.get('name') or self.task_data.get('description', 'AI_Aid')
+                    safe_name = _re.sub(r'[^\w\s-]', '', task_name_raw).strip().replace(' ', '_')[:60]
                     save_path = filedialog.asksaveasfilename(
                         defaultextension=".txt",
                         filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")],
-                        initialfile=f"Task_{self.task_data.get('id', 'AI')}_Attachment.txt",
-                        title="Save AI Attachment",
+                        initialfile=f"{safe_name}_AI_Aid.txt",
+                        title="Save AI Aid",
                         parent=self
                     )
                     if save_path:
                         try:
                             shutil.copy2(attachment_path, save_path)
-                            messagebox.showinfo("Success", "Attachment saved successfully!", parent=self)
+                            messagebox.showinfo("Success", "AI Aid saved successfully!", parent=self)
                         except Exception as e:
                             messagebox.showerror("Error", f"Failed to save: {e}", parent=self)
-                            
-                ctk.CTkButton(att_frame, text="Download", font=(self.tm.main_font(), 12, "bold"), fg_color=self.tm.accent_color(), 
+                
+                btn_frame = ctk.CTkFrame(att_frame, fg_color="transparent")
+                btn_frame.pack(side="right", padx=10, pady=10)
+                
+                ctk.CTkButton(btn_frame, text="View", font=(self.tm.main_font(), 12, "bold"), fg_color="transparent",
+                              text_color=self.tm.accent_color(), border_width=1, border_color=self.tm.accent_color(),
+                              hover_color=self.tm.bg_sub(), width=65, height=28, corner_radius=14,
+                              command=view_attachment).pack(side="left", padx=(0, 5))
+                
+                ctk.CTkButton(btn_frame, text="Download", font=(self.tm.main_font(), 12, "bold"), fg_color=self.tm.accent_color(), 
                               text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover(), width=80, height=28, corner_radius=14,
-                              command=download_attachment).pack(side="right", padx=15, pady=10)
+                              command=download_attachment).pack(side="left")
         
         # Actions
         actions_frame = ctk.CTkFrame(container, fg_color="transparent")
@@ -680,15 +940,18 @@ class TaskDetailsPopup(ctk.CTkToplevel):
         
         if self.task_data.get('status') == 'completed':
             # Center Close button for completed tasks
-            ctk.CTkButton(actions_frame, text="Close", font=(self.tm.main_font(), 14, "bold"), fg_color="transparent", text_color=self.tm.text_main(), border_width=1, border_color=self.tm.border_main(), corner_radius=20, width=150, height=40, command=self.destroy).pack(expand=True)
+            ctk.CTkButton(actions_frame, text="Close", font=(self.tm.main_font(), 14, "bold"), fg_color="transparent", text_color=self.tm.text_main(), border_width=1, border_color=self.tm.border_main(), corner_radius=20, width=150, height=40, command=self.close).pack(expand=True)
         else:
-            ctk.CTkButton(actions_frame, text="Close", font=(self.tm.main_font(), 14, "bold"), fg_color="transparent", text_color=self.tm.text_main(), border_width=1, border_color=self.tm.border_main(), corner_radius=20, width=100, height=40, command=self.destroy).pack(side="left")
+            ctk.CTkButton(actions_frame, text="Close", font=(self.tm.main_font(), 14, "bold"), fg_color="transparent", text_color=self.tm.text_main(), border_width=1, border_color=self.tm.border_main(), corner_radius=20, width=100, height=40, command=self.close).pack(side="left")
             
             def open_edit():
-                self.destroy()
+                (self.master if hasattr(self, 'master') and self.master else self).after(50, self.destroy)
                 EditTaskPopup(self.master, self.db, self.task_data, self.subject_name, self.fetch_callback)
                 
             ctk.CTkButton(actions_frame, text="Manage Task", font=(self.tm.main_font(), 14, "bold"), fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), corner_radius=20, width=120, height=40, hover_color=self.tm.accent_hover(), command=open_edit).pack(side="right")
+
+    def close(self):
+        (self.master if hasattr(self, 'master') and self.master else self).after(50, self.destroy)
 
     def add_info_row(self, parent, label, value, val_color=None):
         row = ctk.CTkFrame(parent, fg_color="transparent")
