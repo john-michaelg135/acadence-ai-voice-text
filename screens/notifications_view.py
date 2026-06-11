@@ -144,9 +144,10 @@ class NotificationsView(ctk.CTkFrame):
             act_frame.pack(side="right", padx=15)
             
             def toggle_status(t=task):
-                if self.messagebox.askyesno("Confirm", "Mark this task as completed?"):
+                if self.messagebox.askyesno("Confirm", "Mark this task as completed?", parent=self.winfo_toplevel()):
                     self.db.update_task_status(t['id'], 'completed')
                     self.refresh()
+                    self.messagebox.showinfo("Success", "Task marked as completed!", parent=self.winfo_toplevel())
             
             ctk.CTkButton(act_frame, text="Mark as Done", font=(self.tm.main_font(), 11, "bold"), width=100, height=24, corner_radius=8,
                           fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover(),

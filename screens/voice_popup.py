@@ -146,6 +146,16 @@ class VoiceRecordingPopup(ctk.CTkToplevel):
         if not final_text:
             messagebox.showerror("Voice Error", "No transcription available to confirm.", parent=self)
             return
+
+        from utils.profanity_filter import contains_profanity
+        if contains_profanity(final_text):
+            messagebox.showerror(
+                "Inappropriate Content Detected",
+                "Your voice input contains offensive or inappropriate language.\n\n"
+                "Please re-record or edit the transcription above before proceeding.",
+                parent=self
+            )
+            return
             
         self.status_lbl.configure(text="AI Mapping Text...", text_color=self.tm.accent_color())
         self.confirm_btn.configure(state="disabled", text="Parsing...")

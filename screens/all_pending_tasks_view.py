@@ -179,9 +179,10 @@ class AllPendingTasksView(ctk.CTkFrame):
         act_frame.pack(side="right", padx=15)
         
         def toggle_status():
-            if self.messagebox.askyesno("Confirm Action", "Are you sure you want to mark this task as done?"):
+            if self.messagebox.askyesno("Confirm Action", "Are you sure you want to mark this task as done?", parent=self.winfo_toplevel()):
                 self.db.update_task_status(task['id'], 'completed')
                 self._fetch_and_render()
+                self.messagebox.showinfo("Success", "Task marked as completed!", parent=self.winfo_toplevel())
 
         ctk.CTkButton(act_frame, text="Mark as Done", font=(self.tm.main_font(), 11, "bold"), width=100, height=24, corner_radius=8,
                       fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover(),
@@ -260,6 +261,7 @@ class AllPendingTasksView(ctk.CTkFrame):
         EditTaskPopup(self.winfo_toplevel(), self.db, task, task['subject_name'], self._fetch_and_render)
 
     def delete_task(self, task):
-        if self.messagebox.askyesno("Delete", "Are you sure you want to delete this task?"):
+        if self.messagebox.askyesno("Delete", "Are you sure you want to delete this task?", parent=self.winfo_toplevel()):
             self.db.delete_task(task['id'])
             self._fetch_and_render()
+            self.messagebox.showinfo("Success", "Task deleted successfully!", parent=self.winfo_toplevel())

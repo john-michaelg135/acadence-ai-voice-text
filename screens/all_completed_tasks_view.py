@@ -88,9 +88,10 @@ class AllCompletedTasksView(ctk.CTkFrame):
         act_frame.pack(side="right", padx=15)
         
         def toggle_status():
-            if self.messagebox.askyesno("Confirm Action", "Are you sure you want to unmark this task?"):
+            if self.messagebox.askyesno("Confirm Action", "Are you sure you want to unmark this task?", parent=self.winfo_toplevel()):
                 self.db.update_task_status(task['id'], 'pending')
                 self.load_tasks()
+                self.messagebox.showinfo("Success", "Task unmarked successfully!", parent=self.winfo_toplevel())
 
         ctk.CTkButton(act_frame, text="Unmark Task", font=(self.tm.main_font(), 11, "bold"), width=100, height=24, corner_radius=8,
                       fg_color=self.tm.text_sub(), text_color="#FFFFFF", hover_color=self.tm.border_main(),
@@ -158,6 +159,7 @@ class AllCompletedTasksView(ctk.CTkFrame):
         EditTaskPopup(self.winfo_toplevel(), self.db, task, task['subject_name'], self.load_tasks)
 
     def delete_task(self, task):
-        if self.messagebox.askyesno("Delete", "Are you sure you want to delete this task?"):
+        if self.messagebox.askyesno("Delete", "Are you sure you want to delete this task?", parent=self.winfo_toplevel()):
             self.db.delete_task(task['id'])
             self.load_tasks()
+            self.messagebox.showinfo("Success", "Task deleted successfully!", parent=self.winfo_toplevel())

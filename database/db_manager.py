@@ -389,6 +389,38 @@ class DatabaseManager:
                 cur.execute("SELECT * FROM subjects WHERE user_id = ? ORDER BY created_at DESC", (user_id,))
                 return [dict(row) for row in cur.fetchall()]
 
+    def check_subject_duplicate(self, user_id: int, name: str, code: str, exclude_id: int = None) -> str:
+        """
+        Returns an error message string if a duplicate name or code is found for this user,
+        or an empty string if everything is unique.
+        `exclude_id` is used during edits so the subject being edited is not matched against itself.
+        """
+        with self._db_lock:
+            with self.get_connection() as conn:
+                conn.row_factory = sqlite3.Row
+                cur = conn.cursor()
+                if exclude_id:
+                    cur.execute(
+                        "SELECT id, name, code FROM subjects WHERE user_id = ? AND id != ?",
+                        (user_id, exclude_id)
+                    )
+                else:
+                    cur.execute(
+                        "SELECT id, name, code FROM subjects WHERE user_id = ?",
+                        (user_id,)
+                    )
+                existing = [dict(row) for row in cur.fetchall()]
+
+        name_lower = name.strip().lower()
+        code_lower = code.strip().lower()
+
+        for s in existing:
+            if s['name'].strip().lower() == name_lower:
+                return "A subject with this name already exists. Please use a different name."
+            if code_lower and s['code'] and s['code'].strip().lower() == code_lower:
+                return f"Subject code \"{code}\" is already used by \"{s['name']}\". Please use a different code."
+        return ""
+
     def add_subject(self, user_id: int, name: str, code: str = '', description: str = '', category: str = 'Major') -> None:
         now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with self._db_lock:

@@ -61,7 +61,7 @@ class HistoryView(ctk.CTkFrame):
             num_bars = len(valid_bars)
 
             bar_width = 35
-            spacing = 65
+            spacing = 90
             req_width = max(360, num_bars * (bar_width + spacing) + spacing)
             
             # Increased height and padding for Poppins font metrics
@@ -109,7 +109,20 @@ class HistoryView(ctk.CTkFrame):
                     # Subject name label (always visible)
                     display_name = data['name']
                     if len(display_name) > 18:
-                        display_name = display_name[:15] + "..."
+                        cut = 15
+                        last_space = display_name.rfind(' ', 0, cut + 1)
+                        if last_space != -1:
+                            word_chars = cut - last_space - 1
+                            if 0 < word_chars < 4:
+                                next_space = display_name.find(' ', last_space + 1)
+                                end_of_word = next_space if next_space != -1 else len(display_name)
+                                true_word_len = end_of_word - last_space - 1
+                                if true_word_len >= 4:
+                                    cut = last_space + 1 + 4
+                                else:
+                                    cut = end_of_word
+                        display_name = display_name[:cut] + "..."
+                        
                     canvas.create_text(x0 + (bar_width/2), bottom_y + 10, text=display_name, fill=text_hex, font=(self.tm.main_font(), 11), width=bar_width + spacing - 5, justify="center", anchor="n")
                     # Count label (hidden initially, revealed after animation)
                     count_id = canvas.create_text(x0 + (bar_width/2), bottom_y - 12, text=str(data['count']), fill=text_hex, font=(self.tm.main_font(), 11, "bold"), state="hidden")

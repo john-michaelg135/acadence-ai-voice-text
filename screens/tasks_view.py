@@ -403,11 +403,19 @@ class AddTaskPopup(ctk.CTkToplevel):
             messagebox.showerror("Error", "Task Name is required.", parent=self)
             return
 
+        from utils.profanity_filter import contains_profanity
+        if contains_profanity(name) or contains_profanity(desc):
+            messagebox.showerror("Inappropriate Content", "Please remove offensive words before proceeding.", parent=self)
+            return
+
         if self.submitted: return
         self.submitted = True
         
         task_id = self.db.add_task(self.subject_id, name, desc, deadline, priority=prio)
         self.on_success()
+        self.withdraw()
+        self.update_idletasks()
+        messagebox.showinfo("Success", "Task created successfully!", parent=self.master)
         
         # Safe destruction before launching background generation
         self.grab_release()
@@ -678,6 +686,11 @@ class EditTaskPopup(ctk.CTkToplevel):
             messagebox.showerror("Error", "Task Name is required.", parent=self)
             return
 
+        from utils.profanity_filter import contains_profanity
+        if contains_profanity(name) or contains_profanity(desc):
+            messagebox.showerror("Inappropriate Content", "Please remove offensive words before proceeding.", parent=self)
+            return
+
         if self.submitted: return
         self.submitted = True
         
@@ -701,6 +714,9 @@ class EditTaskPopup(ctk.CTkToplevel):
 
         if not will_regenerate:
             self.on_success()
+            self.withdraw()
+            self.update_idletasks()
+            messagebox.showinfo("Success", "Task updated successfully!", parent=self.master)
 
         # Safe destruction
         self.grab_release()
@@ -1098,10 +1114,11 @@ class TasksView(ctk.CTkFrame):
         
         def toggle_status():
             action_text = "mark this task as done" if not is_done else "unmark this task"
-            if messagebox.askyesno("Confirm Action", f"Are you sure you want to {action_text}?"):
-                new_status = 'pending' if is_done else 'completed'
+            if messagebox.askyesno("Confirm Action", f"Are you sure you want to {action_text}?", parent=self.winfo_toplevel()):
+                new_status = 'completed' if task['status'] == 'pending' else 'pending'
                 self.db.update_task_status(task['id'], new_status)
                 self._fetch_and_render()
+                messagebox.showinfo("Success", f"Task marked as {new_status}!", parent=self.winfo_toplevel())
 
         if is_done:
             btn_text = "Unmark Task"
@@ -1190,6 +1207,7 @@ class TasksView(ctk.CTkFrame):
         EditTaskPopup(self.winfo_toplevel(), self.db, task, self.subject_name, self._fetch_and_render)
 
     def delete_task(self, task):
-        if messagebox.askyesno("Delete", "Are you sure you want to delete this task?"):
+        if messagebox.askyesno("Delete", "Are you sure you want to delete this task?", parent=self.winfo_toplevel()):
             self.db.delete_task(task['id'])
             self._fetch_and_render()
+            messagebox.showinfo("Success", "Task deleted successfully!", parent=self.winfo_toplevel())

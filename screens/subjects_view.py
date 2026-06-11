@@ -127,16 +127,34 @@ class AddSubjectPopup(ctk.CTkToplevel):
             messagebox.showerror("Error", "Subject Name is required.", parent=self)
             return
 
+        from utils.profanity_filter import contains_profanity
+        if contains_profanity(name) or contains_profanity(desc):
+            messagebox.showerror("Inappropriate Content", "Please remove offensive words before proceeding.", parent=self)
+            return
+
+        dup_error = self.db.check_subject_duplicate(self.user_id, name, code)
+        if dup_error:
+            messagebox.showerror("Duplicate Subject", dup_error, parent=self)
+            return
+
         if self.submitted: return
         self.submitted = True
         
         self.db.add_subject(self.user_id, name, code, desc, cat)
+        try:
+            self.grab_release()
+            self.withdraw()
+            self.update_idletasks()
+        except Exception:
+            pass
         self.on_success()
+        messagebox.showinfo("Success", "Subject created successfully!", parent=self.master)
         
         # Safe destruction
-        self.grab_release()
-        self.update_idletasks()
-        self.destroy()
+        try:
+            self.destroy()
+        except Exception:
+            pass
 
 class EditSubjectPopup(ctk.CTkToplevel):
     def __init__(self, master, db, subject, on_success):
@@ -235,16 +253,34 @@ class EditSubjectPopup(ctk.CTkToplevel):
             messagebox.showerror("Error", "Subject Name is required.", parent=self)
             return
 
+        from utils.profanity_filter import contains_profanity
+        if contains_profanity(name) or contains_profanity(desc):
+            messagebox.showerror("Inappropriate Content", "Please remove offensive words before proceeding.", parent=self)
+            return
+
+        dup_error = self.db.check_subject_duplicate(self.subject['user_id'], name, code, exclude_id=self.subject['id'])
+        if dup_error:
+            messagebox.showerror("Duplicate Subject", dup_error, parent=self)
+            return
+
         if self.submitted: return
         self.submitted = True
         
         self.db.update_subject(self.subject['id'], name, code, desc, cat)
+        try:
+            self.grab_release()
+            self.withdraw()
+            self.update_idletasks()
+        except Exception:
+            pass
         self.on_success()
+        messagebox.showinfo("Success", "Subject updated successfully!", parent=self.master)
         
         # Safe destruction
-        self.grab_release()
-        self.update_idletasks()
-        self.destroy()
+        try:
+            self.destroy()
+        except Exception:
+            pass
 
 class SubjectsView(ctk.CTkFrame):
     def __init__(self, master, user_info, show_view_callback):
@@ -459,14 +495,18 @@ class SubjectsView(ctk.CTkFrame):
         from screens.voice_popup import VoiceRecordingPopup
         
         def on_transcribed(parsed_data):
-            AddSubjectPopup(self.winfo_toplevel(), self.db, self.user_id, self.load_subjects, initial_data=parsed_data)
+            def on_added():
+                self.load_subjects()
+                messagebox.showinfo("Success", "Subject added successfully!", parent=self.winfo_toplevel())
+            AddSubjectPopup(self.winfo_toplevel(), self.db, self.user_id, on_added, initial_data=parsed_data)
             
         VoiceRecordingPopup(self.winfo_toplevel(), on_transcribed, command_type='subject')
 
     def delete_subject(self, subject):
-        if messagebox.askyesno("Delete", f"Are you sure you want to delete '{subject['name']}'?"):
+        if messagebox.askyesno("Delete", f"Are you sure you want to delete '{subject['name']}'?", parent=self.winfo_toplevel()):
             self.db.delete_subject(subject['id'])
             self.load_subjects()
+            messagebox.showinfo("Success", "Subject deleted successfully!", parent=self.winfo_toplevel())
 
     def refresh(self):
         """Called by DashboardScreen when the cached view is shown to refresh data."""
