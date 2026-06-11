@@ -28,7 +28,7 @@ class DashboardScreen(ctk.CTkFrame):
         
         # Trigger walkthrough if not seen
         if not self.user_info.get("has_seen_walkthrough"):
-            self.after(500, self.show_walkthrough)
+            self.after(10, self.show_walkthrough)
 
     def show_walkthrough(self):
         def on_complete():

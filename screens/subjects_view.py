@@ -98,6 +98,12 @@ class AddSubjectPopup(ctk.CTkToplevel):
                 self.btn_major.configure(fg_color="transparent", text_color=self.tm.text_main(), hover_color=self.tm.bg_sub(), border_width=0)
                 
         update_buttons() # init state
+        
+        if self.initial_data and 'is_major' in self.initial_data:
+            if self.initial_data['is_major']:
+                set_category("Major")
+            else:
+                set_category("Minor")
 
         # Action Buttons
         actions_frame = ctk.CTkFrame(container, fg_color="transparent")

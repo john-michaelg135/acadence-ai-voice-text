@@ -45,11 +45,12 @@ def parse_voice_command(text, command_type='subject'):
     # Build safe prompt using templates instead of f-string injection
     if command_type == 'subject':
         system_prompt = """Extract subject information from user text and return ONLY a valid JSON object.
-Keys: "name", "code", "description".
+Keys: "name", "code", "description", "is_major".
 NAME: Title Case, keep small words (to, from, and, of, the) lowercase except at start.
 NUMBERS: Convert spelled-out numbers ('one' → '1', 'forty five' → '45').
 DESCRIPTION: Rich, professional, 1-2 sentences. If missing, invent based on name.
 CODE: Format as UPPERCASE-DIGITS (e.g. 'CS-101'). If missing, guess reasonable value.
+IS_MAJOR: Integer 1 if the user specifies "major", 0 if the user specifies "minor". If not specified, default to 1.
 Return ONLY valid JSON."""
         user_text_template = "Extract: [TEXT_HERE]"
     else:
@@ -107,7 +108,7 @@ Return ONLY valid JSON."""
             
             # Validate required keys
             if command_type == 'subject':
-                required = {'name', 'code', 'description'}
+                required = {'name', 'code', 'description', 'is_major'}
             else:
                 required = {'name', 'description', 'priority'}
             
@@ -218,10 +219,15 @@ def fallback_parse(text, command_type):
         if desc_match:
             desc = desc_match.group(2).strip()
             
+        is_major = 1
+        if "minor" in text.lower():
+            is_major = 0
+            
         return {
             'name': to_title_case(name),
             'code': code,
-            'description': enrich_subject_offline(name, desc)
+            'description': enrich_subject_offline(name, desc),
+            'is_major': is_major
         }
     else:
         # Task Parsing

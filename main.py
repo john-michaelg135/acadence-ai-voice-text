@@ -96,19 +96,33 @@ class AcadenceApp(ctk.CTk):
             
         self.dashboard_screen.pack(fill="both", expand=True)
         
-        # Start system notification scheduler for non-admin, non-guest users
+        # Start system notification scheduler and send login notifications
         # Skip this if we are just reloading the UI theme to prevent spamming notifications
-        if not is_reload and user_info and not user_info.get('is_admin'):
-            self._start_notification_scheduler(user_info)
-            
-            # Send a welcome desktop notification
+        if not is_reload and user_info:
             from utils.notification_manager import NotificationManager
-            NotificationManager.send(
-                title=f"Welcome back, {user_info['username']}!",
-                message="You are now logged into Acadence. Desktop notifications are active.",
-                app_name="Acadence Login",
-                timeout=7
-            )
+            
+            if user_info.get('is_admin'):
+                NotificationManager.send(
+                    title="Admin log in",
+                    message="You are now logged into the Acadence Admin Panel.",
+                    app_name="Acadence Admin",
+                    timeout=7
+                )
+            else:
+                self._start_notification_scheduler(user_info)
+                
+                # Check if new user based on walkthrough flag
+                if not user_info.get('has_seen_walkthrough'):
+                    title_text = f"Welcome, {user_info['username']}!"
+                else:
+                    title_text = f"Welcome back, {user_info['username']}!"
+                    
+                NotificationManager.send(
+                    title=title_text,
+                    message="You are now logged into Acadence. Desktop notifications are active.",
+                    app_name="Acadence Login",
+                    timeout=7
+                )
 
     def record_session(self):
         """Calculates the time spent logged in before killing the window/logout."""
