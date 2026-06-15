@@ -15,14 +15,14 @@ class AddSubjectPopup(ctk.CTkToplevel):
         self.submitted = False
         
         self.title("")
-        self.geometry("700x450")
+        self.geometry("700x600")
         self.attributes("-topmost", True)
         self.resizable(False, False)
         
         # Center window over root
         self.update_idletasks()
         x = master.winfo_rootx() + (master.winfo_width() // 2) - (700 // 2)
-        y = master.winfo_rooty() + (master.winfo_height() // 2) - (450 // 2)
+        y = master.winfo_rooty() + (master.winfo_height() // 2) - (600 // 2) - 70
         self.geometry(f"+{x}+{y}")
         
         self.setup_ui()
@@ -49,25 +49,111 @@ class AddSubjectPopup(ctk.CTkToplevel):
         
         # Subject Name
         self.name_entry = ctk.CTkEntry(container, placeholder_text="Subject Name", **input_args)
-        self.name_entry.pack(fill="x", padx=30, pady=(0, 15))
+        self.name_entry.pack(fill="x", padx=30, pady=(0, 4))
         
-        # Subject Code
+        # Char counter label
+        _name_count_lbl = ctk.CTkLabel(container, text="0/32",
+                                        font=(self.tm.main_font(), 10),
+                                        text_color=self.tm.text_sub())
+        _name_count_lbl.pack(anchor="e", padx=32, pady=(0, 11))
+        
+        # Validation: block special chars, cap at 32
+        import re as _re
+        def _val_subj_name(proposed):
+            if proposed and _re.search(r"[^a-zA-Z0-9 .\-']", proposed):
+                return False
+            if len(proposed) > 32:
+                return False
+            c = len(proposed)
+            _name_count_lbl.configure(
+                text=f"{c}/32",
+                text_color=self.tm.error_color() if c >= 28 else self.tm.text_sub()
+            )
+            return True
+        _vcmd = (self.name_entry._entry.register(_val_subj_name), '%P')
+        self.name_entry._entry.configure(validate="key", validatecommand=_vcmd)
+        
+        # --- Allow Subject Code: Custom ON/OFF pill toggle ---
+        self.allow_code_var = ctk.BooleanVar(value=True)
+        
+        toggle_row = ctk.CTkFrame(container, fg_color="transparent")
+        toggle_row.pack(fill="x", padx=30, pady=(0, 8))
+        
+        ctk.CTkLabel(toggle_row, text="Allow Subject Code",
+                     font=(self.tm.main_font(), 13), text_color=self.tm.text_main()).pack(side="left")
+        
+        # Pill container
+        pill = ctk.CTkFrame(toggle_row, fg_color=self.tm.bg_sub(),
+                            corner_radius=20, border_width=1, border_color=self.tm.border_main())
+        pill.pack(side="left", padx=(12, 0))
+        
+        self._code_btn_on = ctk.CTkButton(
+            pill, text="ON", width=52, height=28, corner_radius=16,
+            font=(self.tm.main_font(), 12, "bold"),
+            fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(),
+            hover_color=self.tm.accent_hover(),
+            command=lambda: self._set_allow_code(True)
+        )
+        self._code_btn_on.pack(side="left", padx=3, pady=3)
+        
+        self._code_btn_off = ctk.CTkButton(
+            pill, text="OFF", width=52, height=28, corner_radius=16,
+            font=(self.tm.main_font(), 12, "bold"),
+            fg_color="transparent", text_color=self.tm.text_sub(),
+            hover_color=self.tm.bg_sub(),
+            command=lambda: self._set_allow_code(False)
+        )
+        self._code_btn_off.pack(side="left", padx=3, pady=3)
+        
+        # Subject Code Entry
         self.code_entry = ctk.CTkEntry(container, placeholder_text="Subject Code", **input_args)
-        self.code_entry.pack(fill="x", padx=30, pady=(0, 15))
+        self.code_entry.pack(fill="x", padx=30, pady=(0, 4))
+        
+        _code_count_lbl = ctk.CTkLabel(container, text="0/32",
+                                        font=(self.tm.main_font(), 10),
+                                        text_color=self.tm.text_sub())
+        _code_count_lbl.pack(anchor="e", padx=32, pady=(0, 11))
+        
+        def _val_subj_code(proposed):
+            if proposed and _re.search(r"[^a-zA-Z0-9 .\-']", proposed): return False
+            if len(proposed) > 32: return False
+            c = len(proposed)
+            _code_count_lbl.configure(text=f"{c}/32", text_color=self.tm.error_color() if c >= 28 else self.tm.text_sub())
+            return True
+        self.code_entry._entry.configure(validate="key", validatecommand=(self.code_entry._entry.register(_val_subj_code), '%P'))
         
         # Subject Description
         self.desc_entry = ctk.CTkEntry(container, placeholder_text="Subject Description", **input_args)
-        self.desc_entry.pack(fill="x", padx=30, pady=(0, 20))
+        self.desc_entry.pack(fill="x", padx=30, pady=(0, 4))
+        
+        _desc_count_lbl = ctk.CTkLabel(container, text="0/250",
+                                        font=(self.tm.main_font(), 10),
+                                        text_color=self.tm.text_sub())
+        _desc_count_lbl.pack(anchor="e", padx=32, pady=(0, 11))
+        
+        def _val_subj_desc(proposed):
+            if proposed and _re.search(r"[^a-zA-Z0-9 .\-']", proposed): return False
+            if len(proposed) > 250: return False
+            c = len(proposed)
+            _desc_count_lbl.configure(text=f"{c}/250", text_color=self.tm.error_color() if c >= 240 else self.tm.text_sub())
+            return True
+        self.desc_entry._entry.configure(validate="key", validatecommand=(self.desc_entry._entry.register(_val_subj_desc), '%P'))
         
         if self.initial_data:
             self.name_entry.insert(0, self.initial_data.get('name', ''))
-            self.code_entry.insert(0, self.initial_data.get('code', ''))
+            
+            code_val = self.initial_data.get('code', '')
+            if code_val:
+                self.code_entry.insert(0, code_val)
+            else:
+                self._set_allow_code(False)
+                
             self.desc_entry.insert(0, self.initial_data.get('description', ''))
         
         # Category Section
         ctk.CTkLabel(container, text="Category", font=(self.tm.main_font(), 14), text_color=self.tm.text_sub()).pack(pady=(5, 5))
         
-        # Custom Toggle for Major/Minor
+        # Custom Toggle for Major/Minor/None
         cat_frame = ctk.CTkFrame(container, fg_color="transparent")
         cat_frame.pack(pady=(0, 20))
         
@@ -88,14 +174,20 @@ class AddSubjectPopup(ctk.CTkToplevel):
             font=(self.tm.main_font(), 12), command=lambda: set_category("Minor")
         )
         self.btn_minor.pack(side="left", padx=5)
+
+        self.btn_none = ctk.CTkButton(
+            cat_frame, text="None", width=80, height=30, corner_radius=15,
+            font=(self.tm.main_font(), 12), command=lambda: set_category("None")
+        )
+        self.btn_none.pack(side="left", padx=5)
         
         def update_buttons():
-            if self.category_var.get() == "Major":
-                self.btn_major.configure(fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover())
-                self.btn_minor.configure(fg_color="transparent", text_color=self.tm.text_main(), hover_color=self.tm.bg_sub(), border_width=0)
-            else:
-                self.btn_minor.configure(fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover())
-                self.btn_major.configure(fg_color="transparent", text_color=self.tm.text_main(), hover_color=self.tm.bg_sub(), border_width=0)
+            current = self.category_var.get()
+            for btn, val in [(self.btn_major, "Major"), (self.btn_minor, "Minor"), (self.btn_none, "None")]:
+                if current == val:
+                    btn.configure(fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover(), border_width=0)
+                else:
+                    btn.configure(fg_color="transparent", text_color=self.tm.text_main(), hover_color=self.tm.bg_sub(), border_width=0)
                 
         update_buttons() # init state
         
@@ -109,19 +201,60 @@ class AddSubjectPopup(ctk.CTkToplevel):
         actions_frame = ctk.CTkFrame(container, fg_color="transparent")
         actions_frame.pack(fill="x", padx=50, pady=(10, 20), side="bottom")
 
-        # Cancel
         ctk.CTkButton(
-            actions_frame, text="Cancel", font=(self.tm.main_font(), 14, "bold"), fg_color="transparent", text_color=self.tm.text_main(),
-            border_width=1, border_color=self.tm.border_main(), corner_radius=20, width=120, height=40,
-            command=self.destroy
+            actions_frame, text="Cancel", font=(self.tm.main_font(), 14, "bold"),
+            fg_color="transparent", text_color=self.tm.text_main(),
+            border_width=1, border_color=self.tm.border_main(),
+            corner_radius=20, width=120, height=40, command=self.destroy
         ).pack(side="left")
 
-        # Add Subject
         ctk.CTkButton(
-            actions_frame, text="Add Subject", font=(self.tm.main_font(), 14, "bold"), fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), 
+            actions_frame, text="Add Subject", font=(self.tm.main_font(), 14, "bold"),
+            fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(),
             corner_radius=20, width=120, height=40, hover_color=self.tm.accent_hover(),
             command=self.submit
         ).pack(side="right")
+
+    def _set_allow_code(self, enabled: bool):
+        """Switches the ON/OFF pill toggle and enables/disables the code entry."""
+        self.allow_code_var.set(enabled)
+        if enabled:
+            self._code_btn_on.configure(
+                fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(),
+                hover_color=self.tm.accent_hover()
+            )
+            self._code_btn_off.configure(
+                fg_color="transparent", text_color=self.tm.text_sub(),
+                hover_color=self.tm.bg_sub()
+            )
+            self.code_entry.configure(
+                state="normal",
+                fg_color=self.tm.bg_sub(),
+                text_color=self.tm.text_main(),
+                placeholder_text_color=self.tm.text_sub(),
+                placeholder_text="Subject Code"
+            )
+        else:
+            self._code_btn_off.configure(
+                fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(),
+                hover_color=self.tm.accent_hover()
+            )
+            self._code_btn_on.configure(
+                fg_color="transparent", text_color=self.tm.text_sub(),
+                hover_color=self.tm.bg_sub()
+            )
+            self.code_entry.delete(0, "end")
+            self.code_entry.configure(
+                state="disabled",
+                fg_color=self.tm.bg_sub(),
+                text_color=("#AAAAAA", "#666666"),
+                placeholder_text="Subject Code",
+                placeholder_text_color=("#999999", "#666666")
+            )
+
+    def toggle_code_entry(self):
+        """Legacy compatibility wrapper."""
+        self._set_allow_code(self.allow_code_var.get())
 
     def submit(self):
         name = self.name_entry.get().strip()
@@ -173,13 +306,13 @@ class EditSubjectPopup(ctk.CTkToplevel):
         self.submitted = False
         
         self.title("")
-        self.geometry("700x450")
+        self.geometry("700x600")
         self.attributes("-topmost", True)
         self.resizable(False, False)
         
         self.update_idletasks()
         x = master.winfo_rootx() + (master.winfo_width() // 2) - (700 // 2)
-        y = master.winfo_rooty() + (master.winfo_height() // 2) - (450 // 2)
+        y = master.winfo_rooty() + (master.winfo_height() // 2) - (600 // 2) - 70
         self.geometry(f"+{x}+{y}")
         
         self.setup_ui()
@@ -202,16 +335,109 @@ class EditSubjectPopup(ctk.CTkToplevel):
         }
         
         self.name_entry = ctk.CTkEntry(container, placeholder_text="Subject Name", **input_args)
-        self.name_entry.pack(fill="x", padx=30, pady=(0, 15))
-        self.name_entry.insert(0, self.subject['name'])
+        self.name_entry.pack(fill="x", padx=30, pady=(0, 4))
         
+        # Char counter label
+        self._name_count_lbl = ctk.CTkLabel(container, text="0/32",
+                                             font=(self.tm.main_font(), 10),
+                                             text_color=self.tm.text_sub())
+        self._name_count_lbl.pack(anchor="e", padx=32, pady=(0, 11))
+        
+        # Validation: block special chars, cap at 32
+        import re as _re
+        def _val_subj_name(proposed):
+            if proposed and _re.search(r"[^a-zA-Z0-9 .\-']", proposed):
+                return False
+            if len(proposed) > 32:
+                return False
+            c = len(proposed)
+            self._name_count_lbl.configure(
+                text=f"{c}/32",
+                text_color=self.tm.error_color() if c >= 28 else self.tm.text_sub()
+            )
+            return True
+        _vcmd = (self.name_entry._entry.register(_val_subj_name), '%P')
+        self.name_entry._entry.configure(validate="key", validatecommand=_vcmd)
+        
+        self.name_entry.insert(0, self.subject['name'])
+        _n = len(self.subject['name'])
+        self._name_count_lbl.configure(
+            text=f"{_n}/32",
+            text_color=self.tm.error_color() if _n >= 28 else self.tm.text_sub()
+        )
+        
+        # --- Allow Subject Code: Custom ON/OFF pill toggle ---
+        self.allow_code_var = ctk.BooleanVar(value=True)
+        
+        toggle_row = ctk.CTkFrame(container, fg_color="transparent")
+        toggle_row.pack(fill="x", padx=30, pady=(0, 8))
+        
+        ctk.CTkLabel(toggle_row, text="Allow Subject Code",
+                     font=(self.tm.main_font(), 13), text_color=self.tm.text_main()).pack(side="left")
+        
+        pill = ctk.CTkFrame(toggle_row, fg_color=self.tm.bg_sub(),
+                            corner_radius=20, border_width=1, border_color=self.tm.border_main())
+        pill.pack(side="left", padx=(12, 0))
+        
+        self._code_btn_on = ctk.CTkButton(
+            pill, text="ON", width=52, height=28, corner_radius=16,
+            font=(self.tm.main_font(), 12, "bold"),
+            fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(),
+            hover_color=self.tm.accent_hover(),
+            command=lambda: self._set_allow_code(True)
+        )
+        self._code_btn_on.pack(side="left", padx=3, pady=3)
+        
+        self._code_btn_off = ctk.CTkButton(
+            pill, text="OFF", width=52, height=28, corner_radius=16,
+            font=(self.tm.main_font(), 12, "bold"),
+            fg_color="transparent", text_color=self.tm.text_sub(),
+            hover_color=self.tm.bg_sub(),
+            command=lambda: self._set_allow_code(False)
+        )
+        self._code_btn_off.pack(side="left", padx=3, pady=3)
+        
+        # Subject Code Entry
         self.code_entry = ctk.CTkEntry(container, placeholder_text="Subject Code", **input_args)
-        self.code_entry.pack(fill="x", padx=30, pady=(0, 15))
-        self.code_entry.insert(0, self.subject.get('code', ''))
+        self.code_entry.pack(fill="x", padx=30, pady=(0, 4))
+        
+        self._code_count_lbl = ctk.CTkLabel(container, text="0/32", font=(self.tm.main_font(), 10), text_color=self.tm.text_sub())
+        self._code_count_lbl.pack(anchor="e", padx=32, pady=(0, 11))
+        
+        def _val_subj_code(proposed):
+            if proposed and _re.search(r"[^a-zA-Z0-9 .\-']", proposed): return False
+            if len(proposed) > 32: return False
+            c = len(proposed)
+            self._code_count_lbl.configure(text=f"{c}/32", text_color=self.tm.error_color() if c >= 28 else self.tm.text_sub())
+            return True
+        self.code_entry._entry.configure(validate="key", validatecommand=(self.code_entry._entry.register(_val_subj_code), '%P'))
+        
+        code_val = self.subject.get('code', '')
+        if code_val:
+            self.code_entry.insert(0, code_val)
+            _c = len(code_val)
+            self._code_count_lbl.configure(text=f"{_c}/32", text_color=self.tm.error_color() if _c >= 28 else self.tm.text_sub())
+        else:
+            self._set_allow_code(False)
         
         self.desc_entry = ctk.CTkEntry(container, placeholder_text="Subject Description", **input_args)
-        self.desc_entry.pack(fill="x", padx=30, pady=(0, 20))
-        self.desc_entry.insert(0, self.subject.get('description', ''))
+        self.desc_entry.pack(fill="x", padx=30, pady=(0, 4))
+        
+        self._desc_count_lbl = ctk.CTkLabel(container, text="0/250", font=(self.tm.main_font(), 10), text_color=self.tm.text_sub())
+        self._desc_count_lbl.pack(anchor="e", padx=32, pady=(0, 11))
+        
+        def _val_subj_desc(proposed):
+            if proposed and _re.search(r"[^a-zA-Z0-9 .\-']", proposed): return False
+            if len(proposed) > 250: return False
+            c = len(proposed)
+            self._desc_count_lbl.configure(text=f"{c}/250", text_color=self.tm.error_color() if c >= 240 else self.tm.text_sub())
+            return True
+        self.desc_entry._entry.configure(validate="key", validatecommand=(self.desc_entry._entry.register(_val_subj_desc), '%P'))
+        
+        _d = self.subject.get('description', '')
+        self.desc_entry.insert(0, _d)
+        _dn = len(_d)
+        self._desc_count_lbl.configure(text=f"{_dn}/250", text_color=self.tm.error_color() if _dn >= 240 else self.tm.text_sub())
         
         ctk.CTkLabel(container, text="Category", font=(self.tm.main_font(), 14), text_color=self.tm.text_sub()).pack(pady=(5, 5))
         
@@ -229,25 +455,77 @@ class EditSubjectPopup(ctk.CTkToplevel):
         
         self.btn_minor = ctk.CTkButton(cat_frame, text="Minor", width=80, height=30, corner_radius=15, font=(self.tm.main_font(), 12), command=lambda: set_category("Minor"))
         self.btn_minor.pack(side="left", padx=5)
+
+        self.btn_none = ctk.CTkButton(cat_frame, text="None", width=80, height=30, corner_radius=15, font=(self.tm.main_font(), 12), command=lambda: set_category("None"))
+        self.btn_none.pack(side="left", padx=5)
         
         def update_buttons():
-            if self.category_var.get() == "Major":
-                self.btn_major.configure(fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover())
-                self.btn_minor.configure(fg_color="transparent", text_color=self.tm.text_main(), hover_color=self.tm.bg_sub(), border_width=0)
-            else:
-                self.btn_minor.configure(fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover())
-                self.btn_major.configure(fg_color="transparent", text_color=self.tm.text_main(), hover_color=self.tm.bg_sub(), border_width=0)
+            current = self.category_var.get()
+            for btn, val in [(self.btn_major, "Major"), (self.btn_minor, "Minor"), (self.btn_none, "None")]:
+                if current == val:
+                    btn.configure(fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover(), border_width=0)
+                else:
+                    btn.configure(fg_color="transparent", text_color=self.tm.text_main(), hover_color=self.tm.bg_sub(), border_width=0)
                 
-        update_buttons() 
+        update_buttons()
 
         actions_frame = ctk.CTkFrame(container, fg_color="transparent")
         actions_frame.pack(fill="x", padx=50, pady=(10, 20), side="bottom")
 
-        ctk.CTkButton(actions_frame, text="Cancel", font=(self.tm.main_font(), 14, "bold"), fg_color="transparent", text_color=self.tm.text_main(),
-            border_width=1, border_color=self.tm.border_main(), corner_radius=20, width=120, height=40, command=self.destroy).pack(side="left")
+        ctk.CTkButton(
+            actions_frame, text="Cancel", font=(self.tm.main_font(), 14, "bold"),
+            fg_color="transparent", text_color=self.tm.text_main(),
+            border_width=1, border_color=self.tm.border_main(),
+            corner_radius=20, width=120, height=40, command=self.destroy
+        ).pack(side="left")
 
-        ctk.CTkButton(actions_frame, text="Save Changes", font=(self.tm.main_font(), 14, "bold"), fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), 
-            corner_radius=20, width=120, height=40, hover_color=self.tm.accent_hover(), command=self.submit).pack(side="right")
+        ctk.CTkButton(
+            actions_frame, text="Save Changes", font=(self.tm.main_font(), 14, "bold"),
+            fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(),
+            corner_radius=20, width=120, height=40, hover_color=self.tm.accent_hover(),
+            command=self.submit
+        ).pack(side="right")
+
+    def _set_allow_code(self, enabled: bool):
+        """Switches the ON/OFF pill toggle and enables/disables the code entry."""
+        self.allow_code_var.set(enabled)
+        if enabled:
+            self._code_btn_on.configure(
+                fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(),
+                hover_color=self.tm.accent_hover()
+            )
+            self._code_btn_off.configure(
+                fg_color="transparent", text_color=self.tm.text_sub(),
+                hover_color=self.tm.bg_sub()
+            )
+            self.code_entry.configure(
+                state="normal",
+                fg_color=self.tm.bg_sub(),
+                text_color=self.tm.text_main(),
+                placeholder_text_color=self.tm.text_sub(),
+                placeholder_text="Subject Code"
+            )
+        else:
+            self._code_btn_off.configure(
+                fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(),
+                hover_color=self.tm.accent_hover()
+            )
+            self._code_btn_on.configure(
+                fg_color="transparent", text_color=self.tm.text_sub(),
+                hover_color=self.tm.bg_sub()
+            )
+            self.code_entry.delete(0, "end")
+            self.code_entry.configure(
+                state="disabled",
+                fg_color=self.tm.bg_sub(),
+                text_color=("#AAAAAA", "#666666"),
+                placeholder_text="Subject Code",
+                placeholder_text_color=("#999999", "#666666")
+            )
+
+    def toggle_code_entry(self):
+        """Legacy compatibility wrapper."""
+        self._set_allow_code(self.allow_code_var.get())
 
     def submit(self):
         name = self.name_entry.get().strip()
@@ -501,10 +779,7 @@ class SubjectsView(ctk.CTkFrame):
         from screens.voice_popup import VoiceRecordingPopup
         
         def on_transcribed(parsed_data):
-            def on_added():
-                self.load_subjects()
-                messagebox.showinfo("Success", "Subject added successfully!", parent=self.winfo_toplevel())
-            AddSubjectPopup(self.winfo_toplevel(), self.db, self.user_id, on_added, initial_data=parsed_data)
+            AddSubjectPopup(self.winfo_toplevel(), self.db, self.user_id, self.load_subjects, initial_data=parsed_data)
             
         VoiceRecordingPopup(self.winfo_toplevel(), on_transcribed, command_type='subject')
 

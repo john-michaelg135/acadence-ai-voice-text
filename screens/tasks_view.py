@@ -206,21 +206,19 @@ class AddTaskPopup(ctk.CTkToplevel):
         self.submitted = False
         
         self.title("")
-        self.geometry("800x650")
+        self.geometry("800x680")
         self.attributes("-topmost", True)
         self.resizable(False, False)
         
-        # Safe initialization for tkcalendar on some platforms/python versions
         try:
             style = ttk.Style()
             style.theme_use('clam')
         except:
             pass
 
-        # Center window over root
         self.update_idletasks()
         x = master.winfo_rootx() + (master.winfo_width() // 2) - (800 // 2)
-        y = master.winfo_rooty() + (master.winfo_height() // 2) - (650 // 2) - 50
+        y = master.winfo_rooty() + (master.winfo_height() // 2) - (680 // 2) - 100
         self.geometry(f"+{x}+{y}")
         
         self.setup_ui()
@@ -245,20 +243,42 @@ class AddTaskPopup(ctk.CTkToplevel):
         
         # Task Name
         self.name_entry = ctk.CTkEntry(container, placeholder_text="Task Name", **input_args)
-        self.name_entry.pack(fill="x", padx=30, pady=(0, 15))
+        self.name_entry.pack(fill="x", padx=30, pady=(0, 4))
+        
+        # Char counter label
+        _name_count_lbl = ctk.CTkLabel(container, text="0/32",
+                                        font=(self.tm.main_font(), 10),
+                                        text_color=self.tm.text_sub())
+        _name_count_lbl.pack(anchor="e", padx=32, pady=(0, 11))
+        
+        # Validation: block special chars, cap at 32
+        import re as _re
+        def _val_task_name(proposed):
+            if proposed and _re.search(r"[^a-zA-Z0-9 .\-']", proposed):
+                return False
+            if len(proposed) > 32:
+                return False
+            c = len(proposed)
+            _name_count_lbl.configure(
+                text=f"{c}/32",
+                text_color=self.tm.error_color() if c >= 28 else self.tm.text_sub()
+            )
+            return True
+        _vcmd = (self.name_entry._entry.register(_val_task_name), '%P')
+        self.name_entry._entry.configure(validate="key", validatecommand=_vcmd)
         
         # Subject Read-only Field
         sub_frame = ctk.CTkFrame(container, fg_color="transparent")
-        sub_frame.pack(fill="x", padx=30, pady=(0, 15))
+        sub_frame.pack(fill="x", padx=30, pady=(0, 10))
         ctk.CTkLabel(sub_frame, text="Subject", font=(self.tm.main_font(), 11), text_color=self.tm.text_sub()).pack(anchor="w")
         self.subject_entry = ctk.CTkEntry(sub_frame, **input_args)
         self.subject_entry.pack(fill="x")
         self.subject_entry.insert(0, self.subject_name)
         self.subject_entry.configure(state="disabled") # Make it read only
         
-        # Deadline Entry (Centered and slightly shorter like in mockup)
+        # Deadline Entry
         dead_frame = ctk.CTkFrame(container, fg_color="transparent")
-        dead_frame.pack(fill="x", pady=(0, 15))
+        dead_frame.pack(fill="x", pady=(0, 10))
         
         ctk.CTkLabel(dead_frame, text="Set Deadline & Time", font=(self.tm.main_font(), 11), text_color=self.tm.text_sub()).pack(anchor="w", padx=30)
         
@@ -321,19 +341,37 @@ class AddTaskPopup(ctk.CTkToplevel):
         ctk.CTkComboBox(time_wrapper, variable=self.min_var, values=mins, width=65, font=(self.tm.main_font(), 12), fg_color=self.tm.bg_sub(), button_color=self.tm.border_main(), text_color=self.tm.text_main(), border_color=self.tm.border_main(), border_width=1).pack(side="left", padx=2)
         ctk.CTkOptionMenu(time_wrapper, variable=self.ampm_var, values=["AM", "PM"], width=65, font=(self.tm.main_font(), 12), fg_color=self.tm.bg_sub(), button_color=self.tm.border_main(), text_color=self.tm.text_main()).pack(side="left", padx=2)
 
-        # Description (Taller textbox)
+        # Description
         desc_frame = ctk.CTkFrame(container, fg_color="transparent")
-        desc_frame.pack(fill="x", padx=30, pady=(0, 20))
+        desc_frame.pack(fill="x", padx=30, pady=(0, 10))
         ctk.CTkLabel(desc_frame, text="Description", font=(self.tm.main_font(), 11), text_color=self.tm.text_sub()).pack(anchor="w")
         self.desc_textbox = ctk.CTkTextbox(desc_frame, fg_color=self.tm.bg_sub(), border_width=1, border_color=self.tm.border_main(), 
-                                           text_color=self.tm.text_main(), font=(self.tm.main_font(), 13), corner_radius=8, height=100)
+                                           text_color=self.tm.text_main(), font=(self.tm.main_font(), 13), corner_radius=8, height=80)
         self.desc_textbox.pack(fill="x", pady=(5, 0))
         
+        _desc_count_lbl = ctk.CTkLabel(desc_frame, text="0/500", font=(self.tm.main_font(), 10), text_color=self.tm.text_sub())
+        _desc_count_lbl.pack(anchor="e", pady=(2, 0))
+        
+        def _val_task_desc(event=None):
+            content = self.desc_textbox.get("1.0", "end-1c")
+            import re
+            cleaned = re.sub(r"[^a-zA-Z0-9 .\-'\n]", "", content)
+            if len(cleaned) > 500: cleaned = cleaned[:500]
+            
+            if content != cleaned:
+                self.desc_textbox.delete("1.0", "end")
+                self.desc_textbox.insert("1.0", cleaned)
+                
+            c = len(cleaned)
+            _desc_count_lbl.configure(text=f"{c}/500", text_color=self.tm.error_color() if c >= 490 else self.tm.text_sub())
+            
+        self.desc_textbox.bind("<KeyRelease>", _val_task_desc)
+        
         # Priority Section
-        ctk.CTkLabel(container, text="Priority Level", font=(self.tm.main_font(), 14), text_color=self.tm.text_sub()).pack(pady=(5, 5))
+        ctk.CTkLabel(container, text="Priority Level", font=(self.tm.main_font(), 14), text_color=self.tm.text_sub()).pack(pady=(0, 5))
         
         prio_frame = ctk.CTkFrame(container, fg_color="transparent")
-        prio_frame.pack(pady=(0, 20))
+        prio_frame.pack(pady=(0, 10))
         
         self.priority_var = ctk.StringVar(value="Medium")
         
@@ -460,6 +498,20 @@ class AddTaskPopup(ctk.CTkToplevel):
         if ampm == "AM" and h == 12: h = 0
         deadline = f"{date_str} {h:02d}:{m}"
         
+        # Reject deadlines that are already in the past (date + time aware)
+        try:
+            deadline_dt = datetime.strptime(deadline, "%Y-%m-%d %H:%M")
+            if deadline_dt <= datetime.now():
+                messagebox.showerror(
+                    "Invalid Deadline",
+                    f"The selected deadline ({deadline_dt.strftime('%b %d, %Y %I:%M %p')}) "
+                    f"has already passed.\nPlease choose a future date and time.",
+                    parent=self
+                )
+                return
+        except Exception:
+            pass
+        
         desc = self.desc_textbox.get("1.0", "end").strip()
             
         prio = self.priority_var.get()
@@ -552,11 +604,10 @@ class EditTaskPopup(ctk.CTkToplevel):
         self.submitted = False
         
         self.title("")
-        self.geometry("800x650")
+        self.geometry("800x680")
         self.attributes("-topmost", True)
         self.resizable(False, False)
         
-        # Safe initialization for tkcalendar
         try:
             style = ttk.Style()
             style.theme_use('clam')
@@ -565,7 +616,7 @@ class EditTaskPopup(ctk.CTkToplevel):
 
         self.update_idletasks()
         x = master.winfo_rootx() + (master.winfo_width() // 2) - (800 // 2)
-        y = master.winfo_rooty() + (master.winfo_height() // 2) - (650 // 2) - 50
+        y = master.winfo_rooty() + (master.winfo_height() // 2) - (680 // 2) - 100
         self.geometry(f"+{x}+{y}")
         
         self.setup_ui()
@@ -576,7 +627,7 @@ class EditTaskPopup(ctk.CTkToplevel):
         container = ctk.CTkFrame(self, fg_color=self.tm.bg_card(), corner_radius=15)
         container.pack(fill="both", expand=True, padx=20, pady=20)
         
-        ctk.CTkLabel(container, text="Edit Task", font=(self.tm.main_font(), 20), text_color=self.tm.text_main()).pack(pady=(15, 20))
+        ctk.CTkLabel(container, text="Edit Task", font=(self.tm.main_font(), 20), text_color=self.tm.text_main()).pack(pady=(5, 5))
         
         input_args = {
             "fg_color": self.tm.bg_sub(), 
@@ -589,10 +640,32 @@ class EditTaskPopup(ctk.CTkToplevel):
         }
         
         self.name_entry = ctk.CTkEntry(container, placeholder_text="Task Name", **input_args)
-        self.name_entry.pack(fill="x", padx=30, pady=(0, 15))
+        self.name_entry.pack(fill="x", padx=30, pady=(0, 4))
+        
+        # Char counter label
+        self._name_count_lbl = ctk.CTkLabel(container, text="0/32",
+                                             font=(self.tm.main_font(), 10),
+                                             text_color=self.tm.text_sub())
+        self._name_count_lbl.pack(anchor="e", padx=32, pady=(0, 11))
+        
+        # Validation: block special chars, cap at 32
+        import re as _re
+        def _val_task_name(proposed):
+            if proposed and _re.search(r"[^a-zA-Z0-9 .\-']", proposed):
+                return False
+            if len(proposed) > 32:
+                return False
+            c = len(proposed)
+            self._name_count_lbl.configure(
+                text=f"{c}/32",
+                text_color=self.tm.error_color() if c >= 28 else self.tm.text_sub()
+            )
+            return True
+        _vcmd = (self.name_entry._entry.register(_val_task_name), '%P')
+        self.name_entry._entry.configure(validate="key", validatecommand=_vcmd)
         
         sub_frame = ctk.CTkFrame(container, fg_color="transparent")
-        sub_frame.pack(fill="x", padx=30, pady=(0, 15))
+        sub_frame.pack(fill="x", padx=30, pady=(0, 10))
         ctk.CTkLabel(sub_frame, text="Subject", font=(self.tm.main_font(), 11), text_color=self.tm.text_sub()).pack(anchor="w")
         self.subject_entry = ctk.CTkEntry(sub_frame, **input_args)
         self.subject_entry.pack(fill="x")
@@ -600,7 +673,7 @@ class EditTaskPopup(ctk.CTkToplevel):
         self.subject_entry.configure(state="disabled")
         
         dead_frame = ctk.CTkFrame(container, fg_color="transparent")
-        dead_frame.pack(fill="x", pady=(0, 15))
+        dead_frame.pack(fill="x", pady=(0, 10))
         ctk.CTkLabel(dead_frame, text="Set Deadline & Time", font=(self.tm.main_font(), 11), text_color=self.tm.text_sub()).pack(anchor="w", padx=30)
         
         picker_frame = ctk.CTkFrame(dead_frame, fg_color="transparent")
@@ -660,15 +733,33 @@ class EditTaskPopup(ctk.CTkToplevel):
         ctk.CTkOptionMenu(time_wrapper, variable=self.ampm_var, values=["AM", "PM"], width=65, font=(self.tm.main_font(), 12), fg_color=self.tm.bg_sub(), button_color=self.tm.border_main(), text_color=self.tm.text_main()).pack(side="left", padx=2)
 
         desc_frame = ctk.CTkFrame(container, fg_color="transparent")
-        desc_frame.pack(fill="x", padx=30, pady=(0, 20))
+        desc_frame.pack(fill="x", padx=30, pady=(0, 10))
         ctk.CTkLabel(desc_frame, text="Description", font=(self.tm.main_font(), 11), text_color=self.tm.text_sub()).pack(anchor="w")
-        self.desc_textbox = ctk.CTkTextbox(desc_frame, fg_color=self.tm.bg_sub(), border_width=1, border_color=self.tm.border_main(), text_color=self.tm.text_main(), font=(self.tm.main_font(), 13), corner_radius=8, height=100)
+        self.desc_textbox = ctk.CTkTextbox(desc_frame, fg_color=self.tm.bg_sub(), border_width=1, border_color=self.tm.border_main(), text_color=self.tm.text_main(), font=(self.tm.main_font(), 13), corner_radius=8, height=80)
         self.desc_textbox.pack(fill="x", pady=(5, 0))
         
-        ctk.CTkLabel(container, text="Priority Level", font=(self.tm.main_font(), 14), text_color=self.tm.text_sub()).pack(pady=(5, 5))
+        self._desc_count_lbl = ctk.CTkLabel(desc_frame, text="0/500", font=(self.tm.main_font(), 10), text_color=self.tm.text_sub())
+        self._desc_count_lbl.pack(anchor="e", pady=(2, 0))
+        
+        def _val_task_desc(event=None):
+            content = self.desc_textbox.get("1.0", "end-1c")
+            import re
+            cleaned = re.sub(r"[^a-zA-Z0-9 .\-'\n]", "", content)
+            if len(cleaned) > 500: cleaned = cleaned[:500]
+            
+            if content != cleaned:
+                self.desc_textbox.delete("1.0", "end")
+                self.desc_textbox.insert("1.0", cleaned)
+                
+            c = len(cleaned)
+            self._desc_count_lbl.configure(text=f"{c}/500", text_color=self.tm.error_color() if c >= 490 else self.tm.text_sub())
+            
+        self.desc_textbox.bind("<KeyRelease>", _val_task_desc)
+        
+        ctk.CTkLabel(container, text="Priority Level", font=(self.tm.main_font(), 14), text_color=self.tm.text_sub()).pack(pady=(0, 5))
         
         prio_frame = ctk.CTkFrame(container, fg_color="transparent")
-        prio_frame.pack(pady=(0, 20))
+        prio_frame.pack(pady=(0, 10))
         
         self.priority_var = ctk.StringVar(value="Medium")
         
@@ -700,7 +791,19 @@ class EditTaskPopup(ctk.CTkToplevel):
 
     def populate_data(self):
         self.name_entry.insert(0, self.task_data.get('name', ''))
-        self.desc_textbox.insert("0.0", self.task_data.get('description', ''))
+        _n = len(self.task_data.get('name', ''))
+        self._name_count_lbl.configure(
+            text=f"{_n}/32",
+            text_color=self.tm.error_color() if _n >= 28 else self.tm.text_sub()
+        )
+        
+        _d = self.task_data.get('description', '')
+        self.desc_textbox.insert("0.0", _d)
+        _dn = len(_d)
+        self._desc_count_lbl.configure(
+            text=f"{_dn}/500",
+            text_color=self.tm.error_color() if _dn >= 490 else self.tm.text_sub()
+        )
         
         deadline_str = self.task_data.get('deadline')
         if deadline_str:
@@ -754,6 +857,20 @@ class EditTaskPopup(ctk.CTkToplevel):
         if ampm == "PM" and h < 12: h += 12
         if ampm == "AM" and h == 12: h = 0
         deadline = f"{date_str} {h:02d}:{m}"
+        
+        # Reject deadlines that are already in the past (date + time aware)
+        try:
+            deadline_dt = datetime.strptime(deadline, "%Y-%m-%d %H:%M")
+            if deadline_dt <= datetime.now():
+                messagebox.showerror(
+                    "Invalid Deadline",
+                    f"The selected deadline ({deadline_dt.strftime('%b %d, %Y %I:%M %p')}) "
+                    f"has already passed.\nPlease choose a future date and time.",
+                    parent=self
+                )
+                return
+        except Exception:
+            pass
         
         desc = self.desc_textbox.get("1.0", "end").strip()
         prio = self.priority_var.get()
@@ -1089,7 +1206,7 @@ class TasksView(ctk.CTkFrame):
         ctk.CTkButton(btn_frame, text="+ Add Task", width=120, font=(self.tm.main_font(), 14, "bold"), fg_color=self.tm.accent_color(), text_color=self.tm.text_main(), command=self.add_task_text).pack(side="left", padx=(0, 5))
         
         # Voice Add Button
-        ctk.CTkButton(btn_frame, text="Voice AI Beta", width=100, font=(self.tm.main_font(), 14, "bold"), fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover(), command=self.add_task_voice).pack(side="left")
+        ctk.CTkButton(btn_frame, text="Voice AI", width=100, font=(self.tm.main_font(), 14, "bold"), fg_color=self.tm.accent_color(), text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover(), command=self.add_task_voice).pack(side="left")
 
         # Modern Filter Buttons
         self.filter_frame = ctk.CTkFrame(self, fg_color=self.tm.bg_card(), corner_radius=20, border_color=self.tm.border_main(), border_width=1)
