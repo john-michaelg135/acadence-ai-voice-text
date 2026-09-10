@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS users (
     failed_login_attempts INTEGER DEFAULT 0,
     locked_until TIMESTAMP,
     is_disabled BOOLEAN DEFAULT 0,
-    recent_login_duration INTEGER DEFAULT 0
+    recent_login_duration INTEGER DEFAULT 0,
+    has_seen_walkthrough BOOLEAN DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS subjects (
@@ -43,3 +44,13 @@ CREATE TABLE IF NOT EXISTS tasks (
 
 -- Note: Admin login can be pre-configured by inserting it directly.
 -- INSERT OR IGNORE INTO users (username, encrypted_password, is_admin) VALUES ('admin', 'admin_encrypted_pw', 1);
+
+-- Performance Indexes
+CREATE INDEX IF NOT EXISTS idx_subjects_user ON subjects(user_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_subject ON tasks(subject_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority);
+
+-- Composite Performance Indexes for High-Scale Queries
+CREATE INDEX IF NOT EXISTS idx_tasks_subject_status_deadline ON tasks(subject_id, status, deadline);
+CREATE INDEX IF NOT EXISTS idx_tasks_subject_status_priority ON tasks(subject_id, status, priority, created_at DESC);

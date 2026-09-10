@@ -1,8 +1,10 @@
 import customtkinter as ctk
+import re
 from utils.theme_manager import ThemeManager
 from tkinter import messagebox
 from database.db_manager import DatabaseManager
 from utils.security import validate_password_strength
+from utils.logger import logger
 import threading
 
 class AuthScreen(ctk.CTkFrame):
@@ -24,8 +26,8 @@ class AuthScreen(ctk.CTkFrame):
 
     def setup_ui(self):
         # Branding Header
-        ctk.CTkLabel(self.wrapper, text="Acadence", font=("Arial", 42, "bold"), text_color=self.tm.accent_color()).pack(pady=(0, 5))
-        ctk.CTkLabel(self.wrapper, text="AI Voice to Text Tracker", font=("Arial", 16), text_color=self.tm.text_sub()).pack(pady=(0, 25))
+        ctk.CTkLabel(self.wrapper, text="Acadence", font=(self.tm.main_font(), 42, "bold"), text_color=self.tm.accent_color()).pack(pady=(0, 5))
+        ctk.CTkLabel(self.wrapper, text="AI Voice to Text Tracker", font=(self.tm.main_font(), 16), text_color=self.tm.text_sub()).pack(pady=(0, 25))
 
         # Main Interactive Card
         self.card = ctk.CTkFrame(self.wrapper, fg_color=self.tm.bg_card(), border_color=self.tm.border_main(), border_width=1, corner_radius=15, width=380)
@@ -40,7 +42,7 @@ class AuthScreen(ctk.CTkFrame):
         for mode in ["Log In", "Sign Up"]:
             btn = ctk.CTkButton(
                 self.toggle_frame, text=mode, height=36, corner_radius=18,
-                font=("Arial", 14, "bold"),
+                font=(self.tm.main_font(), 14, "bold"),
                 command=lambda m=mode: self.switch_mode(m)
             )
             btn.pack(side="left", expand=True, fill="x", padx=3, pady=3)
@@ -59,8 +61,8 @@ class AuthScreen(ctk.CTkFrame):
         self.step2_frame = ctk.CTkFrame(self.forgot_frame, fg_color="transparent")
         self.step3_frame = ctk.CTkFrame(self.forgot_frame, fg_color="transparent")
 
-        self.input_args = {"height": 45, "corner_radius": 10, "border_color": self.tm.border_main(), "fg_color": self.tm.bg_sub(), "text_color": self.tm.text_main(), "font": ("Arial", 14)}
-        self.btn_args = {"height": 45, "corner_radius": 10, "font": ("Arial", 15, "bold"), "fg_color": self.tm.accent_color(), "text_color": self.tm.accent_text(), "hover_color": self.tm.accent_hover()}
+        self.input_args = {"height": 45, "corner_radius": 10, "border_color": self.tm.border_main(), "fg_color": self.tm.bg_sub(), "text_color": self.tm.text_main(), "font": (self.tm.main_font(), 14)}
+        self.btn_args = {"height": 45, "corner_radius": 10, "font": (self.tm.main_font(), 15, "bold"), "fg_color": self.tm.accent_color(), "text_color": self.tm.accent_text(), "hover_color": self.tm.accent_hover()}
 
         self.setup_login_tab()
         self.setup_signup_tab()
@@ -68,6 +70,77 @@ class AuthScreen(ctk.CTkFrame):
 
         # Initialize
         self.switch_mode("Log In")
+
+    @staticmethod
+    def _make_eye_icon(slashed: bool):
+        """Renders a high-res (64px) eye icon, displayed at 22px for crisp scaling."""
+        from PIL import Image, ImageDraw
+        s = 64
+        color = (90, 90, 90, 255)
+        img = Image.new("RGBA", (s, s), (0, 0, 0, 0))
+        d = ImageDraw.Draw(img)
+        # Eye oval
+        d.ellipse([4, 18, 60, 46], outline=color, width=4)
+        # Pupil
+        d.ellipse([26, 26, 38, 38], fill=color)
+        # Diagonal slash (bottom-left → top-right) when visible
+        if slashed:
+            d.line([10, 54, 54, 10], fill=color, width=5)
+        return ctk.CTkImage(light_image=img, dark_image=img, size=(22, 22))
+
+    def _make_password_field(self, parent, placeholder, pack_pady=10):
+        """Creates a styled password entry with a PIL-drawn eye icon toggle button."""
+        container = ctk.CTkFrame(
+            parent,
+            fg_color=self.tm.bg_sub(),
+            border_color=self.tm.border_main(),
+            border_width=1,
+            corner_radius=10,
+            height=45
+        )
+        container.pack(pady=pack_pady, fill="x")
+        container.pack_propagate(False)
+
+        entry = ctk.CTkEntry(
+            container,
+            placeholder_text=placeholder,
+            show="*",
+            fg_color="transparent",
+            border_width=0,
+            text_color=self.tm.text_main(),
+            font=(self.tm.main_font(), 14),
+            height=43
+        )
+        entry.pack(side="left", fill="both", expand=True, padx=(8, 0))
+
+        icon_show = self._make_eye_icon(slashed=False)   # plain eye  → click to reveal
+        icon_hide = self._make_eye_icon(slashed=True)    # slashed eye → click to mask
+
+        eye_btn = ctk.CTkButton(
+            container, text="", image=icon_show,
+            width=36, height=36,
+            fg_color="transparent",
+            hover_color=self.tm.border_main(),
+            corner_radius=8
+        )
+
+        # State variable — avoids relying on entry.cget('show') which
+        # behaves inconsistently on CTkEntry when the field is empty.
+        _hidden = [True]
+
+        def _toggle():
+            if _hidden[0]:
+                entry.configure(show="")
+                eye_btn.configure(image=icon_hide)
+                _hidden[0] = False
+            else:
+                entry.configure(show="*")
+                eye_btn.configure(image=icon_show)
+                _hidden[0] = True
+
+        eye_btn.configure(command=_toggle)
+        eye_btn.pack(side="right", padx=(0, 5))
+        return entry
 
     def switch_mode(self, mode):
         self.current_auth_mode.set(mode)
@@ -103,12 +176,11 @@ class AuthScreen(ctk.CTkFrame):
         self.login_user_entry = ctk.CTkEntry(self.login_frame, placeholder_text="Username", **self.input_args)
         self.login_user_entry.pack(pady=(10, 10), fill="x")
 
-        self.login_pass_entry = ctk.CTkEntry(self.login_frame, placeholder_text="Password", show="*", **self.input_args)
-        self.login_pass_entry.pack(pady=10, fill="x")
+        self.login_pass_entry = self._make_password_field(self.login_frame, "Password")
 
         ctk.CTkButton(self.login_frame, text="Log In", command=self.handle_login, **self.btn_args).pack(pady=(20, 15), fill="x")
 
-        forgot_lbl = ctk.CTkLabel(self.login_frame, text="Forgot Password?", font=("Arial", 13, "underline"), text_color=self.tm.text_sub(), cursor="hand2")
+        forgot_lbl = ctk.CTkLabel(self.login_frame, text="Forgot Password?", font=(self.tm.main_font(), 13, "underline"), text_color=self.tm.text_sub(), cursor="hand2")
         forgot_lbl.pack()
         forgot_lbl.bind("<Button-1>", lambda e: self.switch_mode("Forgot Password"))
 
@@ -120,11 +192,8 @@ class AuthScreen(ctk.CTkFrame):
         self.signup_email_entry = ctk.CTkEntry(self.signup_frame, placeholder_text="Recovery Email", **self.input_args)
         self.signup_email_entry.pack(pady=10, fill="x")
 
-        self.signup_pass_entry = ctk.CTkEntry(self.signup_frame, placeholder_text="Password", show="*", **self.input_args)
-        self.signup_pass_entry.pack(pady=10, fill="x")
-
-        self.signup_conf_entry = ctk.CTkEntry(self.signup_frame, placeholder_text="Confirm Password", show="*", **self.input_args)
-        self.signup_conf_entry.pack(pady=10, fill="x")
+        self.signup_pass_entry = self._make_password_field(self.signup_frame, "Password")
+        self.signup_conf_entry = self._make_password_field(self.signup_frame, "Confirm Password")
 
         ctk.CTkButton(self.signup_frame, text="Create Account", command=self.handle_signup, **self.btn_args).pack(pady=(15, 10), fill="x")
 
@@ -134,11 +203,11 @@ class AuthScreen(ctk.CTkFrame):
         hdr = ctk.CTkFrame(self.forgot_frame, fg_color="transparent")
         hdr.pack(fill="x", pady=(20, 15))
         
-        ctk.CTkButton(hdr, text="← Back", width=50, fg_color="transparent", text_color=self.tm.text_sub(), hover_color=self.tm.bg_sub(), font=("Arial", 13), command=lambda: self.switch_mode("Log In")).pack(side="left")
-        ctk.CTkLabel(hdr, text="Account Recovery", font=("Arial", 20, "bold"), text_color=self.tm.text_main()).pack(side="left", padx=20)
+        ctk.CTkButton(hdr, text="← Back", width=50, fg_color="transparent", text_color=self.tm.text_sub(), hover_color=self.tm.bg_sub(), font=(self.tm.main_font(), 13), command=lambda: self.switch_mode("Log In")).pack(side="left")
+        ctk.CTkLabel(hdr, text="Account Recovery", font=(self.tm.main_font(), 20, "bold"), text_color=self.tm.text_main()).pack(side="left", padx=20)
 
         # STEP 1
-        ctk.CTkLabel(self.step1_frame, text="Enter your username and the recovery email registered to your account.", wraplength=300, font=("Arial", 13), text_color=self.tm.text_sub()).pack(pady=(0, 20))
+        ctk.CTkLabel(self.step1_frame, text="Enter your username and the recovery email registered to your account.", wraplength=300, font=(self.tm.main_font(), 13), text_color=self.tm.text_sub()).pack(pady=(0, 20))
         self.rec_user_entry = ctk.CTkEntry(self.step1_frame, placeholder_text="Username", **self.input_args)
         self.rec_user_entry.pack(fill="x", pady=10)
         self.rec_email_entry = ctk.CTkEntry(self.step1_frame, placeholder_text="Recovery Email", **self.input_args)
@@ -147,17 +216,15 @@ class AuthScreen(ctk.CTkFrame):
         self.btn_send_otp.pack(pady=20, fill="x")
 
         # STEP 2
-        ctk.CTkLabel(self.step2_frame, text="Enter the 6-digit code sent to your email.", wraplength=300, font=("Arial", 13), text_color=self.tm.text_sub()).pack(pady=(0, 20))
+        ctk.CTkLabel(self.step2_frame, text="Enter the 6-digit code sent to your email.", wraplength=300, font=(self.tm.main_font(), 13), text_color=self.tm.text_sub()).pack(pady=(0, 20))
         self.otp_entry = ctk.CTkEntry(self.step2_frame, placeholder_text="123456", justify="center", **self.input_args)
         self.otp_entry.pack(fill="x", pady=10)
         ctk.CTkButton(self.step2_frame, text="Verify Code", command=self.process_step2, **self.btn_args).pack(pady=20, fill="x")
 
         # STEP 3
-        ctk.CTkLabel(self.step3_frame, text="Create a new strong password for your account.", wraplength=300, font=("Arial", 13), text_color=self.tm.text_sub()).pack(pady=(0, 20))
-        self.new_pass_entry = ctk.CTkEntry(self.step3_frame, placeholder_text="New Password", show="*", **self.input_args)
-        self.new_pass_entry.pack(fill="x", pady=10)
-        self.conf_new_pass_entry = ctk.CTkEntry(self.step3_frame, placeholder_text="Confirm New Password", show="*", **self.input_args)
-        self.conf_new_pass_entry.pack(fill="x", pady=10)
+        ctk.CTkLabel(self.step3_frame, text="Create a new strong password for your account.", wraplength=300, font=(self.tm.main_font(), 13), text_color=self.tm.text_sub()).pack(pady=(0, 20))
+        self.new_pass_entry = self._make_password_field(self.step3_frame, "New Password")
+        self.conf_new_pass_entry = self._make_password_field(self.step3_frame, "Confirm New Password")
         ctk.CTkButton(self.step3_frame, text="Update Password", command=self.process_step3, **self.btn_args).pack(pady=20, fill="x")
 
     def show_forgot_step1(self):
@@ -181,7 +248,7 @@ class AuthScreen(ctk.CTkFrame):
         email = self.rec_email_entry.get().strip()
         
         if not user or not email:
-            messagebox.showerror("Error", "Fill all fields.")
+            messagebox.showerror("Incomplete Form", "Please fill in all required fields.")
             return
             
         if self.db.recover_password(user, email):
@@ -192,17 +259,23 @@ class AuthScreen(ctk.CTkFrame):
             self.btn_send_otp.configure(text="Connecting to SMTP...", state="disabled")
             
             def _send():
-                result = send_reset_otp(email)
-                if result.get("ok"):
-                    self.after(0, lambda: messagebox.showinfo("Email Sent", "An OTP has been sent securely to your email address."))
-                    self.after(0, self.show_forgot_step2)
-                else:
-                    self.after(0, lambda: messagebox.showerror("Email Error", result.get("reason")))
-                self.after(0, lambda: self.btn_send_otp.configure(text="Send Verification Code", state="normal"))
+                try:
+                    result = send_reset_otp(email)
+                    if result.get("ok"):
+                        self.after(0, lambda: messagebox.showinfo("Email Sent", "An OTP has been sent securely to your email address."))
+                        self.after(0, self.show_forgot_step2)
+                    else:
+                        self.after(0, lambda: messagebox.showerror("Email Error", result.get("reason")))
+                except Exception as e:
+                    logger.exception(f"Email send failed with exception: {e}")
+                    self.after(0, lambda: messagebox.showerror("Email Error",
+                        "Failed to send verification email. Please check your internet connection and try again."))
+                finally:
+                    self.after(0, lambda: self.btn_send_otp.configure(text="Send Verification Code", state="normal"))
                             
             threading.Thread(target=_send, daemon=True).start()
         else:
-            messagebox.showerror("Error", "Username or Recovery Email is incorrect.")
+            messagebox.showerror("Recovery Failed", "Username or Recovery Email is incorrect.")
 
     def process_step2(self):
         entered = self.otp_entry.get().strip()
@@ -236,7 +309,23 @@ class AuthScreen(ctk.CTkFrame):
         password = self.login_pass_entry.get().strip()
 
         if not username or not password:
-            messagebox.showerror("Error", "Please fill all fields.")
+            messagebox.showerror("Incomplete Form",
+                f"Please fill in all required fields:\n"
+                f"  Username: {'Filled' if username else 'Required'}\n"
+                f"  Password: {'Filled' if password else 'Required'}")
+            return
+
+        if len(username) < 3 or len(username) > 64:
+            messagebox.showerror("Invalid Username", "Username must be 3–64 characters long.")
+            return
+
+        if len(password) > 256:
+            messagebox.showerror("Invalid Password", "Password is too long.")
+            return
+
+        if not re.match(r'^[a-zA-Z0-9_\-\.]+$', username):
+            messagebox.showerror("Invalid Username",
+                "Username may only contain letters, numbers, underscores, hyphens, and periods.")
             return
 
         user, err_msg = self.db.authenticate_user(username, password)
@@ -252,11 +341,25 @@ class AuthScreen(ctk.CTkFrame):
         conf_pass = self.signup_conf_entry.get().strip()
 
         if not all([username, email, password, conf_pass]):
-            messagebox.showerror("Error", "Please fill all fields.")
+            messagebox.showerror("Incomplete Form",
+                f"Please fill in all required fields:\n"
+                f"  Username: {'Filled' if username else 'Required'}\n"
+                f"  Email: {'Filled' if email else 'Required'}\n"
+                f"  Password: {'Filled' if password else 'Required'}\n"
+                f"  Confirm: {'Filled' if conf_pass else 'Required'}")
+            return
+
+        if len(username) < 3 or len(username) > 64:
+            messagebox.showerror("Invalid Username", "Username must be 3–64 characters long.")
+            return
+
+        if not re.match(r'^[a-zA-Z0-9_\-\.]+$', username):
+            messagebox.showerror("Invalid Username",
+                "Username may only contain letters, numbers, underscores, hyphens, and periods.")
             return
 
         if password != conf_pass:
-            messagebox.showerror("Error", "Passwords do not match.")
+            messagebox.showerror("Password Mismatch", "Passwords do not match. Please re-enter.")
             return
 
         is_valid, msg = validate_password_strength(password)
@@ -264,9 +367,18 @@ class AuthScreen(ctk.CTkFrame):
             messagebox.showerror("Weak Password", msg)
             return
 
+        # Validate email format + domain existence before creating the account
+        from utils.email_service import validate_email_address
+        is_valid_email, email_msg = validate_email_address(email)
+        if not is_valid_email:
+            messagebox.showerror("Invalid Email", email_msg)
+            return
+
         success = self.db.create_user(username, password, recovery_email=email)
         if success:
             messagebox.showinfo("Success", "Account created successfully! You can now log in.")
             self.switch_mode("Log In")
         else:
-            messagebox.showerror("Error", "Username already exists.")
+            messagebox.showerror("Username Taken",
+                f"The username '{username}' is already registered.\n\n"
+                "Please choose a different username or log in if you have an account.")

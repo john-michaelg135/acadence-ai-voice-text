@@ -5,6 +5,7 @@ from tkinter import messagebox
 from utils.theme_manager import ThemeManager
 from utils.voice_manager import start_continuous_listening
 from utils.ai_parser import parse_voice_command
+from utils.logger import logger
 
 class VoiceRecordingPopup(ctk.CTkToplevel):
     def __init__(self, master, on_complete_callback, command_type='subject'):
@@ -14,6 +15,9 @@ class VoiceRecordingPopup(ctk.CTkToplevel):
         self.command_type = command_type
         self.is_listening = True
         self.stop_listening_func = None
+        # Guard flag: set True BEFORE super().destroy() so background threads
+        # never schedule new after() callbacks onto a mid-destruction window.
+        self._destroyed = False
         
         self.title("Voice Assistant")
         self.geometry("450x450")
@@ -36,6 +40,15 @@ class VoiceRecordingPopup(ctk.CTkToplevel):
         self.stop_listening_func = start_continuous_listening(self.on_phrase_transcribed)
         self.animate_wave()
 
+    def destroy(self):
+        """Override destroy to set the guard flag first, preventing race conditions."""
+        self._destroyed = True
+        self.is_listening = False
+        try:
+            super().destroy()
+        except Exception:
+            pass
+
     def setup_ui(self):
         self.container = ctk.CTkFrame(self, fg_color=self.tm.bg_card(), corner_radius=15)
         self.container.pack(fill="both", expand=True, padx=20, pady=20)
@@ -52,16 +65,16 @@ class VoiceRecordingPopup(ctk.CTkToplevel):
             bar.pack(side="left", padx=5, anchor="center")
             self.bars.append(bar)
             
-        self.status_lbl = ctk.CTkLabel(self.container, text="Listening... Please speak now.", font=("Arial", 16, "bold"), text_color=self.tm.accent_color())
+        self.status_lbl = ctk.CTkLabel(self.container, text="Listening... Please speak now.", font=(self.tm.main_font(), 16, "bold"), text_color=self.tm.accent_color())
         self.status_lbl.pack(pady=(0, 15))
         
         # --- Review Section (Always visible now to show live text) ---
         self.review_frame = ctk.CTkFrame(self.container, fg_color=self.tm.bg_sub(), corner_radius=10)
         self.review_frame.pack(fill="x", pady=10)
         
-        ctk.CTkLabel(self.review_frame, text="Live Transcription:", font=("Arial", 12, "bold"), text_color=self.tm.text_main()).pack(anchor="w", padx=10, pady=(10, 5))
+        ctk.CTkLabel(self.review_frame, text="Live Transcription:", font=(self.tm.main_font(), 12, "bold"), text_color=self.tm.text_main()).pack(anchor="w", padx=10, pady=(10, 5))
         
-        self.text_box = ctk.CTkTextbox(self.review_frame, height=80, fg_color="transparent", text_color=self.tm.text_sub(), font=("Arial", 13))
+        self.text_box = ctk.CTkTextbox(self.review_frame, height=80, fg_color="transparent", text_color=self.tm.text_sub(), font=(self.tm.main_font(), 13))
         self.text_box.pack(fill="x", padx=10, pady=(0, 10))
         
         # --- Actions Section ---
@@ -69,25 +82,30 @@ class VoiceRecordingPopup(ctk.CTkToplevel):
         self.actions_frame.pack(side="bottom", fill="x", pady=(10, 0))
         
         self.cancel_btn = ctk.CTkButton(self.actions_frame, text="Cancel", width=100, fg_color="transparent", border_width=1, 
-                      text_color=self.tm.text_sub(), border_color=self.tm.border_main(), hover_color=self.tm.bg_sub(), font=("Arial", 13, "bold"),
+                      text_color=self.tm.text_sub(), border_color=self.tm.border_main(), hover_color=self.tm.bg_sub(), font=(self.tm.main_font(), 13, "bold"),
                       command=self.on_cancel)
         self.cancel_btn.pack(side="left", padx=5)
         
         self.stop_btn = ctk.CTkButton(self.actions_frame, text="Done Speaking", width=120, fg_color=self.tm.accent_color(),
-                      text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover(), font=("Arial", 13, "bold"),
+                      text_color=self.tm.accent_text(), hover_color=self.tm.accent_hover(), font=(self.tm.main_font(), 13, "bold"),
                       command=self.on_stop_speaking)
         self.stop_btn.pack(side="right", padx=5)
 
-        self.confirm_btn = ctk.CTkButton(self.actions_frame, text="Confirm & Proceed", width=160, fg_color=self.tm.success_color(),
-                      text_color=self.tm.text_main(), hover_color=self.tm.success_hover(), font=("Arial", 13, "bold"),
+        self.confirm_btn = ctk.CTkButton(self.actions_frame, text="Process", width=160, fg_color=self.tm.success_color(),
+                      text_color=self.tm.text_main(), hover_color=self.tm.success_hover(), font=(self.tm.main_font(), 13, "bold"),
                       command=self.on_confirm)
 
     def on_phrase_transcribed(self, text):
-        if self.winfo_exists() and self.is_listening:
-            # Append safely in the main thread
-            self.after(0, lambda: self._append_text(text))
+        # _destroyed guard prevents after() calls onto a mid-destruction window
+        if not self._destroyed and self.is_listening:
+            try:
+                self.after(0, lambda: self._append_text(text))
+            except Exception as e:
+                logger.error(f"Failed to append transcribed text: {e}", exc_info=True)
             
     def _append_text(self, text):
+        if self._destroyed or not self.winfo_exists() or not hasattr(self, 'text_box') or not self.text_box.winfo_exists():
+            return
         current = self.text_box.get("0.0", "end").strip()
         if current:
             self.text_box.insert("end", " " + text)
@@ -95,21 +113,22 @@ class VoiceRecordingPopup(ctk.CTkToplevel):
             self.text_box.insert("end", text)
 
     def animate_wave(self):
-        if not self.is_listening or not self.winfo_exists():
-            for bar in self.bars:
-                bar.configure(height=6)
+        if self._destroyed or not self.is_listening:
             return
-            
-        for bar in self.bars:
-            new_h = random.randint(20, 110)
-            bar.configure(height=new_h)
-            
-        self.after(120, self.animate_wave)
+        try:
+            if not self.winfo_exists():
+                return
+            for bar in self.bars:
+                new_h = random.randint(20, 110)
+                bar.configure(height=new_h)
+            self.after(120, self.animate_wave)
+        except Exception:
+            pass
 
     def on_stop_speaking(self):
         self.is_listening = False
         if self.stop_listening_func:
-            self.stop_listening_func(wait_for_stop=False)
+            self.stop_listening_func()
             
         self.status_lbl.configure(text="Transcription Complete", text_color=self.tm.text_main())
         self.stop_btn.pack_forget()
@@ -117,13 +136,27 @@ class VoiceRecordingPopup(ctk.CTkToplevel):
         
     def on_cancel(self):
         if self.stop_listening_func:
-            self.stop_listening_func(wait_for_stop=False)
-        self.destroy()
+            try:
+                self.stop_listening_func()
+            except Exception as e:
+                logger.warning(f"Error stopping listening on cancel: {e}")
+        master_ref = self.master
+        (master_ref if hasattr(self, 'master') and master_ref else self).after(50, self.destroy)
         
     def on_confirm(self):
         final_text = self.text_box.get("0.0", "end").strip()
         if not final_text:
             messagebox.showerror("Voice Error", "No transcription available to confirm.", parent=self)
+            return
+
+        from utils.profanity_filter import contains_profanity
+        if contains_profanity(final_text):
+            messagebox.showerror(
+                "Inappropriate Content Detected",
+                "Your voice input contains offensive or inappropriate language.\n\n"
+                "Please re-record or edit the transcription above before proceeding.",
+                parent=self
+            )
             return
             
         self.status_lbl.configure(text="AI Mapping Text...", text_color=self.tm.accent_color())
@@ -138,6 +171,16 @@ class VoiceRecordingPopup(ctk.CTkToplevel):
         threading.Thread(target=parse_thread, daemon=True).start()
         
     def _finish_confirm(self, parsed_data):
-        if self.winfo_exists():
-            self.destroy()
-            self.on_complete_callback(parsed_data)
+        if not self._destroyed:
+            self.grab_release()
+            cb = self.on_complete_callback
+            master_ref = self.master
+            
+            # Schedule destruction and callback on the master window
+            # to prevent Tkinter from crashing when cleaning up 'after' tasks on a destroyed widget
+            if master_ref and master_ref.winfo_exists():
+                master_ref.after(10, self.destroy)
+                master_ref.after(50, lambda: cb(parsed_data))
+            else:
+                self.destroy()
+                cb(parsed_data)
