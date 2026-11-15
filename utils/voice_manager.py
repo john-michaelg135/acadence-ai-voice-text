@@ -1,6 +1,7 @@
 import speech_recognition as sr
 import threading
 import queue
+import time
 from typing import Optional, Callable
 from utils.logger import logger
 
@@ -113,19 +114,18 @@ class WhisperInferenceWorker:
         Wait for transcription result with timeout.
         Returns {"success": bool, "text": str} or {"success": False, "error": str}
         """
-        start_time = threading.current_thread()
+        deadline = time.monotonic() + timeout
         while threading.current_thread() != self.worker_thread:
             if request_id in self.result_dict:
                 result = self.result_dict.pop(request_id)
                 return result
             
-            if threading.current_thread() != self.worker_thread:
-                import time
-                time.sleep(0.1)  # Brief sleep to avoid busy waiting
-                
-                elapsed = threading.current_thread() - start_time if hasattr(threading.current_thread(), '__sub__') else timeout
-                if elapsed > timeout:
-                    return {"success": False, "error": "Transcription timeout"}
+            if not self.worker_thread or not self.worker_thread.is_alive():
+                return {"success": False, "error": "Whisper worker is unavailable"}
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return {"success": False, "error": "Transcription timeout"}
+            time.sleep(min(0.1, remaining))
         
         return {"success": False, "error": "Worker thread not ready"}
     
