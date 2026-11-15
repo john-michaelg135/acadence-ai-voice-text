@@ -125,7 +125,7 @@ class AllPendingTasksView(ctk.CTkFrame):
 
     def _fetch_and_render(self):
         """Fetches fresh data from DB, then re-renders. Called on initial load."""
-        self._raw_tasks = self.db.get_all_pending_tasks(self.user_id) if self.user_id else []
+        self._raw_tasks = self.db.get_all_pending_tasks(self.user_id, limit=None) if self.user_id else []
         self.load_tasks()
 
     def load_tasks(self):

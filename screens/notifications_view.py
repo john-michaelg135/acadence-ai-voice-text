@@ -76,7 +76,7 @@ class NotificationsView(ctk.CTkFrame):
         for widget in self.scroll.winfo_children():
             widget.destroy()
 
-        tasks = self.db.get_all_pending_tasks(self.user_id) if self.user_id else []
+        tasks = self.db.get_all_pending_tasks(self.user_id, limit=None) if self.user_id else []
         
         now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
         today_date = datetime.today().date()
