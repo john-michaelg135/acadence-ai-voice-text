@@ -175,7 +175,7 @@ def verify(email: str, code: str) -> dict:
                 "reason": "Too many incorrect attempts. Please request a new code.",
             }
 
-        if not _hmac.compare_digest(code.strip(), entry["code"]):
+        if not _hmac.compare_digest(code.strip().encode("utf-8"), entry["code"].encode("utf-8")):
             remaining = OTP_MAX_ATTEMPTS - entry["attempts"]
             return {
                 "ok": False,
@@ -205,6 +205,9 @@ def send_reset_otp(email: str) -> dict:
     expires = _now() + timedelta(seconds=OTP_TTL_SECONDS)
 
     with _lock:
+        previous_send = _resend_timestamps.get(email)
+        if previous_send and (_now() - previous_send).total_seconds() < RESEND_COOLDOWN:
+            return {"ok": False, "reason": "Please wait before requesting another code."}
         _store[email] = {
             "code": code,
             "expires_at": expires,
@@ -225,5 +228,10 @@ def send_reset_otp(email: str) -> dict:
             server.login(sender, password)
             server.sendmail(sender, email, msg.as_string())
         return {"ok": True}
-    except Exception as e:
-        return {"ok": False, "reason": str(e)}
+    except (OSError, smtplib.SMTPException):
+        _logger.exception("Unable to send recovery email")
+        with _lock:
+            if _store.get(email, {}).get("code") == code:
+                _store.pop(email, None)
+                _resend_timestamps.pop(email, None)
+        return {"ok": False, "reason": "Unable to send verification email. Check the connection and email configuration."}
