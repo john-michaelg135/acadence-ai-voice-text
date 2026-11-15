@@ -165,14 +165,8 @@ class DatabaseManager:
                 return dict(row) if row else None
             
     def get_user_by_username(self, username: str) -> Optional[Dict]:
-        """Fetches user details by username (alternative method with same implementation)."""
-        with self._db_lock:
-            with self.get_connection() as conn:
-                conn.row_factory = sqlite3.Row
-                cur = conn.cursor()
-                cur.execute("SELECT * FROM users WHERE username = ?", (username,))
-                row = cur.fetchone()  # Call fetchone() ONCE
-                return dict(row) if row else None
+        """Return user details by username, or None when no account matches."""
+        return self.get_user(username)
 
     # Precomputed dummy hash for timing-attack prevention (computed once at class load)
     _DUMMY_HASH = hash_password("dummy_password_that_will_not_match")

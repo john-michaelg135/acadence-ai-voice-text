@@ -2,7 +2,7 @@ import json
 import sys
 import unittest
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 from utils.ai_parser import fallback_parse, parse_voice_command, to_title_case
 
@@ -27,7 +27,7 @@ class ParserTests(unittest.TestCase):
             fake = SimpleNamespace(ChatCompletion=Mock(), models=SimpleNamespace(default="test"))
             fake.ChatCompletion.create.return_value = json.dumps(response)
             with self.subTest(response=response), patch.dict(sys.modules, {"g4f": fake}):
-                with patch("socket.create_connection", return_value=Mock()):
+                with patch("socket.create_connection", return_value=MagicMock()):
                     self.assertEqual(parse_voice_command(text, "task"), expected)
 
 
