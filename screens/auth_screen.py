@@ -374,7 +374,12 @@ class AuthScreen(ctk.CTkFrame):
             messagebox.showerror("Invalid Email", email_msg)
             return
 
-        success = self.db.create_user(username, password, recovery_email=email)
+        try:
+            success = self.db.create_user(username, password, recovery_email=email)
+        except Exception:
+            logger.exception("Account creation failed")
+            messagebox.showerror("Account Error", "Unable to create the account. Please try again.")
+            return
         if success:
             messagebox.showinfo("Success", "Account created successfully! You can now log in.")
             self.switch_mode("Log In")

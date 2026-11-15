@@ -119,10 +119,10 @@ def encrypt_data(data: str) -> str:
         # Return salt + nonce + ciphertext, base64 encoded
         payload = salt + nonce + encrypted
         return base64.b64encode(payload).decode('utf-8')
-    except Exception as e:
+    except Exception:
         import logging
-        logging.error(f"Encryption failed: {e}", exc_info=True)
-        return ""
+        logging.exception("Encryption failed")
+        raise
 
 def decrypt_data(encrypted_b64: str) -> str:
     """
