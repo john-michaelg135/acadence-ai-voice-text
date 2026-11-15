@@ -1,6 +1,6 @@
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from utils.logger import logger
 
 # For PyInstaller to detect and bundle g4f
@@ -34,7 +34,7 @@ def parse_voice_command(text, command_type="subject"):
 
     for pattern in dangerous_patterns:
         if re.search(pattern, text, re.IGNORECASE):
-            logger.warning(f"Potential prompt injection detected in text: {text[:50]}")
+            logger.warning("Potential prompt injection detected; using offline parser")
             return fallback_parse(text, command_type)
 
     try:
@@ -70,6 +70,7 @@ Examples:
 Return ONLY valid JSON."""
         user_text_template = "Extract: [TEXT_HERE]"
 
+    system_prompt += f"\nToday's local date is {datetime.now().date().isoformat()}. Resolve relative deadlines from this date."
     user_message = user_text_template.replace("[TEXT_HERE]", text[:300])
 
     import socket
@@ -180,6 +181,33 @@ def to_title_case(s):
 
 
 def convert_numbers(s):
+    tens = {
+        "twenty": 20,
+        "thirty": 30,
+        "forty": 40,
+        "fifty": 50,
+        "sixty": 60,
+        "seventy": 70,
+        "eighty": 80,
+        "ninety": 90,
+    }
+    units = {
+        "one": 1,
+        "two": 2,
+        "three": 3,
+        "four": 4,
+        "five": 5,
+        "six": 6,
+        "seven": 7,
+        "eight": 8,
+        "nine": 9,
+    }
+    s = re.sub(
+        r"\b(" + "|".join(tens) + r")[ -]+(" + "|".join(units) + r")\b",
+        lambda match: str(tens[match[1].lower()] + units[match[2].lower()]),
+        s,
+        flags=re.IGNORECASE,
+    )
     words = {
         "zero": "0",
         "one": "1",
@@ -361,6 +389,11 @@ def fallback_parse(text, command_type):
 
         deadline = None
         time_str = None
+        today = datetime.now().date()
+        for phrase, offset in (("tomorrow", 1), ("today", 0), ("next week", 7)):
+            if re.search(r"\b" + phrase + r"\b", text, re.IGNORECASE):
+                deadline = (today + timedelta(days=offset)).isoformat()
+                break
 
         date_match = re.search(
             r"(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})(?:st|nd|rd|th)?(?:,|\s)?\s*(\d{4})?",
@@ -387,8 +420,6 @@ def fallback_parse(text, command_type):
             day = int(date_match.group(2))
             year = date_match.group(3)
             if not year:
-                from datetime import datetime
-
                 year = str(datetime.now().year)
             deadline = f"{year}-{m_num}-{day:02d}"
 
@@ -464,7 +495,7 @@ def is_research_task(name, description):
 
 def generate_research_references(task_name, description, progress_callback=None):
     """
-    Uses g4f LLM to generate a list of real research references with working URLs.
+    Generate suggested research references through g4f; citations are not verified.
     Returns the formatted text content for a .txt file, or None if offline/failed.
     Online-only — returns None if no internet connection.
 
