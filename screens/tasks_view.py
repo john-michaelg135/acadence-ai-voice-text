@@ -1229,6 +1229,7 @@ class EditTaskPopup(ctk.CTkToplevel):
         self.submitted = True
 
         self.db.update_task(self.task_data["id"], name, desc, deadline, prio)
+        self.on_success()
 
         from utils.ai_parser import _check_online
 
@@ -1240,20 +1241,8 @@ class EditTaskPopup(ctk.CTkToplevel):
                 parent=self,
             ):
                 will_regenerate = True
-                old_attachment = self.task_data.get("attachment_path")
-                if old_attachment:
-                    import os as _os
-
-                    try:
-                        if _os.path.exists(old_attachment):
-                            _os.remove(old_attachment)
-                        self.db.update_task_attachment(self.task_data["id"], None)
-                        self.task_data["attachment_path"] = None
-                    except Exception:
-                        pass
 
         if not will_regenerate:
-            self.on_success()
             self.withdraw()
             self.update_idletasks()
             messagebox.showinfo("Success", "Task updated successfully!", parent=self.master)
