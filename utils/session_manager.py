@@ -1,5 +1,9 @@
 import os
 import json
+import logging
+import tempfile
+
+_logger = logging.getLogger(__name__)
 
 SESSION_FILE = "session.json"
 
@@ -16,19 +20,32 @@ def _read_session_data():
     """Reads the full session JSON, returns empty dict on failure."""
     if os.path.exists(SESSION_FILE):
         try:
-            with open(SESSION_FILE, 'r') as f:
-                return json.load(f)
-        except Exception:
+            with open(SESSION_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            return data if isinstance(data, dict) else {}
+        except (OSError, ValueError):
+            _logger.warning("Unable to read session settings", exc_info=True)
             return {}
     return {}
 
 def _write_session_data(data):
-    """Writes the full session JSON."""
+    """Atomically replace session JSON; preserve the previous file on failure."""
+    temporary_path = None
     try:
-        with open(SESSION_FILE, 'w') as f:
+        with tempfile.NamedTemporaryFile(
+            mode='w', encoding='utf-8', dir=os.path.dirname(os.path.abspath(SESSION_FILE)),
+            prefix='.session-', suffix='.tmp', delete=False,
+        ) as f:
+            temporary_path = f.name
             json.dump(data, f, indent=2)
-    except Exception:
-        pass
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(temporary_path, SESSION_FILE)
+    except (OSError, TypeError, ValueError):
+        _logger.warning("Unable to save session settings", exc_info=True)
+    finally:
+        if temporary_path and os.path.exists(temporary_path):
+            os.unlink(temporary_path)
 
 def save_session(username):
     data = _read_session_data()
@@ -37,7 +54,8 @@ def save_session(username):
 
 def get_session():
     data = _read_session_data()
-    return data.get("username")
+    username = data.get("username")
+    return username if isinstance(username, str) and username else None
 
 def clear_session():
     data = _read_session_data()
@@ -84,7 +102,8 @@ def get_notification_settings(user_id: int = None) -> dict:
     
     # Merge with defaults so new keys are always present
     result = dict(_DEFAULT_NOTIFICATION_SETTINGS)
-    result.update(saved)
+    if isinstance(saved, dict):
+        result.update(saved)
     return result
 
 _DEFAULT_THEME_SETTINGS = {
@@ -126,5 +145,6 @@ def get_theme_settings(user_id: int = None) -> dict:
         saved = data.get("theme_settings", {})
         
     result = dict(_DEFAULT_THEME_SETTINGS)
-    result.update(saved)
+    if isinstance(saved, dict):
+        result.update(saved)
     return result
