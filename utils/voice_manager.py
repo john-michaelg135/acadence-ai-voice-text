@@ -230,7 +230,9 @@ def start_continuous_listening(callback: Callable[[str], None]):
 
             threading.Thread(target=process_audio, daemon=True).start()
 
-        stop_func = recognizer.listen_in_background(mic, listen_callback, phrase_time_limit=DEFAULT_PHRASE_TIME_LIMIT)
+        stop_func = recognizer.listen_in_background(
+            mic, listen_callback, phrase_time_limit=DEFAULT_PHRASE_TIME_LIMIT
+        )
         logger.info("Continuous listening started")
 
     except Exception as e:

@@ -416,7 +416,9 @@ class AuthScreen(ctk.CTkFrame):
 
     def process_step3(self):
         if not self.target_username or self._verified_recovery_username != self.target_username:
-            messagebox.showerror("Verification Required", "Verify your recovery code before updating the password.")
+            messagebox.showerror(
+                "Verification Required", "Verify your recovery code before updating the password."
+            )
             return
         new_pwd = self.new_pass_entry.get().strip()
         conf_pwd = self.conf_new_pass_entry.get().strip()

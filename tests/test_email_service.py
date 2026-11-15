@@ -16,9 +16,12 @@ class RecoveryCodeTests(unittest.TestCase):
         self.addCleanup(email_service._resend_timestamps.clear)
 
     def test_resend_cooldown_prevents_replacing_valid_code(self):
-        with patch.object(email_service, "_credentials", return_value=("test@example.test", "test-only")), patch.object(
-            email_service.smtplib, "SMTP_SSL"
-        ) as smtp:
+        with (
+            patch.object(
+                email_service, "_credentials", return_value=("test@example.test", "test-only")
+            ),
+            patch.object(email_service.smtplib, "SMTP_SSL") as smtp,
+        ):
             self.assertTrue(email_service.send_reset_otp("student@example.test")["ok"])
             first_code = email_service._store["student@example.test"]["code"]
             self.assertFalse(email_service.send_reset_otp("student@example.test")["ok"])
@@ -27,7 +30,9 @@ class RecoveryCodeTests(unittest.TestCase):
 
     def test_non_ascii_code_is_rejected_without_crashing(self):
         email_service._store["student@example.test"] = {
-            "code": "123456", "attempts": 0, "verified": False,
+            "code": "123456",
+            "attempts": 0,
+            "verified": False,
             "expires_at": email_service._now() + timedelta(minutes=5),
         }
         self.assertFalse(email_service.verify("student@example.test", "\u00e912345")["ok"])

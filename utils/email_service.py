@@ -231,7 +231,11 @@ def send_reset_otp(email: str) -> dict:
     except (OSError, smtplib.SMTPException):
         _logger.exception("Unable to send recovery email")
         with _lock:
-            if _store.get(email, {}).get("code") == code:
+            pending = _store.get(email)
+            if pending and pending["code"] == code:
                 _store.pop(email, None)
                 _resend_timestamps.pop(email, None)
-        return {"ok": False, "reason": "Unable to send verification email. Check the connection and email configuration."}
+        return {
+            "ok": False,
+            "reason": "Unable to send verification email. Check the connection and email configuration.",
+        }
