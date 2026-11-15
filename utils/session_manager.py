@@ -87,7 +87,7 @@ def save_notification_settings(settings: dict, user_id: int | None = None):
             db = DatabaseManager()
             db.save_notification_preferences(user_id, settings)
         except Exception:
-            pass
+            _logger.warning("Unable to save notification preferences", exc_info=True)
 
 
 def get_notification_settings(user_id: int | None = None) -> dict:
@@ -104,15 +104,19 @@ def get_notification_settings(user_id: int | None = None) -> dict:
             if db_prefs:
                 saved = db_prefs
         except Exception:
-            pass
+            _logger.warning("Unable to load notification preferences", exc_info=True)
 
-    if not saved:
+    if not saved and user_id is None:
         data = _read_session_data()
         saved = data.get("notification_settings", {})
 
     result = dict(_DEFAULT_NOTIFICATION_SETTINGS)
     if isinstance(saved, dict):
         result.update(saved)
+    for key, default in _DEFAULT_NOTIFICATION_SETTINGS.items():
+        value = result[key]
+        if type(value) is not type(default) or (type(value) is int and not 0 <= value <= 7):
+            result[key] = default
     return result
 
 
@@ -132,7 +136,7 @@ def save_theme_settings(settings: dict, user_id: int | None = None):
             db = DatabaseManager()
             db.save_theme_preferences(user_id, settings)
         except Exception:
-            pass
+            _logger.warning("Unable to save theme preferences", exc_info=True)
 
 
 def get_theme_settings(user_id: int | None = None) -> dict:
@@ -149,13 +153,18 @@ def get_theme_settings(user_id: int | None = None) -> dict:
             if db_prefs:
                 saved = db_prefs
         except Exception:
-            pass
+            _logger.warning("Unable to load theme preferences", exc_info=True)
 
-    if not saved:
+    if not saved and user_id is None:
         data = _read_session_data()
         saved = data.get("theme_settings", {})
 
     result = dict(_DEFAULT_THEME_SETTINGS)
     if isinstance(saved, dict):
         result.update(saved)
+    for key, default in _DEFAULT_THEME_SETTINGS.items():
+        if not isinstance(result[key], str):
+            result[key] = default
+    if result["appearance_mode"] not in ("Light", "Dark", "System"):
+        result["appearance_mode"] = "Light"
     return result

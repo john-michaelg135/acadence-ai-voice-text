@@ -52,6 +52,18 @@ class SessionTests(unittest.TestCase):
             session_manager.save_session("replacement")
         self.assertEqual(session_manager.get_session(), "student")
 
+    def test_invalid_setting_values_use_defaults(self):
+        self.path.write_text('{"notification_settings": {"high_advance_days": "many", "enabled": "false"}, "theme_settings": {"accent_color": []}}', encoding="utf-8")
+        self.assertEqual(session_manager.get_notification_settings()["high_advance_days"], 2)
+        self.assertIs(session_manager.get_notification_settings()["enabled"], True)
+        self.assertEqual(session_manager.get_theme_settings()["accent_color"], "Pastel Purple")
+
+    def test_new_user_does_not_inherit_previous_users_preferences(self):
+        session_manager.save_theme_settings({"appearance_mode": "Dark"})
+        with patch("database.db_manager.DatabaseManager") as database:
+            database.return_value.get_theme_preferences.return_value = None
+            self.assertEqual(session_manager.get_theme_settings(user_id=2)["appearance_mode"], "Light")
+
 
 class WhisperTests(unittest.TestCase):
     def test_missing_result_times_out(self):
