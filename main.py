@@ -40,7 +40,7 @@ class AcadenceApp(ctk.CTk):
         saved_username = get_session()
         if saved_username:
             user = self.db.get_user(saved_username)
-            if user and not user.get('is_disabled'):
+            if user and not user.get('is_disabled') and not user.get('is_admin'):
                 self.show_main_dashboard(user)
                 return
                 

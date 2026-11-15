@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 
 # Load environment variables from .env file
 if getattr(sys, 'frozen', False):
-    _env_path = os.path.join(getattr(sys, '_MEIPASS', os.path.dirname(sys.executable)), '.env')
+    _env_path = os.path.join(os.path.dirname(sys.executable), '.env')
 else:
     _env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
 

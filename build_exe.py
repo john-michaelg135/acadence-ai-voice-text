@@ -1,17 +1,14 @@
 import os
 import subprocess
-import site
 import sys
 
 def build_executable():
     print("Preparing to build Acadence as a Windows Executable...")
     
-    # Ensure PyInstaller is installed
     try:
         import PyInstaller
-    except ImportError:
-        print("Installing PyInstaller...")
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "pyinstaller"])
+    except ImportError as exc:
+        raise RuntimeError("Install build tools with: python -m pip install -r requirements-dev.txt") from exc
 
     # Find customtkinter installation path so we can bundle its assets (fonts, themes, etc.)
     import customtkinter
@@ -25,7 +22,7 @@ def build_executable():
     # --onedir is better than --onefile for large AI projects because --onefile takes 
     # forever to extract PyTorch to a temp folder every time the user opens the app.
     args = [
-        "pyinstaller",
+        sys.executable, "-m", "PyInstaller",
         "--noconfirm",
         "--onedir",
         "--windowed", # Removes the background console window
@@ -33,7 +30,6 @@ def build_executable():
         f"--add-data", f"{ctk_path};customtkinter/",
         "--add-data", "database/schema.sql;database/",
         "--add-data", "assets;assets/",
-        "--add-data", ".env;.",       # Bundle .env so SMTP credentials load in the exe
         "main.py"
     ]
     
@@ -42,7 +38,7 @@ def build_executable():
     
     try:
         # Run pyinstaller
-        subprocess.check_call(args)
+        subprocess.check_call(args, cwd=os.path.dirname(os.path.abspath(__file__)))
         print("\n=======================================================")
         print("BUILD SUCCESSFUL!")
         print("Your executable is located in the 'dist/Acadence' folder.")
@@ -50,6 +46,7 @@ def build_executable():
         print("=======================================================")
     except subprocess.CalledProcessError as e:
         print(f"\nBuild failed with error code {e.returncode}")
+        raise
 
 if __name__ == "__main__":
     build_executable()
