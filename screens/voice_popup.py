@@ -44,10 +44,20 @@ class VoiceRecordingPopup(ctk.CTkToplevel):
         """Override destroy to set the guard flag first, preventing race conditions."""
         self._destroyed = True
         self.is_listening = False
+        self._stop_listening()
         try:
             super().destroy()
         except Exception:
             pass
+
+    def _stop_listening(self):
+        stop = self.stop_listening_func
+        self.stop_listening_func = None
+        if stop:
+            try:
+                stop()
+            except OSError:
+                logger.warning("Unable to stop microphone listener", exc_info=True)
 
     def setup_ui(self):
         self.container = ctk.CTkFrame(self, fg_color=self.tm.bg_card(), corner_radius=15)
@@ -176,19 +186,15 @@ class VoiceRecordingPopup(ctk.CTkToplevel):
 
     def on_stop_speaking(self):
         self.is_listening = False
-        if self.stop_listening_func:
-            self.stop_listening_func()
+        self._stop_listening()
 
         self.status_lbl.configure(text="Transcription Complete", text_color=self.tm.text_main())
         self.stop_btn.pack_forget()
         self.confirm_btn.pack(side="right", padx=5)
 
     def on_cancel(self):
-        if self.stop_listening_func:
-            try:
-                self.stop_listening_func()
-            except Exception as e:
-                logger.warning(f"Error stopping listening on cancel: {e}")
+        self.is_listening = False
+        self._stop_listening()
         master_ref = self.master
         (master_ref if hasattr(self, "master") and master_ref else self).after(50, self.destroy)
 

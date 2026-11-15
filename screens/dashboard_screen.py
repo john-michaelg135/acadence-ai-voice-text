@@ -229,9 +229,7 @@ class DashboardScreen(ctk.CTkFrame):
                 logger.error(f"Error cleaning up cached view {view_name}: {e}")
         self._view_cache.clear()
 
-    def __del__(self):
-        """Ensure cached views are cleaned up on object destruction."""
-        try:
-            self.clear_cache()
-        except Exception:
-            pass
+    def destroy(self):
+        """Destroy cached views while the Tk interpreter is still available."""
+        self.clear_cache()
+        super().destroy()

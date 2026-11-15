@@ -18,6 +18,7 @@ def listen_and_transcribe():
     Returns an empty string if nothing was heard or an error occurred.
     """
     recognizer = sr.Recognizer()
+    recognizer.operation_timeout = DEFAULT_AUDIO_TIMEOUT
     try:
         with sr.Microphone() as source:
             recognizer.adjust_for_ambient_noise(source, duration=0.5)
@@ -189,6 +190,7 @@ def start_continuous_listening(callback: Callable[[str], None]):
     Properly manages microphone resource cleanup.
     """
     recognizer = sr.Recognizer()
+    recognizer.operation_timeout = DEFAULT_AUDIO_TIMEOUT
     recognizer.pause_threshold = DEFAULT_PAUSE_THRESHOLD
     recognizer.non_speaking_duration = 0.5
     recognizer.dynamic_energy_threshold = False
@@ -228,7 +230,7 @@ def start_continuous_listening(callback: Callable[[str], None]):
 
             threading.Thread(target=process_audio, daemon=True).start()
 
-        stop_func = recognizer.listen_in_background(mic, listen_callback, phrase_time_limit=None)
+        stop_func = recognizer.listen_in_background(mic, listen_callback, phrase_time_limit=DEFAULT_PHRASE_TIME_LIMIT)
         logger.info("Continuous listening started")
 
     except Exception as e:
