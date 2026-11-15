@@ -79,7 +79,7 @@ class WalkthroughPopup(ctk.CTkToplevel):
             {
                 "icon": "🎤",
                 "title": "Voice AI",
-                "description": "Speak naturally to log subjects and tasks. Our on-device Voice AI understands your intent and categorizes everything automatically.",
+                "description": "Speak naturally to log subjects and tasks. Audio uses Google recognition with local Whisper fallback; online text mapping uses external AI providers.",
                 "bullets": [
                     "Hands-free entry",
                     "Understands conversational language",
@@ -104,8 +104,8 @@ class WalkthroughPopup(ctk.CTkToplevel):
                 "description": "Keep on top of upcoming deadlines with smart desktop notifications.",
                 "bullets": [
                     "Customizable advance notifications",
-                    "Directly mark tasks done from toasts",
-                    "Grouped daily summaries",
+                    "View overdue tasks in the app",
+                    "Group notifications by priority",
                 ],
                 "render_func": self.render_notifications_mock,
             },

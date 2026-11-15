@@ -78,9 +78,9 @@ def generate_otp() -> str:
 
 def _get_master_secret() -> bytes:
     """
-    Retrieves the master secret from environment variables.
-    Falls back to generating a new one if not set (for backwards compatibility during migration).
-    IMPORTANT: In production, this MUST be set via environment variable.
+    Return the configured master secret or the legacy deterministic fallback.
+
+    Removing the fallback requires re-encrypting existing recovery emails first.
     """
     master_secret = os.getenv("ENCRYPTION_MASTER_SECRET")
     if not master_secret:
