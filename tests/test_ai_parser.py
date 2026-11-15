@@ -21,7 +21,12 @@ class ParserTests(unittest.TestCase):
             {"name": None, "description": "text", "priority": "Medium"},
             {"name": "Essay", "description": [], "priority": "Medium"},
             {"name": "Essay", "description": "text", "priority": "urgent"},
-            {"name": "Essay", "description": "text", "priority": "Medium", "deadline": "2026-02-30"},
+            {
+                "name": "Essay",
+                "description": "text",
+                "priority": "Medium",
+                "deadline": "2026-02-30",
+            },
             {"name": "Essay", "description": "text", "priority": "Medium", "time": "13:75 PM"},
         ):
             fake = SimpleNamespace(ChatCompletion=Mock(), models=SimpleNamespace(default="test"))
