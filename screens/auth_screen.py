@@ -18,6 +18,7 @@ class AuthScreen(ctk.CTkFrame):
         self.current_auth_mode = ctk.StringVar(value="Log In")
         self.target_username = ""
         self.target_email = ""
+        self._verified_recovery_username = None
 
         self.wrapper = ctk.CTkFrame(self, fg_color="transparent")
         self.wrapper.place(relx=0.5, rely=0.5, anchor="center")
@@ -182,6 +183,7 @@ class AuthScreen(ctk.CTkFrame):
         return entry
 
     def switch_mode(self, mode):
+        self._verified_recovery_username = None
         self.current_auth_mode.set(mode)
 
         self.login_frame.pack_forget()
@@ -350,6 +352,7 @@ class AuthScreen(ctk.CTkFrame):
         self.step3_frame.pack(fill="both", expand=True)
 
     def process_step1(self):
+        self._verified_recovery_username = None
         user = self.rec_user_entry.get().strip()
         email = self.rec_email_entry.get().strip()
 
@@ -406,11 +409,15 @@ class AuthScreen(ctk.CTkFrame):
 
         result = verify(self.target_email, entered)
         if result.get("ok"):
+            self._verified_recovery_username = self.target_username
             self.show_forgot_step3()
         else:
             messagebox.showerror("Error", result.get("reason"))
 
     def process_step3(self):
+        if not self.target_username or self._verified_recovery_username != self.target_username:
+            messagebox.showerror("Verification Required", "Verify your recovery code before updating the password.")
+            return
         new_pwd = self.new_pass_entry.get().strip()
         conf_pwd = self.conf_new_pass_entry.get().strip()
 
@@ -424,6 +431,7 @@ class AuthScreen(ctk.CTkFrame):
             return
 
         self.db.admin_reset_password(self.target_username, new_pwd, is_system=False)
+        self._verified_recovery_username = None
         messagebox.showinfo("Success", "Password updated successfully! You may now log in.")
         self.switch_mode("Log In")
 
