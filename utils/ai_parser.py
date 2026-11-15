@@ -1,5 +1,6 @@
 import json
 import re
+from datetime import datetime
 from utils.logger import logger
 
 # For PyInstaller to detect and bundle g4f
@@ -13,7 +14,7 @@ def parse_voice_command(text, command_type='subject'):
     Safely parses natural language voice transcripts into structured dictionary data.
     Uses g4f (GPT4Free) LLM if online, falls back to rule-based parsing offline.
     
-    Prevents prompt injection by sanitizing user input before LLM call.
+    Model output is untrusted and must satisfy the form contract.
     """
     if not text or len(text) > 500:
         logger.warning(f"Invalid input length: {len(text) if text else 0}")
@@ -76,7 +77,8 @@ Return ONLY valid JSON."""
     import socket
     def is_online():
         try:
-            socket.create_connection(("8.8.8.8", 53), timeout=1.5)
+            with socket.create_connection(("8.8.8.8", 53), timeout=1.5):
+                pass
             return True
         except OSError:
             return False
@@ -112,8 +114,24 @@ Return ONLY valid JSON."""
             else:
                 required = {'name', 'description', 'priority'}
             
-            if not all(k in data for k in required):
-                logger.warning(f"Invalid response structure missing keys: {required - set(data.keys())}")
+            if not isinstance(data, dict) or not required.issubset(data):
+                logger.warning("AI response is not an object with the required fields")
+                return fallback_parse(text, command_type)
+            if not all(isinstance(data[key], str) for key in ('name', 'description')) or not data['name'].strip():
+                return fallback_parse(text, command_type)
+            if command_type == 'subject':
+                if not isinstance(data['code'], str) or type(data['is_major']) is not int or data['is_major'] not in (0, 1):
+                    return fallback_parse(text, command_type)
+            else:
+                if data['priority'] not in ('High', 'Medium', 'Low'):
+                    return fallback_parse(text, command_type)
+                try:
+                    for key, date_format in (('deadline', '%Y-%m-%d'), ('time', '%I:%M %p')):
+                        if key in data:
+                            datetime.strptime(data[key], date_format)
+                except (TypeError, ValueError):
+                    return fallback_parse(text, command_type)
+            if len(data['name']) > 500 or len(data['description']) > 10000:
                 return fallback_parse(text, command_type)
             
             logger.debug(f"AI parsing successful for {command_type}")
@@ -330,7 +348,8 @@ def _check_online():
     """Returns True if an internet connection is available."""
     import socket
     try:
-        socket.create_connection(("8.8.8.8", 53), timeout=1.5)
+        with socket.create_connection(("8.8.8.8", 53), timeout=1.5):
+            pass
         return True
     except OSError:
         return False
