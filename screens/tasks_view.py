@@ -1,3 +1,4 @@
+from utils.attachments import save_ai_attachment
 from tkinter import TclError
 import customtkinter as ctk
 from utils.theme_manager import ThemeManager
@@ -713,15 +714,12 @@ class AddTaskPopup(ctk.CTkToplevel):
         (master_ref if hasattr(self, "master") and master_ref else self).after(50, self.destroy)
 
         import threading
-        import re as _re
         from utils.ai_parser import (
             _check_online,
             is_research_task,
             generate_research_references,
             generate_task_tips,
         )
-        import os
-        import sys
 
         def start_generation():
             if not _check_online():
@@ -742,23 +740,8 @@ class AddTaskPopup(ctk.CTkToplevel):
                     else generate_task_tips(name, desc, progress_callback)
                 )
                 if content:
-                    if getattr(sys, "frozen", False):
-                        base_dir = os.path.join(
-                            os.path.dirname(sys.executable), "database", "attachments"
-                        )
-                    else:
-                        base_dir = os.path.join(
-                            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                            "database",
-                            "attachments",
-                        )
-                    os.makedirs(base_dir, exist_ok=True)
-
-                    safe_name = _re.sub(r"[^\w\s-]", "", name).strip().replace(" ", "_")[:60]
-                    file_path = os.path.join(base_dir, f"{task_id}_{safe_name}_AI_Aid.txt")
                     try:
-                        with open(file_path, "w", encoding="utf-8") as f:
-                            f.write(content)
+                        file_path = save_ai_attachment(task_id, name, content)
 
                         def apply_update():
                             try:
@@ -1255,14 +1238,11 @@ class EditTaskPopup(ctk.CTkToplevel):
 
         if will_regenerate:
             import threading
-            import re as _re
             from utils.ai_parser import (
                 is_research_task,
                 generate_research_references,
                 generate_task_tips,
             )
-            import os
-            import sys
 
             def start_regeneration():
                 progress_popup = AIProgressPopup(master_ref, name)
@@ -1281,22 +1261,8 @@ class EditTaskPopup(ctk.CTkToplevel):
                         else generate_task_tips(name, desc, progress_callback)
                     )
                     if content:
-                        if getattr(sys, "frozen", False):
-                            base_dir = os.path.join(
-                                os.path.dirname(sys.executable), "database", "attachments"
-                            )
-                        else:
-                            base_dir = os.path.join(
-                                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                                "database",
-                                "attachments",
-                            )
-                        os.makedirs(base_dir, exist_ok=True)
-                        safe_name = _re.sub(r"[^\w\s-]", "", name).strip().replace(" ", "_")[:60]
-                        file_path = os.path.join(base_dir, f"{task_id}_{safe_name}_AI_Aid.txt")
                         try:
-                            with open(file_path, "w", encoding="utf-8") as f:
-                                f.write(content)
+                            file_path = save_ai_attachment(task_id, name, content)
 
                             def apply_update():
                                 try:

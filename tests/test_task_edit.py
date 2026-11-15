@@ -14,10 +14,21 @@ class TaskEditTests(unittest.TestCase):
             attachment = Path(temporary) / "existing.txt"
             attachment.write_text("existing guidance", encoding="utf-8")
             screen = SimpleNamespace(
-                name_entry=Mock(), deadline_entry=Mock(), hour_var=Mock(), min_var=Mock(),
-                ampm_var=Mock(), desc_textbox=Mock(), priority_var=Mock(), submitted=False,
-                db=Mock(), on_success=Mock(), withdraw=Mock(), update_idletasks=Mock(),
-                grab_release=Mock(), master=Mock(), destroy=Mock(),
+                name_entry=Mock(),
+                deadline_entry=Mock(),
+                hour_var=Mock(),
+                min_var=Mock(),
+                ampm_var=Mock(),
+                desc_textbox=Mock(),
+                priority_var=Mock(),
+                submitted=False,
+                db=Mock(),
+                on_success=Mock(),
+                withdraw=Mock(),
+                update_idletasks=Mock(),
+                grab_release=Mock(),
+                master=Mock(),
+                destroy=Mock(),
                 task_data={"id": 1, "attachment_path": str(attachment)},
             )
             screen.name_entry.get.return_value = "Essay"
@@ -28,8 +39,9 @@ class TaskEditTests(unittest.TestCase):
             screen.desc_textbox.get.return_value = "Write an essay"
             screen.priority_var.get.return_value = "Medium"
             screen.master.winfo_exists.return_value = False
-            with patch("utils.ai_parser._check_online", return_value=True), patch(
-                "screens.tasks_view.messagebox.askyesno", return_value=True
+            with (
+                patch("utils.ai_parser._check_online", return_value=True),
+                patch("screens.tasks_view.messagebox.askyesno", return_value=True),
             ):
                 EditTaskPopup.submit(screen)
             self.assertTrue(attachment.exists())
