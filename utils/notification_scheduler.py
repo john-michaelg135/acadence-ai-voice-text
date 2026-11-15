@@ -32,6 +32,7 @@ class NotificationScheduler:
         self._initialized = True
         self._running = False
         self._thread = None
+        self._stop_event = threading.Event()
         self._user_id = None
         self._username = None
 
@@ -60,6 +61,7 @@ class NotificationScheduler:
             self.update_settings(settings)
 
         self._running = True
+        self._stop_event.clear()
         self._thread = threading.Thread(target=self._run_loop, daemon=True)
         self._thread.start()
         logger.info(f"NotificationScheduler started for user '{username}' (id={user_id})")
@@ -68,7 +70,12 @@ class NotificationScheduler:
         """Stops the background scheduler loop."""
         if self._running:
             self._running = False
+            self._stop_event.set()
             logger.info("NotificationScheduler stopped.")
+        if self._thread and self._thread is not threading.current_thread():
+            self._thread.join(timeout=35)
+            if self._thread.is_alive():
+                raise RuntimeError("Previous notification worker has not stopped")
         self._thread = None
 
     def update_settings(self, settings: dict):
@@ -100,7 +107,7 @@ class NotificationScheduler:
             return
 
         # Delay the first execution slightly so it doesn't collide with the Welcome login notification
-        time.sleep(3)
+        self._stop_event.wait(3)
 
         POLL_INTERVAL = 15  # Check every 15 seconds for near real-time
         while self._running:
@@ -110,11 +117,7 @@ class NotificationScheduler:
             except Exception as e:
                 logger.error(f"NotificationScheduler error: {e}", exc_info=True)
 
-            # Sleep in small increments so stop() is responsive
-            for _ in range(POLL_INTERVAL):
-                if not self._running:
-                    break
-                time.sleep(1)
+            self._stop_event.wait(POLL_INTERVAL)
 
         # Clean up connection when loop ends
         try:
