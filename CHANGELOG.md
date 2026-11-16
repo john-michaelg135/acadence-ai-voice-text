@@ -7,6 +7,8 @@ branch names and the former UI version label are not published releases.
 ## [Unreleased]
 
 ### Fixed
+- Run final published-asset verification after recovery skips a redundant build;
+  support repeating verification without modifying an existing release.
 - Preserve annotated tag validation in Actions and recover stopped releases using
   verified builds of the exact tagged commit, without moving the published tag.
 
