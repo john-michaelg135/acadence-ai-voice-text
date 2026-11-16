@@ -1,0 +1,67 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13.7'
+      - run: python scripts/release.py validate "$RELEASE_TAG"
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+  build:
+    needs: validate
+    uses: ./.github/workflows/build.yml
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13.7'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: native-*
+          path: release-assets
+          merge-multiple: true
+      - name: Create draft, upload, download and verify before publishing
+        run: python scripts/release.py publish "$RELEASE_TAG"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+  verify-windows:
+    needs: publish
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13.7'
+      - name: Download published Windows executable
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release download $env:RELEASE_TAG --pattern '*-windows-x64.exe' --pattern SHA256SUMS --dir downloaded
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $exe = Get-ChildItem downloaded -Filter '*.exe' | Select-Object -First 1
+          $line = Get-Content downloaded/SHA256SUMS | Where-Object { $_.EndsWith("  $($exe.Name)") }
+          if (-not $line -or (Get-FileHash $exe.FullName -Algorithm SHA256).Hash.ToLower() -ne $line.Split(' ')[0]) { throw 'Checksum mismatch' }
+          python scripts/smoke.py $exe.FullName

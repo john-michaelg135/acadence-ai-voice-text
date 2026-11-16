@@ -174,6 +174,17 @@ The final source diff was inspected against baseline at the AST/function level t
 separate formatting/comment removal from changed behavior. Files with uncertain
 usage, existing distributions and encrypted user data were retained.
 
+## Release-tooling follow-up (2026-11-16)
+
+The isolated release environment upgrades Pillow to 13.0.0 and filelock to
+4.2.10; the expanded regression suite passes. OSV reported no known vulnerabilities
+for that environment; its machine-readable report is in
+`audit/release-dependency-check.json`. This supersedes the dependency snapshot
+above for the new release environment only. Native packaging and platform smoke
+results must still pass before release; the original environment's torch 2.14
+build again produced access violations. Session, encryption, migration, and live
+service limitations below remain unresolved by release tooling.
+
 ## Needs decision before release
 
 1. Protected/revocable normal-user sessions and credential expiry/bootstrap policy.

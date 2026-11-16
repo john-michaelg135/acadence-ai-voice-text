@@ -1,10 +1,11 @@
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 
-def build_executable():
-    print("Preparing to build Acadence as a Windows Executable...")
+def build_executable(onefile=False):
+    print("Preparing to build Acadence...")
 
     try:
         import PyInstaller as PyInstaller
@@ -16,6 +17,7 @@ def build_executable():
     import customtkinter
 
     ctk_path = os.path.dirname(customtkinter.__file__)
+    root = Path(__file__).resolve().parent
 
     print(f"Found CustomTkinter at: {ctk_path}")
 
@@ -26,16 +28,21 @@ def build_executable():
         "-m",
         "PyInstaller",
         "--noconfirm",
-        "--onedir",
+        "--onefile" if onefile else "--onedir",
         "--windowed",
         "--name",
         "Acadence",
+        "--noupx",
+        "--specpath",
+        str(root / "build"),
         "--add-data",
-        f"{ctk_path};customtkinter/",
+        f"{ctk_path}{os.pathsep}customtkinter/",
         "--add-data",
-        "database/schema.sql;database/",
+        f"{root / 'database' / 'schema.sql'}{os.pathsep}database/",
         "--add-data",
-        "assets;assets/",
+        f"{root / 'assets'}{os.pathsep}assets/",
+        "--collect-data",
+        "whisper",
         "main.py",
     ]
 
@@ -48,8 +55,7 @@ def build_executable():
         subprocess.check_call(args, cwd=os.path.dirname(os.path.abspath(__file__)))
         print("\n=======================================================")
         print("BUILD SUCCESSFUL!")
-        print("Your executable is located in the 'dist/Acadence' folder.")
-        print("You can double-click 'Acadence.exe' to run the app!")
+        print("Your application is located in the 'dist' folder.")
         print("=======================================================")
     except subprocess.CalledProcessError as e:
         print(f"\nBuild failed with error code {e.returncode}")
@@ -57,4 +63,8 @@ def build_executable():
 
 
 if __name__ == "__main__":
-    build_executable()
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--onefile", action="store_true")
+    build_executable(parser.parse_args().onefile)

@@ -3,6 +3,7 @@ import os
 import datetime
 import threading
 import sys
+from utils.app_paths import data_root
 from typing import Dict, List, Optional, Tuple
 from utils.security import (
     hash_password,
@@ -20,7 +21,7 @@ else:
     application_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     bundle_dir = application_path
 
-db_dir = os.path.join(application_path, "database")
+db_dir = str(data_root() / "database")
 if not os.path.exists(db_dir):
     os.makedirs(db_dir)
 

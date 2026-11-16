@@ -5,6 +5,7 @@ from database.db_manager import DatabaseManager
 from utils.theme_manager import ThemeManager
 from utils.font_loader import load_fonts
 import datetime
+import sys
 
 
 class AcadenceApp(ctk.CTk):
@@ -24,7 +25,8 @@ class AcadenceApp(ctk.CTk):
         self.configure(fg_color=self.tm.bg_main())
 
         # Delay zoomed state slightly so CustomTkinter has time to map the window
-        self.after(200, lambda: self.state("zoomed"))
+        if sys.platform == "win32":
+            self.after(200, lambda: self.state("zoomed"))
 
         self.db = DatabaseManager()
         self.current_user = None
@@ -187,5 +189,24 @@ class AcadenceApp(ctk.CTk):
 
 
 if __name__ == "__main__":
+    import multiprocessing
+
+    multiprocessing.freeze_support()
     app = AcadenceApp()
-    app.mainloop()
+    if "--smoke-test" in sys.argv:
+        import json
+        from pathlib import Path
+        import torch
+        import whisper
+        from app_version import __version__
+
+        app.withdraw()
+        app.update()
+        assert torch.tensor([1, 2]).sum().item() == 3
+        assert callable(whisper.load_model)
+        assert app.db.get_connection().execute("SELECT 1").fetchone()[0] == 1
+        report_path = Path(sys.argv[sys.argv.index("--smoke-test") + 1])
+        report_path.write_text(json.dumps({"version": __version__, "status": "ok"}))
+        app.on_closing()
+    else:
+        app.mainloop()

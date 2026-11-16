@@ -21,6 +21,7 @@ __pycache__/
 Acadence.spec
 build/
 dist/
+release-assets/
 .venv/
 .vscode/
 logs

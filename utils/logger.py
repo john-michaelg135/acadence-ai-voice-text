@@ -6,6 +6,7 @@ import logging
 import os
 import sys
 from logging.handlers import RotatingFileHandler
+from utils.app_paths import data_root
 
 
 def setup_logger(name="acadence"):
@@ -30,7 +31,7 @@ def setup_logger(name="acadence"):
     console_handler.setFormatter(log_format)
     logger.addHandler(console_handler)
 
-    log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
+    log_dir = str(data_root() / "logs")
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
 

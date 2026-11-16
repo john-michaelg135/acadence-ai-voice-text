@@ -1,0 +1,68 @@
+name: Native builds
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  build:
+    name: build-${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2025
+            target: windows-x64
+          - runner: macos-15
+            target: macos-arm64
+          - runner: ubuntu-24.04
+            target: linux-x64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    env:
+      PYTHONHASHSEED: '0'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13.7'
+          cache: pip
+          cache-dependency-path: requirements.lock
+      - name: Linux native dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y portaudio19-dev python3-tk ffmpeg xvfb
+      - name: macOS native dependencies
+        if: runner.os == 'macOS'
+        run: brew install portaudio ffmpeg
+      - name: Install hashed dependencies
+        run: python -m pip install --require-hashes -r requirements.lock
+      - name: Quality checks
+        run: python scripts/check.py
+      - name: Set reproducible build timestamp
+        shell: bash
+        run: echo "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)" >> "$GITHUB_ENV"
+      - name: Build Windows portable executable
+        if: runner.os == 'Windows'
+        run: python build_exe.py --onefile
+      - name: Build macOS and Linux
+        if: runner.os != 'Windows'
+        run: python build_exe.py
+      - name: Smoke test Windows executable
+        if: runner.os == 'Windows'
+        run: python scripts/smoke.py dist/Acadence.exe
+      - name: Smoke test macOS application
+        if: runner.os == 'macOS'
+        run: python scripts/smoke.py dist/Acadence.app/Contents/MacOS/Acadence
+      - name: Smoke test Linux application
+        if: runner.os == 'Linux'
+        run: xvfb-run -a python scripts/smoke.py dist/Acadence/Acadence
+      - name: Package and record checksums
+        run: python scripts/package_release.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.target }}
+          path: release-assets/*
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
