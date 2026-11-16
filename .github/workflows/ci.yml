@@ -6,14 +6,39 @@ on:
 permissions:
   contents: read
 jobs:
+  tag-validation:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13.7'
+      - name: Reproduce and repair checkout's runner-local tag peeling
+        shell: bash
+        run: |
+          TAG=$(git describe --tags --abbrev=0 origin/main)
+          ORIGINAL=$(git rev-parse "refs/tags/$TAG")
+          COMMIT=$(git rev-parse "$TAG^{commit}")
+          git checkout --detach "$COMMIT"
+          git update-ref "refs/tags/$TAG" "$COMMIT"
+          if python scripts/release.py validate "$TAG"; then
+            echo 'Expected validation to reject the peeled runner-local ref'
+            exit 1
+          fi
+          git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
+          test "$(git rev-parse "refs/tags/$TAG")" = "$ORIGINAL"
+          python scripts/release.py validate "$TAG"
   native:
     uses: ./.github/workflows/build.yml
   checks:
     if: always()
-    needs: native
+    needs: [native, tag-validation]
     runs-on: ubuntu-24.04
     steps:
       - name: Require every platform to pass
         env:
           RESULT: ${{ needs.native.result }}
-        run: test "$RESULT" = success
+          TAG_RESULT: ${{ needs.tag-validation.result }}
+        run: test "$RESULT" = success && test "$TAG_RESULT" = success
