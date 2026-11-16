@@ -43,6 +43,8 @@ def build_executable(onefile=False):
         f"{root / 'assets'}{os.pathsep}assets/",
         "--collect-data",
         "whisper",
+        "--hidden-import",
+        "PIL._tkinter_finder",
         "main.py",
     ]
 
