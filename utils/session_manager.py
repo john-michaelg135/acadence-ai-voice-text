@@ -1,5 +1,9 @@
 import os
 import json
+import logging
+import tempfile
+
+_logger = logging.getLogger(__name__)
 
 SESSION_FILE = "session.json"
 
@@ -7,37 +11,60 @@ _DEFAULT_NOTIFICATION_SETTINGS = {
     "enabled": True,
     "persistent": True,
     "group_notifications": False,
-    "high_advance_days": 2,    # Notify 2 days before, 1 day before, due today, overdue
-    "medium_advance_days": 1,  # Notify 1 day before, due today, overdue
-    "low_advance_days": 0,     # Notify due today + overdue only
+    "high_advance_days": 2,
+    "medium_advance_days": 1,
+    "low_advance_days": 0,
 }
+
 
 def _read_session_data():
     """Reads the full session JSON, returns empty dict on failure."""
     if os.path.exists(SESSION_FILE):
         try:
-            with open(SESSION_FILE, 'r') as f:
-                return json.load(f)
-        except Exception:
+            with open(SESSION_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return data if isinstance(data, dict) else {}
+        except (OSError, ValueError):
+            _logger.warning("Unable to read session settings", exc_info=True)
             return {}
     return {}
 
+
 def _write_session_data(data):
-    """Writes the full session JSON."""
+    """Atomically replace session JSON; preserve the previous file on failure."""
+    temporary_path = None
     try:
-        with open(SESSION_FILE, 'w') as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=os.path.dirname(os.path.abspath(SESSION_FILE)),
+            prefix=".session-",
+            suffix=".tmp",
+            delete=False,
+        ) as f:
+            temporary_path = f.name
             json.dump(data, f, indent=2)
-    except Exception:
-        pass
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(temporary_path, SESSION_FILE)
+    except (OSError, TypeError, ValueError):
+        _logger.warning("Unable to save session settings", exc_info=True)
+    finally:
+        if temporary_path and os.path.exists(temporary_path):
+            os.unlink(temporary_path)
+
 
 def save_session(username):
     data = _read_session_data()
     data["username"] = username
     _write_session_data(data)
 
+
 def get_session():
     data = _read_session_data()
-    return data.get("username")
+    username = data.get("username")
+    return username if isinstance(username, str) and username else None
+
 
 def clear_session():
     data = _read_session_data()
@@ -45,86 +72,99 @@ def clear_session():
         del data["username"]
         _write_session_data(data)
 
-def save_notification_settings(settings: dict, user_id: int = None):
+
+def save_notification_settings(settings: dict, user_id: int | None = None):
     """Saves notification preference settings to the database (per-user) and session file."""
-    # Always save to session file for the current session
+
     data = _read_session_data()
     data["notification_settings"] = settings
     _write_session_data(data)
-    
-    # Persist to database so settings survive logout/login
+
     if user_id:
         try:
             from database.db_manager import DatabaseManager
+
             db = DatabaseManager()
             db.save_notification_preferences(user_id, settings)
         except Exception:
-            pass
+            _logger.warning("Unable to save notification preferences", exc_info=True)
 
-def get_notification_settings(user_id: int = None) -> dict:
+
+def get_notification_settings(user_id: int | None = None) -> dict:
     """Returns notification settings with defaults for any missing keys.
     Loads from database first (per-user persistent), falls back to session file."""
     saved = {}
-    
-    # Try loading from database first (per-user persistent storage)
+
     if user_id:
         try:
             from database.db_manager import DatabaseManager
+
             db = DatabaseManager()
             db_prefs = db.get_notification_preferences(user_id)
             if db_prefs:
                 saved = db_prefs
         except Exception:
-            pass
-    
-    # Fallback to session file if database had nothing
-    if not saved:
+            _logger.warning("Unable to load notification preferences", exc_info=True)
+
+    if not saved and user_id is None:
         data = _read_session_data()
         saved = data.get("notification_settings", {})
-    
-    # Merge with defaults so new keys are always present
+
     result = dict(_DEFAULT_NOTIFICATION_SETTINGS)
-    result.update(saved)
+    if isinstance(saved, dict):
+        result.update(saved)
+    for key, default in _DEFAULT_NOTIFICATION_SETTINGS.items():
+        value = result[key]
+        if type(value) is not type(default) or (type(value) is int and not 0 <= value <= 7):
+            result[key] = default
     return result
 
-_DEFAULT_THEME_SETTINGS = {
-    "appearance_mode": "Light",
-    "accent_color": "Pastel Purple"
-}
 
-def save_theme_settings(settings: dict, user_id: int = None):
+_DEFAULT_THEME_SETTINGS = {"appearance_mode": "Light", "accent_color": "Pastel Purple"}
+
+
+def save_theme_settings(settings: dict, user_id: int | None = None):
     """Saves theme preference settings to the database (per-user) and session file."""
     data = _read_session_data()
     data["theme_settings"] = settings
     _write_session_data(data)
-    
+
     if user_id:
         try:
             from database.db_manager import DatabaseManager
+
             db = DatabaseManager()
             db.save_theme_preferences(user_id, settings)
         except Exception:
-            pass
+            _logger.warning("Unable to save theme preferences", exc_info=True)
 
-def get_theme_settings(user_id: int = None) -> dict:
+
+def get_theme_settings(user_id: int | None = None) -> dict:
     """Returns theme settings with defaults for any missing keys.
     Loads from database first (per-user persistent), falls back to session file."""
     saved = {}
-    
+
     if user_id:
         try:
             from database.db_manager import DatabaseManager
+
             db = DatabaseManager()
             db_prefs = db.get_theme_preferences(user_id)
             if db_prefs:
                 saved = db_prefs
         except Exception:
-            pass
-            
-    if not saved:
+            _logger.warning("Unable to load theme preferences", exc_info=True)
+
+    if not saved and user_id is None:
         data = _read_session_data()
         saved = data.get("theme_settings", {})
-        
+
     result = dict(_DEFAULT_THEME_SETTINGS)
-    result.update(saved)
+    if isinstance(saved, dict):
+        result.update(saved)
+    for key, default in _DEFAULT_THEME_SETTINGS.items():
+        if not isinstance(result[key], str):
+            result[key] = default
+    if result["appearance_mode"] not in ("Light", "Dark", "System"):
+        result["appearance_mode"] = "Light"
     return result

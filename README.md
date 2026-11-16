@@ -1,58 +1,94 @@
-# acadence-ai-voice-text
-An academic tracker application enhanced with AI-powered voice-to-text technology, designed to streamline note-taking, progress monitoring, and task management for students and educators.
+# Acadence
 
-### 1. Prerequisites
-If you are running from source code, ensure you have the following installed:
-- **Python 3.10+**
-- **FFmpeg** (Required for Whisper audio processing. Download from [ffmpeg.org](https://ffmpeg.org/download.html) and add to your system PATH).
-- **PyAudio dependencies** (Windows users may need Visual Studio Build Tools if they face installation errors).
+A Windows desktop academic tracker built with CustomTkinter and SQLite. It manages
+subjects, task deadlines, priorities, completion history, and desktop notifications.
 
-### 2. Installation
-Clone the repository and install the required dependencies:
-```bash
-git clone https://github.com/yourusername/acadence-ai-voice-text.git
-cd acadence-ai-voice-text
-pip install -r requirements.txt
-```
+## Run from source
 
-### 3. Whisper Local Model Setup (Crucial for Offline Mode)
-Acadence utilizes the `small.en` Whisper model for lightning-fast, highly accurate offline transcription. Before launching the app, you must download this model.
+Use Python 3.10 or newer with Tcl/Tk installed, FFmpeg on PATH, and a microphone
+for voice input. PyAudio may require Windows build tools if no wheel is available.
 
-Open your terminal and run this one-time command to download the model into your system cache:
-```bash
-python -c "import whisper; whisper.load_model('small.en')"
-```
-*(This will download ~460MB of weights. It only needs to be done once.)*
+From the repository directory in PowerShell:
 
-### 4. Run the Application
-Launch the app directly via Python:
-```bash
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
 python main.py
 ```
-> **Note:** On your first launch, Acadence will automatically generate a highly secure, local `database/acadence.db` file containing the default `admin` user.
 
----
+The first launch creates `database/acadence.db` and a random initial administrator
+password in `database/.admin_credentials`. Protect that file and the database;
+the database file itself is not encrypted. See [AUDIT.md](AUDIT.md) for remaining
+security decisions before distributing or relying on this application.
 
-## How to use the Voice AI
-1. Navigate to Subject's View.
-2. Click the **Voice AI** button in the top right.
-3. Wait for the status indicator to say `🟢 Listening...`
-4. Speak naturally. For example:
-> *"Ethics subject with a subject code 'GEED-008'"*
-5. Click **Process**.
-6. Acadence will parse your audio, automatically title-case the fields, add a subject description and insert it into your database.
+## Configuration and data
 
----
+Configure `SMTP_EMAIL` and `SMTP_PASSWORD` in an untracked `.env` beside `main.py`
+for Gmail recovery emails. Use an app password. `ENCRYPTION_MASTER_SECRET` controls
+recovery-email encryption. Set a strong secret before creating a new database and
+retain it securely; changing it on an existing installation requires a migration.
+The legacy fallback key remains for compatibility and is not safe for deployment.
 
-## 📦 Building the Executable (.exe)
+Optional recovery settings are `OTP_TTL_SECONDS` (300), `OTP_MAX_ATTEMPTS` (5),
+and `RESEND_COOLDOWN` (60). Values are in seconds except the attempt count.
 
-If you wish to distribute Acadence as a standalone Windows application to users who don't have Python installed, use the included build script:
+Back up the database, its SQLite sidecar files when active, attachment directory,
+and encryption configuration consistently. `session.json` stores the remembered
+username and local preferences. Normal-user remembered sessions are not protected
+authentication tokens; anyone who can edit the file can impersonate local users.
 
-```bash
+## Voice and AI
+
+Audio is sent to Google Speech Recognition first. On network request failure,
+Whisper `small.en` provides a local fallback. Download its weights before using
+offline transcription:
+
+```powershell
+python -c "import whisper; whisper.load_model('small.en')"
+```
+
+Online text mapping and task guidance use g4f providers and send transcripts or
+task descriptions externally. Offline text mapping uses local rules. Generated
+research citations are suggestions and are not independently verified.
+
+Open a subject, choose **Voice AI**, speak, then select **Done Speaking** and
+**Process**. Review the populated subject or task form before saving it.
+
+## Development checks
+
+```powershell
+python -m pip install -r requirements-dev.txt
+python -m ruff format --check main.py build_exe.py database screens utils tests
+python -m ruff check main.py build_exe.py database screens utils tests
+python -m mypy
+python -m unittest discover -v
+python -m compileall -q main.py build_exe.py database screens utils tests
+python -m pip check
+python -m pip_audit --vulnerability-service osv
+```
+
+Unit tests use temporary files, in-memory databases, and mocked external services.
+They do not test real microphones, delivery of emails/toasts, or live AI providers.
+Typechecking includes untyped function bodies; third-party modules without type
+information are ignored. Security constraints cover compatible dependency updates;
+the remaining major upgrades are listed in the audit.
+
+## Build for Windows
+
+Install the development requirements, then run:
+
+```powershell
 python build_exe.py
 ```
-This script leverages `PyInstaller` to bundle the entire Python runtime, CustomTkinter assets, SQLite schemas, and the PyTorch engine into a single folder.
 
-1. Wait 5-15 minutes for the compilation to finish.
-2. Navigate to the generated `dist/Acadence` folder.
-3. Double-click `Acadence.exe` to launch the app natively!
+The script uses the active Python interpreter and writes `dist/Acadence/Acadence.exe`.
+It does not install tooling automatically or bundle `.env`. Configure any packaged
+installation with environment variables or an operator-owned `.env` beside the
+executable. Never include live SMTP credentials or encryption keys in a release.
+Existing executables made with the old script may contain secrets; rotate those
+credentials if distributed.
+
+Packaging includes PyTorch and can take several minutes. A completed build still
+needs a Windows launch and microphone/offline-model smoke test; see the audit for
+the results and limitations of the current environment.
