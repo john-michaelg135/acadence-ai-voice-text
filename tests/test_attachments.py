@@ -13,7 +13,7 @@ class AttachmentTests(unittest.TestCase):
             patch("utils.attachments.db_dir", temporary),
         ):
             destination = Path(save_ai_attachment(1, "../Essay?", "original"))
-            self.assertEqual(destination.parent, Path(temporary) / "attachments")
+            self.assertEqual(destination.parent, (Path(temporary) / "attachments").resolve())
             with patch("utils.attachments.os.replace", side_effect=OSError("disk full")):
                 with self.assertRaises(OSError):
                     save_ai_attachment(1, "../Essay?", "replacement")
