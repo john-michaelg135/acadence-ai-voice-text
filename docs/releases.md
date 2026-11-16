@@ -110,6 +110,27 @@ configuration and must never enter the repository or packages.
 
 ## Rollback
 
+### Recover a stopped release workflow
+
+Actions checkout can replace a runner-local annotated tag ref with its peeled
+commit (see [actions/checkout issue 882](https://github.com/actions/checkout/issues/882)).
+Release jobs explicitly fetch the original annotation back into the disposable
+runner checkout. This force **fetch** does not push, move, or delete the remote tag.
+CI exercises rejection of a peeled local ref and successful restoration.
+
+If a tag workflow stopped before creating a release, dispatch the repaired workflow
+from main with the existing tag. Optionally supply a successful main CI run whose
+commit exactly matches the tag; its previously built and smoke-tested native assets
+can be reused. The workflow validates the run's commit, workflow, event, and result,
+then verifies each artifact's provenance and checksums before draft publication.
+
+```text
+gh workflow run release.yml --ref main -f tag=vX.Y.Z -f artifact_run_id=RUN_ID
+```
+
+Omit `artifact_run_id` to rebuild the tagged source. Existing drafts still require
+inspection before resuming; published assets are never overwritten.
+
 Never remove a published release or move its tag. Mark a broken release in its
 notes and ship a fixed patch. Ask the owner before changing even an unused tag
 pushed by mistake. Keep unmerged stale branches until explicitly approved for deletion.

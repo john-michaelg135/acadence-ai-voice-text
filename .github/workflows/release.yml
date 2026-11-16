@@ -2,36 +2,84 @@ name: Release
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing annotated release tag (never moved)
+        required: true
+        type: string
+      artifact_run_id:
+        description: Optional successful main CI run for this exact tag commit
+        required: false
+        default: ''
+        type: string
 permissions:
   contents: read
+  actions: read
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: false
 jobs:
   validate:
     runs-on: ubuntu-24.04
     steps:
+      - name: Validate requested tag format
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: '[[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-(rc|beta)\.[1-9][0-9]*)?$ ]]'
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.tag || github.ref }}
           fetch-depth: 0
+      - name: Restore runner-local annotation from the immutable remote tag
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: git fetch --force origin "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13.7'
       - run: python scripts/release.py validate "$RELEASE_TAG"
         env:
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+      - name: Validate recovery artifact provenance
+        if: inputs.artifact_run_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RECOVERY_RUN: ${{ inputs.artifact_run_id }}
+        run: |
+          [[ "$RECOVERY_RUN" =~ ^[1-9][0-9]*$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RECOVERY_RUN" > recovery-run.json
+          python - <<'PY'
+          import json, subprocess
+          run = json.load(open('recovery-run.json'))
+          commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          assert run['head_sha'] == commit, 'Recovery build must match the exact tag commit'
+          assert run['conclusion'] == 'success', 'Recovery build must have passed'
+          assert run['event'] == 'push' and run['head_branch'] == 'main'
+          assert run['path'] == '.github/workflows/ci.yml'
+          PY
   build:
     needs: validate
+    if: inputs.artifact_run_id == ''
     uses: ./.github/workflows/build.yml
+    with:
+      ref: ${{ inputs.tag || github.ref }}
   publish:
-    needs: build
+    needs: [validate, build]
+    if: always() && needs.validate.result == 'success' && (needs.build.result == 'success' || (inputs.artifact_run_id != '' && needs.build.result == 'skipped'))
     runs-on: ubuntu-24.04
     permissions:
       contents: write
+      actions: read
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.tag || github.ref }}
           fetch-depth: 0
+      - name: Restore runner-local annotation from the immutable remote tag
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: git fetch --force origin "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13.7'
@@ -40,16 +88,20 @@ jobs:
           pattern: native-*
           path: release-assets
           merge-multiple: true
+          run-id: ${{ inputs.artifact_run_id || github.run_id }}
+          github-token: ${{ github.token }}
       - name: Create draft, upload, download and verify before publishing
         run: python scripts/release.py publish "$RELEASE_TAG"
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
   verify-published:
     needs: publish
     runs-on: windows-2025
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13.7'
@@ -57,7 +109,7 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: |
           gh release download $env:RELEASE_TAG --pattern '*' --dir downloaded
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

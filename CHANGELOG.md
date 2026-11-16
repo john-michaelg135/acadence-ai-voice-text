@@ -6,6 +6,10 @@ branch names and the former UI version label are not published releases.
 
 ## [Unreleased]
 
+### Fixed
+- Preserve annotated tag validation in Actions and recover stopped releases using
+  verified builds of the exact tagged commit, without moving the published tag.
+
 ## [0.1.0] - 2026-11-16
 
 ### Added
