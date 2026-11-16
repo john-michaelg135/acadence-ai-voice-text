@@ -85,7 +85,8 @@ be overwritten by the script.
 Verify published downloads against `SHA256SUMS`, launch the Windows executable,
 inspect release notes and the tag commit, and close only the milestone and linked
 issues actually shipped. Confirm the fresh Unreleased section remains. Do not close
-unrelated issues. The Windows verification job repeats the published-download smoke.
+unrelated issues. The verification job downloads every published asset, checks all
+checksums, and repeats the packaged Windows launch test.
 
 ## Smoke tests and limitations
 
