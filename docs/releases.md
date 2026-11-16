@@ -15,8 +15,11 @@ Prereleases use `-rc.N` or `-beta.N`; they never become GitHub's latest stable r
 
 CI targets Windows x64, macOS arm64, and Ubuntu x64. Windows arm64 and macOS Intel
 are not supported by this matrix. Linux `.deb` packages require an apt-compatible
-system. Native packages are unsigned. There is no in-app updater, so no `latest.yml`
-or updater JSON is claimed to work; downloads are manual from GitHub Releases.
+system. Native packages are unsigned. The release publishes `updates-stable.json`
+or `updates-beta.json` with versioned download URLs and hashes. Prereleases never
+write stable metadata. There is no in-app updater yet; this is a documented download
+catalog, not a claim that the app installs updates. The stable catalog is available
+at the repository's `releases/latest/download/updates-stable.json` endpoint.
 
 ## Repeat the build
 
@@ -73,7 +76,7 @@ git push origin vX.Y.Z
 
 The tag workflow verifies the annotated tag belongs to main and matches the version
 and changelog. It reruns checks and native builds, then creates a draft, uploads all
-three packages, three provenance files and `SHA256SUMS`, downloads and hashes every
+three packages, three provenance files, channel metadata and `SHA256SUMS`, downloads and hashes every
 asset, and only then publishes. The tag approval therefore also authorizes this
 workflow's publication. Failures leave either no release or an unpublished draft.
 Existing drafts require manual inspection before retry; published releases cannot

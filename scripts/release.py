@@ -26,6 +26,38 @@ def digest(path):
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
+def write_feed(output, repository):
+    """Describe downloads by channel; the app does not yet consume this feed."""
+    channel = "beta" if "-" in __version__ else "stable"
+    release_url = f"https://github.com/{repository}/releases/tag/v{__version__}"
+    assets = []
+    for target, extension in TARGETS.items():
+        name = f"Acadence-{__version__}-{target}.{extension}"
+        assets.append(
+            {
+                "target": target,
+                "name": name,
+                "sha256": digest(output / name),
+                "url": f"https://github.com/{repository}/releases/download/v{__version__}/{name}",
+            }
+        )
+    feed = output / f"updates-{channel}.json"
+    feed.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "channel": channel,
+                "version": __version__,
+                "release_url": release_url,
+                "assets": assets,
+            },
+            indent=2,
+        )
+        + "\n"
+    )
+    return feed
+
+
 def notes():
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     match = re.search(
@@ -76,6 +108,8 @@ def publish(tag):
         expected.update((artifact.name, metadata_path.name))
     if {p.name for p in output.iterdir()} != expected:
         raise RuntimeError("Unexpected or missing release assets")
+    repository = run("gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner")
+    expected.add(write_feed(output, repository).name)
     checksums = output / "SHA256SUMS"
     checksums.write_text("".join(f"{digest(output / name)}  {name}\n" for name in sorted(expected)))
     expected.add(checksums.name)

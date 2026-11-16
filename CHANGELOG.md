@@ -7,6 +7,8 @@ branch names and the former UI version label are not published releases.
 ## [Unreleased]
 
 ### Added
+- Track subjects, deadlines, priorities, completion history, and notifications.
+- Create tasks with voice input and review AI-generated guidance before saving.
 - Automated checks, native desktop packaging, checksums, and draft-first releases.
 - Contributor guidelines and a single application version source.
 
