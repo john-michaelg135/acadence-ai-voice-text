@@ -131,6 +131,16 @@ gh workflow run release.yml --ref main -f tag=vX.Y.Z -f artifact_run_id=RUN_ID
 Omit `artifact_run_id` to rebuild the tagged source. Existing drafts still require
 inspection before resuming; published assets are never overwritten.
 
+To repeat verification of an already-published release without building, uploading,
+or editing it, use:
+
+```text
+gh workflow run release.yml --ref main -f tag=vX.Y.Z -f verify_only=true
+```
+
+The verification job uses an explicit condition so skipped recovery/build jobs
+cannot silently skip the final downloads, checksum checks, and Windows launch.
+
 Never remove a published release or move its tag. Mark a broken release in its
 notes and ship a fixed patch. Ask the owner before changing even an unused tag
 pushed by mistake. Keep unmerged stale branches until explicitly approved for deletion.

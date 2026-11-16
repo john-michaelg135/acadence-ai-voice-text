@@ -13,6 +13,11 @@ on:
         required: false
         default: ''
         type: string
+      verify_only:
+        description: Download and verify an existing published release without changing it
+        required: false
+        default: false
+        type: boolean
 permissions:
   contents: read
   actions: read
@@ -60,13 +65,13 @@ jobs:
           PY
   build:
     needs: validate
-    if: inputs.artifact_run_id == ''
+    if: inputs.artifact_run_id == '' && !inputs.verify_only
     uses: ./.github/workflows/build.yml
     with:
       ref: ${{ inputs.tag || github.ref }}
   publish:
     needs: [validate, build]
-    if: always() && needs.validate.result == 'success' && (needs.build.result == 'success' || (inputs.artifact_run_id != '' && needs.build.result == 'skipped'))
+    if: always() && !inputs.verify_only && needs.validate.result == 'success' && (needs.build.result == 'success' || (inputs.artifact_run_id != '' && needs.build.result == 'skipped'))
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -96,7 +101,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
   verify-published:
-    needs: publish
+    needs: [validate, publish]
+    if: always() && needs.validate.result == 'success' && (needs.publish.result == 'success' || inputs.verify_only)
     runs-on: windows-2025
     steps:
       - uses: actions/checkout@v4
