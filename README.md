@@ -7,7 +7,7 @@ All rights reserved; see [LICENSE](LICENSE).
 
 ## Run from source
 
-Use Python 3.10 or newer with Tcl/Tk installed, FFmpeg on PATH, and a microphone
+Use Python 3.13.7 with Tcl/Tk installed, FFmpeg on PATH, and a microphone
 for voice input. PyAudio may require Windows build tools if no wheel is available.
 
 From the repository directory in PowerShell:
