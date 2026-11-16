@@ -1,4 +1,5 @@
 from utils.attachments import save_ai_attachment
+from utils.app_paths import data_root
 from tkinter import TclError
 import customtkinter as ctk
 from utils.theme_manager import ThemeManager
@@ -65,18 +66,8 @@ class AIProgressPopup(ctk.CTkToplevel):
             self.update_idletasks()
             import os
             import json
-            import sys
 
-            if getattr(sys, "frozen", False):
-                self._pos_file = os.path.join(
-                    os.path.dirname(sys.executable), "database", "ai_popup_pos.json"
-                )
-            else:
-                self._pos_file = os.path.join(
-                    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                    "database",
-                    "ai_popup_pos.json",
-                )
+            self._pos_file = str(data_root() / "database" / "ai_popup_pos.json")
 
             if os.path.exists(self._pos_file):
                 with open(self._pos_file, "r") as f:
@@ -1395,20 +1386,10 @@ class TaskDetailsPopup(ctk.CTkToplevel):
         attachment_path = self.task_data.get("attachment_path")
         if attachment_path:
             import os
-            import sys
 
             if not os.path.exists(attachment_path):
                 filename = os.path.basename(attachment_path)
-                if getattr(sys, "frozen", False):
-                    base_dir = os.path.join(
-                        os.path.dirname(sys.executable), "database", "attachments"
-                    )
-                else:
-                    base_dir = os.path.join(
-                        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                        "database",
-                        "attachments",
-                    )
+                base_dir = str(data_root() / "database" / "attachments")
                 fallback_path = os.path.join(base_dir, filename)
                 if os.path.exists(fallback_path):
                     attachment_path = fallback_path

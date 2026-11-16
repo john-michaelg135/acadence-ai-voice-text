@@ -3,6 +3,8 @@
 A Windows desktop academic tracker built with CustomTkinter and SQLite. It manages
 subjects, task deadlines, priorities, completion history, and desktop notifications.
 
+All rights reserved; see [LICENSE](LICENSE).
+
 ## Run from source
 
 Use Python 3.10 or newer with Tcl/Tk installed, FFmpeg on PATH, and a microphone
@@ -92,3 +94,35 @@ credentials if distributed.
 Packaging includes PyTorch and can take several minutes. A completed build still
 needs a Windows launch and microphone/offline-model smoke test; see the audit for
 the results and limitations of the current environment.
+
+## Reproducible builds and releases
+
+For release work, use Python 3.13.7 and install the exact dependency lock:
+
+```powershell
+python -m pip install --require-hashes -r requirements.lock
+python scripts/check.py
+python build_exe.py --onefile
+python scripts/smoke.py dist/Acadence.exe
+python scripts/package_release.py
+```
+
+Windows release downloads are portable `.exe` files, with a slow initial extraction
+because the AI engine is bundled. No installer or administrator access is required.
+Native CI also targets macOS arm64 (`.app` in `.zip`) and Ubuntu x64 (`.deb`).
+These targets are release candidates until their CI build and smoke tests pass.
+Microphones, live providers, recovery email, and offline model inference still
+require manual checks. FFmpeg and Whisper model weights are external prerequisites.
+
+Packaged applications store data under `%LOCALAPPDATA%/Acadence` on Windows,
+`~/Library/Application Support/Acadence` on macOS, and
+`${XDG_DATA_HOME:-~/.local/share}/Acadence` on Linux. Source runs retain repository
+data paths. Existing portable installations are not migrated automatically:
+back up and copy their database, attachments, session, and encryption configuration
+before changing versions. Keep the same encryption secret for existing data.
+
+The version lives only in `app_version.py`. Changes flow through protected main
+via squash-merged PRs. Annotated `v*` tags trigger a draft-first workflow that
+publishes only after every platform asset and SHA256 checksum is present and
+verified. Owner approval is required before pushing the tag.
+See [release operations](docs/releases.md) and [contributing](CONTRIBUTING.md).

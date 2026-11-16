@@ -1,0 +1,20 @@
+name: Bug report
+description: Report a reproducible problem
+body:
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps, expected behavior, and actual behavior
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: App version, OS, and architecture
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Remove passwords, email addresses, tokens, and other private data.

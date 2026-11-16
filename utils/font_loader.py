@@ -1,6 +1,6 @@
 import os
 import ctypes
-import platform
+import sys
 import pathlib
 from utils.logger import logger
 
@@ -11,10 +11,8 @@ def load_fonts():
     Supports Windows only for now as per user OS version.
     Uses pathlib for safe path handling and validates against path traversal.
     """
-    if platform.system() != "Windows":
+    if sys.platform != "win32":
         return
-
-    import sys
 
     if getattr(sys, "frozen", False):
         bundle_dir = getattr(sys, "_MEIPASS", os.path.dirname(sys.executable))

@@ -2,10 +2,11 @@ import os
 import json
 import logging
 import tempfile
+from utils.app_paths import data_root
 
 _logger = logging.getLogger(__name__)
 
-SESSION_FILE = "session.json"
+SESSION_FILE = str(data_root() / "session.json")
 
 _DEFAULT_NOTIFICATION_SETTINGS = {
     "enabled": True,

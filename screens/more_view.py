@@ -2,6 +2,7 @@ import customtkinter as ctk
 from utils.theme_manager import ThemeManager
 import webbrowser
 from PIL import Image
+from app_version import __version__
 
 
 class MoreView(ctk.CTkFrame):
@@ -370,7 +371,7 @@ class MoreView(ctk.CTkFrame):
 
         ctk.CTkLabel(
             about_card,
-            text="Version 1.2.0",
+            text=f"Version {__version__}",
             font=(self.tm.main_font(), 12, "bold"),
             text_color=self.tm.accent_color(),
         ).pack(anchor="w", padx=20)

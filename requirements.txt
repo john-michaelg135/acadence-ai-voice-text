@@ -13,4 +13,4 @@ g4f
 openai-whisper
 setuptools-rust
 plyer
-win11toast
+win11toast; sys_platform == "win32"
